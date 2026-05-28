@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ボクサーFSM：状態と遷移の分類（たたき台）</title>
+<style>
+  :root{
+    --bg:#1e242b; --panel:#283039; --panel2:#2f3843; --line:#3a444f;
+    --txt:#e6edf3; --sub:#9aa7b2;
+    --base:#9aa7b2;      /* ベース */
+    --self:#6fd3a0;      /* 自発 */
+    --auto:#6fa8dc;      /* 自動(時間) */
+    --ext:#ff8f8f;       /* 外発(相手) */
+    --force:#c39be8;     /* 強制(審判/ルール) */
+    --accent:#e6c34a;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--txt);
+    font-family:"Segoe UI",system-ui,sans-serif; padding:20px; line-height:1.6;
+    max-width:1100px; margin:0 auto;
+  }
+  h1{ font-size:20px; margin:0 0 4px; color:var(--txt) }
+  .lead{ font-size:13px; color:var(--sub); margin:0 0 20px }
+  h2{ font-size:16px; margin:26px 0 10px; padding-left:10px; border-left:4px solid var(--accent); color:var(--txt) }
+  p{ font-size:13.5px; color:var(--txt) }
+  .muted{ color:var(--sub); font-size:12.5px }
+
+  /* きっかけ4分類の凡例 */
+  .legend{ display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:10px; margin:10px 0 6px }
+  .lg{ background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:10px 12px; border-left:5px solid var(--line) }
+  .lg.self{ border-left-color:var(--self) }
+  .lg.auto{ border-left-color:var(--auto) }
+  .lg.ext{ border-left-color:var(--ext) }
+  .lg.force{ border-left-color:var(--force) }
+  .lg b{ font-size:13.5px }
+  .lg .d{ font-size:12px; color:var(--sub); display:block; margin-top:3px }
+
+  /* 状態グループ */
+  .group{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin:12px 0; border-top:4px solid var(--line) }
+  .group.g-base{ border-top-color:var(--base) }
+  .group.g-self{ border-top-color:var(--self) }
+  .group.g-ext{ border-top-color:var(--ext) }
+  .group.g-force{ border-top-color:var(--force) }
+  .group h3{ margin:0 0 2px; font-size:15px }
+  .group .gsub{ font-size:11.5px; color:var(--sub); margin-bottom:10px }
+  .states{ display:flex; flex-wrap:wrap; gap:8px }
+  .st{ display:inline-flex; flex-direction:column; background:var(--panel2); border:1px solid var(--line);
+       border-radius:7px; padding:7px 11px; min-width:120px }
+  .st b{ font-size:13px }
+  .st small{ color:var(--sub); font-size:11px }
+  .st.s-base{ box-shadow:inset 3px 0 0 var(--base) }
+  .st.s-self{ box-shadow:inset 3px 0 0 var(--self) }
+  .st.s-ext{ box-shadow:inset 3px 0 0 var(--ext) }
+  .st.s-force{ box-shadow:inset 3px 0 0 var(--force) }
+
+  /* 被攻撃の解決フロー */
+  .resolve{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px; margin:12px 0 }
+  .flow{ display:flex; flex-wrap:wrap; align-items:stretch; gap:10px; margin-top:8px }
+  .evt{ background:#3a2a2a; border:1px solid var(--ext); color:#ffd7d7; border-radius:8px; padding:10px 12px; align-self:center; font-weight:700; min-width:120px; text-align:center }
+  .branches{ display:flex; flex-direction:column; gap:8px; flex:1; min-width:300px }
+  .branch{ display:flex; align-items:center; gap:8px; background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:9px 11px }
+  .branch .cond{ font-size:12px; color:var(--auto); min-width:170px }
+  .branch .arr{ color:var(--sub) }
+  .branch .res{ font-weight:700; font-size:13px }
+  .res.r-guard{ color:var(--self) }
+  .res.r-hit{ color:var(--ext) }
+  .res.r-counter{ color:#ff6b6b }
+
+  /* 意見ボックス */
+  .opinion{ background:#23303a; border:1px solid #355064; border-left:5px solid var(--auto); border-radius:8px; padding:12px 16px; margin:12px 0 }
+  .opinion h4{ margin:0 0 6px; font-size:13.5px; color:#bfe0ff }
+  .opinion p{ margin:6px 0; font-size:13px }
+  .opinion ul{ margin:6px 0; padding-left:20px; font-size:13px }
+  .opinion li{ margin:4px 0 }
+  .tag{ display:inline-block; font-size:10.5px; font-weight:700; padding:1px 7px; border-radius:9px; background:var(--auto); color:#0d1117; margin-right:6px }
+
+  table{ width:100%; border-collapse:collapse; font-size:12.5px; margin:8px 0 }
+  th,td{ padding:7px 9px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top }
+  th{ background:var(--panel2); color:var(--sub); font-weight:600 }
+  .future{ color:var(--force); font-size:11px; font-weight:700 }
+</style>
+</head>
+<body>
+
+  <h1>ボクサーFSM：状態と遷移の分類（たたき台）</h1>
+  <p class="lead">「状態」そのものではなく、まず<strong>“何がきっかけで状態が変わるか”</strong>で整理してみました。あなたの分類（ベース／自発／外発）をベースに、私の意見を足しています。</p>
+
+  <!-- ============ 1. 遷移のきっかけ 4分類 ============ -->
+  <h2>1. 遷移の「きっかけ」を4種類に分ける</h2>
+  <p>あなたは「自発」と「外発」を挙げてくれました。これに私は、見落としやすい2つ ——<strong>時間経過による自動遷移</strong>と<strong>審判・ルールによる強制遷移</strong>—— を足すことを提案します。この4つで、状態の出入りが全部説明できます。</p>
+
+  <div class="legend">
+    <div class="lg self">
+      <b>① 自発的遷移</b>（意思・入力）
+      <span class="d">本人が「やる」と決めて始める。移動・攻撃・ガードを構える・ガード解除。</span>
+    </div>
+    <div class="lg auto">
+      <b>② 自動遷移</b>（時間経過）
+      <span class="d">始めた動作がフレームを消化して次へ進む。始動→発生→硬直→待機、のけぞりF経過→待機 など。</span>
+    </div>
+    <div class="lg ext">
+      <b>③ 外発的遷移</b>（相手起因）
+      <span class="d">相手の行動で割り込まれる。今は「被攻撃」だけ。将来クリンチなど。</span>
+    </div>
+    <div class="lg force">
+      <b>④ 強制遷移</b>（審判・ルール・時間）
+      <span class="d">ルール側から強制される。ラウンド終了でコーナーへ、ダウン中のテンカウントでKO など。</span>
+    </div>
+  </div>
+  <p class="muted">※ ①は「自分の意思」、③は「相手の意思」、④は「第三者（審判・ルール）」、②は「誰の意思でもない時間の経過」。誰がきっかけを引くかで4分類、と捉えると迷いません。</p>
+
+  <!-- ============ 2. 状態を役割でグループ分け ============ -->
+  <h2>2. 状態を「役割」でグループ分け</h2>
+
+  <div class="group g-base">
+    <h3>ベース状態</h3>
+    <div class="gsub">何もしていなければここに戻ってくる中立点。すべての自発行動の出発点。</div>
+    <div class="states">
+      <div class="st s-base"><b>待機・構え</b><small>入力待ち</small></div>
+    </div>
+  </div>
+
+  <div class="group g-self">
+    <h3>自発行動の状態 <span class="muted">（①自発で入る）</span></h3>
+    <div class="gsub">本人の意思で入る。入ったあとは②自動遷移でフレームを消化して進む。</div>
+    <div class="states">
+      <div class="st s-self"><b>前進</b><small>移動</small></div>
+      <div class="st s-self"><b>後退</b><small>移動</small></div>
+      <div class="st s-self"><b>攻撃：始動</b><small>startup</small></div>
+      <div class="st s-self"><b>攻撃：発生</b><small>active</small></div>
+      <div class="st s-self"><b>攻撃：硬直</b><small>recovery</small></div>
+      <div class="st s-self"><b>ガード</b><small>防御の構え</small></div>
+    </div>
+  </div>
+
+  <div class="group g-ext">
+    <h3>被リアクションの状態 <span class="muted">（③外発の“結果”として入る）</span></h3>
+    <div class="gsub">相手の攻撃を受けた結果の状態。あなたの「被弾状態を分ける」案をここに反映しています。</div>
+    <div class="states">
+      <div class="st s-self"><b>ガード硬直</b><small>防御成功の結果</small></div>
+      <div class="st s-ext"><b>のけぞり（通常）</b><small>無防備で被弾</small></div>
+      <div class="st s-ext"><b>のけぞり（カウンター）</b><small>攻撃動作中に被弾</small></div>
+      <div class="st s-ext"><b>ダウン</b><small>規定ダメージ超過</small></div>
+      <div class="st s-ext"><b>立ち上がり</b><small>ダウンから復帰</small></div>
+    </div>
+  </div>
+
+  <div class="group g-force">
+    <h3>強制状態 <span class="future">将来</span> <span class="muted">（④強制で入る）</span></h3>
+    <div class="gsub">審判・ルール・時間によって、どの状態からでも強制的に飛ばされる。</div>
+    <div class="states">
+      <div class="st s-force"><b>インターバル / コーナー</b><small>ラウンド終了で強制休憩</small></div>
+      <div class="st s-force"><b>（クリンチ）</b><small>相互状態・要検討</small></div>
+    </div>
+  </div>
+
+  <!-- ============ 3. 被攻撃の解決 ============ -->
+  <h2>3. 「被弾状態を分ける」案 ＝ 1イベント × 文脈で結果が変わる</h2>
+  <p>あなたの「被弾状態ガード／ヒット／カウンターヒット」という案、私は<strong>状態を3つ最初から並べるより、“被攻撃”という1つのイベントが、受け手の今の状態によって違う結果に解決される</strong>、と捉えるのがきれいだと思います。きっかけは1本（相手の攻撃が届いた）で、行き先が文脈で変わる、という形です。</p>
+
+  <div class="resolve">
+    <div class="flow">
+      <div class="evt">外発イベント<br>「被攻撃」<br><small>相手の攻撃が届いた</small></div>
+      <div class="branches">
+        <div class="branch">
+          <span class="cond">自分が ガード中 なら</span><span class="arr">→</span>
+          <span class="res r-guard">ガード硬直（防御成功）</span>
+        </div>
+        <div class="branch">
+          <span class="cond">自分が 待機/移動/硬直 なら</span><span class="arr">→</span>
+          <span class="res r-hit">のけぞり（通常ヒット）</span>
+        </div>
+        <div class="branch">
+          <span class="cond">自分が 攻撃の始動/発生中 なら</span><span class="arr">→</span>
+          <span class="res r-counter">のけぞり（カウンター/相打ち）</span>
+        </div>
+      </div>
+    </div>
+    <p class="muted" style="margin-top:12px">つまり「被弾状態」は受け手のコンテキストの数だけ結果がある、ということ。あなたの直感（分けたほうがいい）は正しくて、分け方の軸は<strong>「受けた瞬間に自分が何をしていたか」</strong>です。</p>
+  </div>
+
+  <!-- ============ 4. 私の意見 ============ -->
+  <h2>4. 私の意見・提案</h2>
+
+  <div class="opinion">
+    <h4><span class="tag">提案1</span>「のけぞり通常」と「のけぞりカウンター」は、まず1状態＋強度パラメータで始める</h4>
+    <p>両方とも「のけぞっている」状態としては同じで、違うのは<strong>のけぞり時間やダメージの大きさ（量）</strong>です。量の違いだけなら、状態は<strong>のけぞり1つ</strong>にして、入るときに「強度（hitstun長さ・カウンター倍率）」を持たせるのが管理しやすい。</p>
+    <p>ただし、カウンターだけ<strong>質的に違う挙動</strong>（例：必ずよろけ＝別モーション、必ずダウン抽選に回る）を入れたくなったら、その時点で「カウンターのけぞり」を別状態に割るのがよいです。<strong>最初は割らない、必要になったら割る</strong>を勧めます。</p>
+  </div>
+
+  <div class="opinion">
+    <h4><span class="tag">提案2</span>「防御（ガード硬直）」は別状態のままが妥当</h4>
+    <p>のけぞり系と違い、防御成功は<strong>戻り先がガード</strong>（待機ではなく構えに戻る）で、ダメージ挙動も別。質的に違うので、独立した状態にしておくのが自然です。すでにそうなっているので、このままでOK。</p>
+  </div>
+
+  <div class="opinion">
+    <h4><span class="tag">提案3</span>クリンチは「被弾」と別カテゴリ。理由は“相互状態”だから</h4>
+    <p>被弾は受け手だけの状態ですが、クリンチは<strong>両者が同時に同じ状態に入る（相手の状態と絡む）</strong>のが本質です。1人のFSMでは表しきれない部分があるので、被弾と同じ箱に入れず、将来「相互状態（2体が関わる遷移）」という別カテゴリで扱うのを勧めます。</p>
+  </div>
+
+  <div class="opinion">
+    <h4><span class="tag">提案4</span>強制遷移（ラウンド終了など）は“どこからでも飛ぶ”ので、図ではなく規則で持つ</h4>
+    <p>ラウンド終了やテンカウントは、被攻撃と同じく<strong>どの状態にいても割り込んで強制的に飛ばす</strong>タイプです。これを図にすると全状態から矢印が伸びて、また見にくくなります。<strong>「全状態共通の割り込み規則」</strong>として表（または1行のルール）で持つのがきれいです。被攻撃も同じ扱いにできます。</p>
+  </div>
+
+  <div class="opinion">
+    <h4><span class="tag">まとめ</span>2軸で持つと迷わない</h4>
+    <ul>
+      <li><strong>軸A：きっかけ</strong>＝ ①自発 / ②自動(時間) / ③外発(相手) / ④強制(審判・ルール)</li>
+      <li><strong>軸B：状態の役割</strong>＝ ベース / 自発行動中 / 被リアクション / 強制</li>
+      <li>「被攻撃」と「強制」は<strong>全状態共通の割り込み</strong>として規則で持ち、図には描かない。</li>
+      <li>のけぞりは<strong>まず1状態＋強度</strong>。防御は別状態。カウンターは必要になったら割る。</li>
+    </ul>
+  </div>
+
+  <!-- ============ 5. 整理した遷移きっかけ表 ============ -->
+  <h2>5. きっかけ別の遷移一覧（参考）</h2>
+  <table>
+    <thead><tr><th>分類</th><th>きっかけ</th><th>主な遷移</th></tr></thead>
+    <tbody>
+      <tr><td style="color:var(--self)">①自発</td><td>攻撃入力 / 前進 / 後退 / ガード入力 / ガード解除</td><td>待機 → 各行動 ／ ガード → 待機</td></tr>
+      <tr><td style="color:var(--auto)">②自動(時間)</td><td>始動F / 発生F / 硬直F / 移動完了 / のけぞりF / ガード硬直F / ダウンカウント / 立ち上がり完了</td><td>行動の進行と終了（次フェーズ or 待機へ）</td></tr>
+      <tr><td style="color:var(--ext)">③外発(相手)</td><td>被攻撃（届いた）<span class="future"> ／ 将来:クリンチ</span></td><td>文脈で → 防御 / のけぞり / カウンター</td></tr>
+      <tr><td style="color:var(--force)">④強制</td><td>ラウンド終了 / テンカウント<span class="future"> ／ 将来:各種</span></td><td>全状態 → 休憩 / 終了(KO)</td></tr>
+    </tbody>
+  </table>
+
+  <p class="muted" style="margin-top:18px">これはあくまで分類のたたき台です。気になる粒度・呼び方・分け方があれば言ってください。合意できた形を、本体の図・表・カードにも反映します。</p>
+
+</body>
+</html>

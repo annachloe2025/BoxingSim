@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BoxingSim 段階5 Step A: 配管 + Identity Check 2026-05-27</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; padding: 18px 22px 60px;
+    background: #14181d; color: #d8dee6;
+    font-family: "Consolas", "SFMono-Regular", "Courier New", monospace;
+    font-size: 13px; line-height: 1.55;
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; color: #8fd3ff; }
+  .sub { color: #7c8794; margin: 0 0 14px; font-size: 12px; line-height: 1.7; }
+  .sub b { color: #d8dee6; font-weight: normal; }
+
+  .panel {
+    background: #1c2229; border: 1px solid #2c343d; border-radius: 8px;
+    padding: 12px 16px; margin-bottom: 14px;
+  }
+  .panel h2 {
+    font-size: 14px; margin: 0 0 10px; color: #8fd3ff; letter-spacing: .03em;
+    border-bottom: 1px solid #2c343d; padding-bottom: 6px;
+  }
+  .panel h3 { font-size: 12.5px; margin: 12px 0 6px; color: #aeb9c4; }
+  .panel h4 { font-size: 12px; margin: 10px 0 4px; color: #9aa7b4; font-weight: normal; }
+  .panel p { margin: 6px 0; }
+  .panel ul { margin: 6px 0 6px 18px; padding: 0; }
+  .panel ul li { padding: 1px 0; }
+  .panel ol { margin: 6px 0 6px 22px; padding: 0; }
+  .panel ol li { padding: 2px 0; }
+  code { color: #aeb9c4; background: #11161b; padding: 1px 4px; border-radius: 3px; font-size: 12px; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; margin: 6px 0; }
+  th, td { border: 1px solid #2c343d; padding: 5px 8px; text-align: center; vertical-align: top; }
+  th { color: #9aa7b4; font-weight: normal; background: #11161b; font-size: 11.5px; letter-spacing: .03em; }
+  td.lbl { text-align: left; color: #d8dee6; }
+  td.lblL { text-align: left; color: #d8dee6; }
+  td.num { color: #ffd27d; font-variant-numeric: tabular-nums; }
+  td.dim { color: #7c8794; text-align: left; }
+  td.hi { color: #5aafff; font-weight: bold; }
+  td.warn { color: #ff7d7d; font-weight: bold; }
+  td.ok { color: #6fd3a0; font-weight: bold; }
+  td.head { color: #8fd3ff; }
+
+  .formula {
+    background: #11161b; border-left: 3px solid #5aafff;
+    padding: 8px 12px; margin: 6px 0; border-radius: 4px;
+    font-size: 12.5px; color: #d8e6ff;
+  }
+  .formula em { color: #ffd27d; font-style: normal; }
+  .formula code { color: #aeb9c4; }
+
+  .note { font-size: 11.5px; color: #7c8794; line-height: 1.7; margin-top: 6px; }
+  .note b { color: #aeb9c4; font-weight: normal; }
+
+  .meta {
+    background: #1c2229; border-left: 3px solid #ffd27d; padding: 8px 12px;
+    border-radius: 4px; margin-bottom: 14px; font-size: 11.5px; color: #d8dee6; line-height: 1.7;
+  }
+  .meta a { color: #8fd3ff; text-decoration: none; }
+  .meta a:hover { text-decoration: underline; }
+
+  .pass-box {
+    background: #16221c; border: 2px solid #6fd3a0; border-radius: 6px;
+    padding: 12px 16px; margin: 10px 0;
+  }
+  .pass-box h3 { color: #6fd3a0; margin: 0 0 8px; font-size: 13.5px; }
+  .pass-box p { margin: 4px 0; font-size: 12px; }
+  .pass-box ul { margin: 6px 0 6px 22px; }
+  .pass-box ul li { padding: 2px 0; font-size: 12px; }
+  .pass-box code { color: #d8e6ff; }
+
+  .lesson-box {
+    background: #14202b; border: 2px solid #5aafff; border-radius: 6px;
+    padding: 12px 16px; margin: 10px 0;
+  }
+  .lesson-box h3 { color: #5aafff; margin: 0 0 8px; font-size: 13.5px; }
+  .lesson-box h4 { color: #8fd3ff; margin: 8px 0 4px; font-size: 12.5px; }
+  .lesson-box p { margin: 4px 0; font-size: 12px; }
+  .lesson-box ul { margin: 6px 0 6px 22px; }
+  .lesson-box ul li { padding: 2px 0; font-size: 12px; }
+
+  .basis-box {
+    background: #2a2418; border: 2px solid #ffd27d; border-radius: 6px;
+    padding: 12px 16px; margin: 10px 0;
+  }
+  .basis-box h3 { color: #ffd27d; margin: 0 0 8px; font-size: 13.5px; }
+  .basis-box table th { background: #1c1810; }
+
+  .change {
+    background: #11161b; border-left: 3px solid #5aafff; border-radius: 4px;
+    padding: 8px 12px; margin: 8px 0; font-size: 12px;
+  }
+  .change h4 { color: #8fd3ff; margin: 0 0 4px; font-size: 12.5px; }
+  .change p { margin: 4px 0; }
+
+  .footer { color: #7c8794; font-size: 11.5px; margin-top: 22px; line-height: 1.8; border-top: 1px solid #2c343d; padding-top: 12px; }
+  .footer a { color: #8fd3ff; text-decoration: none; }
+  .footer a:hover { text-decoration: underline; }
+  .footer ul { margin: 4px 0 4px 18px; padding: 0; }
+  .footer ul li { padding: 1px 0; }
+
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 10.5px; margin-left: 4px; }
+  .pill.pass { background: #6fd3a0; color: #14181d; }
+  .pill.noop { background: #2c343d; color: #aeb9c4; }
+  .pill.next { background: #ffce4d; color: #14181d; }
+  .pill.new { background: #5aafff; color: #14181d; }
+  .pill.hold { background: #aa6f4d; color: #14181d; }
+
+  .big { color: #ffd27d; font-weight: bold; font-size: 14px; }
+  .delta { color: #6fd3a0; font-weight: bold; }
+  .md5 { font-size: 13px; letter-spacing: .04em; }
+</style>
+</head>
+<body>
+  <h1>段階5 (ラウンドシステム + 判定システム) Step A: 配管 + Identity Check</h1>
+  <p class="sub">
+    実物ボクシングの試合構造（ラウンド／インターバル／採点／判定）を機械化する 3 段プラン (A/B/C) の <b>Step A</b> 完了レポート。
+    グローバル定数・UI 入力欄・state フィールド・<code>roundFrame</code> インクリメントを整備し、
+    <b>roundEnabled=false</b> 既定で <b>従来挙動 bit-identical</b> を達成した。
+    ラウンド境界・採点・判定は Step B / C で実装する。
+  </p>
+
+  <div class="meta">
+    <b>関連</b>:
+    <a href="2026-05-27-prediction-model-stepA.html">2026-05-27 段階4 (敵行動予測モデル) Step A</a> ／
+    <a href="2026-05-27-defensive-ai-stepA.html">2026-05-27 段階3 (α) Step A</a> ／
+    <a href="2026-05-27-current-state-analysis.html">2026-05-27 現状分析</a> ／
+    プラン: <code>~/.claude/plans/ai-gleaming-hollerith.md</code> 段階5 ／
+    <a href="../TASKS.md">TASKS.md</a> ／ <a href="../LOG.md">LOG.md</a>
+  </div>
+
+  <!-- ===== 1. 背景 ===== -->
+  <div class="panel">
+    <h2>1. 背景 — なぜ判定システムを機械化するのか</h2>
+
+    <p>
+      ユーザー指摘:
+    </p>
+    <div class="formula">
+      「ガードが多くなる問題は、ガードが問題ではなく、<em>ガードを崩す機構が無いこと</em>が問題」
+    </div>
+    <p>
+      実物ボクシングは「攻撃した側がポイントを取る」「ガードしているだけでは負ける」という
+      <b>判定システムによる構造的圧力</b>を持つ。
+      これを機械化することで <b>守備一辺倒 = ポイント負け</b> の代償が自動的に生じる。
+    </p>
+
+    <table>
+      <thead><tr><th>軸</th><th>本タスクの立ち位置</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="head">理念</td>
+          <td class="lblL">試合構造（ラウンド + 判定）を機械化するのが動機。
+            <b>「ガードへの代償」は副作用として出現</b>するもので、設計目的ではない</td>
+        </tr>
+        <tr>
+          <td class="head">スコープ</td>
+          <td class="lblL">A=配管 / B=ラウンド境界・インターバル / C=採点・判定。
+            ガード崩し他機構（B スタミナペナルティ / C ガードクラッシュ）は <b>保留 or 別段階</b></td>
+        </tr>
+        <tr>
+          <td class="head">関連既存実装</td>
+          <td class="lblL">D 上下強制2択（攻め側が head/body を選び、守り側はどちらか一方しか守れない）は
+            <b>既に実装済み相当</b>。本段階は累積層を載せる位置づけ</td>
+        </tr>
+        <tr>
+          <td class="head">段階4 との関係</td>
+          <td class="lblL">段階4 Step C (modelPrior UI) は <span class="pill hold">保留中</span>。
+            再開タイミングは段階5 完成後に判断</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="note">
+      Step A の役割は、過去の Step A（段階3 (α) / 段階4）と同じく、
+      <b>後段 (B/C) で挙動を動かしたときの差分が「Step B で動いた／Step C で動いた」と切り分けて読める</b>基準を作ること。
+      今回は <code>roundEnabled=false</code> 既定で従来挙動を完全保存する形に倒している。
+    </p>
+  </div>
+
+  <!-- ===== 2. 実装内容 ===== -->
+  <div class="panel">
+    <h2>2. 実装内容</h2>
+
+    <h3>2-1. <code>src/index.html</code> 変更箇所</h3>
+
+    <table>
+      <thead>
+        <tr>
+          <th>項目</th>
+          <th>行</th>
+          <th>内容</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="lblL">グローバル定数 <span class="pill new">新規</span></td>
+          <td class="dim">l.276-282</td>
+          <td class="lblL"><code>let ROUND_LENGTH=300, NUM_ROUNDS=3, INTERVAL_LENGTH=60, STAMINA_INTERVAL_REGEN=2.0, roundEnabled=false</code></td>
+        </tr>
+        <tr>
+          <td class="lblL">UI placeholder <span class="pill new">新規</span></td>
+          <td class="dim">l.158-160</td>
+          <td class="lblL"><code>&lt;div id="roundDisplay"&gt;</code> 追加（Step A では空文字描画）</td>
+        </tr>
+        <tr>
+          <td class="lblL">UI 入力欄 <span class="pill new">新規</span></td>
+          <td class="dim">l.235-243</td>
+          <td class="lblL">roundEnabled チェックボックス + 4 つの数値入力
+            （roundLength / numRounds / intervalLength / regenRate）</td>
+        </tr>
+        <tr>
+          <td class="lblL">initSim 拡張</td>
+          <td class="dim">l.368-377</td>
+          <td class="lblL">s に <code>round=1, roundFrame=0, matchPhase="active",
+            roundScores=[], roundStats={P,E:{clean,chip,blocks,counters}},
+            decision=null, ended=false</code> を追加</td>
+        </tr>
+        <tr>
+          <td class="lblL">stepSim 末尾</td>
+          <td class="dim">l.882</td>
+          <td class="lblL"><code>s.roundFrame = (s.roundFrame || 0) + 1</code></td>
+        </tr>
+        <tr>
+          <td class="lblL">render</td>
+          <td class="dim">l.893-895</td>
+          <td class="lblL"><code>roundDisplay.textContent = ""</code>（Step B 以降で本実装）</td>
+        </tr>
+        <tr>
+          <td class="lblL">build()</td>
+          <td class="dim">l.1363-1369</td>
+          <td class="lblL">UI から定数を読み取り、let で上書き</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>2-2. <code>tools/verify.js</code> 変更箇所</h3>
+
+    <table>
+      <thead>
+        <tr>
+          <th>項目</th>
+          <th>行</th>
+          <th>内容</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="lblL">ELEM stub 追加 <span class="pill new">新規</span></td>
+          <td class="dim">l.19-23</td>
+          <td class="lblL">5 ID 追加: <code>roundEnabled</code>(checked:false), <code>roundLength</code>,
+            <code>numRounds</code>, <code>intervalLength</code>, <code>regenRate</code>。
+            <b>R6 教訓どおり最初から登録</b></td>
+        </tr>
+        <tr>
+          <td class="lblL">runMatch 戻り値</td>
+          <td class="dim">l.284</td>
+          <td class="lblL"><code>rounds: s.roundScores || []</code> を追加（Step A では常に空配列）</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ===== 3. パラメータ既定値の根拠 ===== -->
+  <div class="panel">
+    <h2>3. パラメータ既定値の根拠</h2>
+
+    <div class="basis-box">
+      <h3>定数の選定理由（プラン外で勝手に決めていない、設計根拠ベース）</h3>
+      <table>
+        <thead>
+          <tr><th>定数</th><th>既定値</th><th>根拠</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="head">ROUND_LENGTH</td>
+            <td class="num"><span class="big">300F</span></td>
+            <td class="lblL">既存 <code>MAX_FRAME=800</code> と同オーダー（3R × 300F = 900F）。
+              現状の試合長感覚に合う最短ラウンド長。UI から変更可</td>
+          </tr>
+          <tr>
+            <td class="head">NUM_ROUNDS</td>
+            <td class="num"><span class="big">3</span></td>
+            <td class="lblL">多数決判定が成立する <b>奇数の最小値</b>。
+              アマチュアボクシング 3R 相当</td>
+          </tr>
+          <tr>
+            <td class="head">INTERVAL_LENGTH</td>
+            <td class="num"><span class="big">60F</span></td>
+            <td class="lblL">スタミナ回復に充てるインターバル尺。
+              ラウンド長 300F の 1/5 で実物の 1R:60s / インターバル:60s に近い比率</td>
+          </tr>
+          <tr>
+            <td class="head">STAMINA_INTERVAL_REGEN</td>
+            <td class="num"><span class="big">2.0/F</span></td>
+            <td class="lblL">60F × 2.0 = +120 で <b>スタミナ上限 100 に対し実質完全回復</b>。
+              「インターバルで完全に整える」設計</td>
+          </tr>
+          <tr>
+            <td class="head">roundEnabled</td>
+            <td class="num">false</td>
+            <td class="lblL">Step A は <b>従来挙動の完全保存</b>が目的のため既定 off。
+              Step B 着手時に既定 on へ切替</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="note">
+      数値は実物ボクシングの構造（奇数ラウンド・インターバルでの回復）から逆算したもので、
+      「結論ありきの調整」ではない。性格パラメータと交互作用したときの実バランスは
+      Step B/C 完成後に観測ベースで再評価する。
+    </p>
+  </div>
+
+  <!-- ===== 4. Identity Check 結果 ===== -->
+  <div class="panel">
+    <h2>4. Identity Check 結果</h2>
+
+    <div class="pass-box">
+      <h3>PASS（完全 bit-identical）</h3>
+      <p>編集前 vs 編集後 verify.js 出力（MT=0）の <b>MD5 完全一致</b>:</p>
+      <p style="text-align:center;" class="md5">
+        <code>81eb68488e55b9902d1010da41d7dd71</code>
+      </p>
+      <ul>
+        <li><code>roundEnabled=false</code> 既定 → 新規 UI 入力欄が <b>build() で無視される</b>（実質 no-op）</li>
+        <li>新規 state フィールド (<code>round, roundFrame, matchPhase, roundScores, roundStats, decision, ended</code>) は
+          <b>scoreActions / 接触判定 / ダメージ処理から参照されていない</b></li>
+        <li>stepSim 末尾の <code>s.roundFrame++</code> は単なるカウンタで副作用なし
+          （後段で <code>&gt;= ROUND_LENGTH</code> 判定に使う準備）</li>
+        <li>verify.js 戻り値に新規 <code>rounds</code> キーが乗るが、Identity 比較対象の集計には使われていない</li>
+        <li>Math.random 不使用 → 確定的</li>
+      </ul>
+    </div>
+
+    <p class="note">
+      段階3 (α) / 段階4 と同じく「配管を済ませてから式を変える」流儀。
+      Step B で <code>endRound</code> / <code>stepInterval</code> を有効化した瞬間に
+      初めて出力差分が出る — それが <b>「Step B によって生じた差」だと確定的に切り分けられる</b>。
+    </p>
+  </div>
+
+  <!-- ===== 5. R6 突合結果 ===== -->
+  <div class="panel">
+    <h2>5. R6 突合結果 — UI ID と ELEM stub の整合</h2>
+
+    <p>
+      段階3 (α) Step C で発覚した「verify.js ELEM stub への登録漏れが NaN 化を招く」バグ (R6) の予防。
+      <b>新規 UI 追加時は最初から ELEM stub に登録 + build() 突合チェック</b>を必須化している。
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>UI ID</th>
+          <th>build() 参照</th>
+          <th>ELEM stub 登録</th>
+          <th>整合</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="head">roundEnabled</td>
+          <td class="dim">checkbox.checked</td>
+          <td class="dim">checked: false</td>
+          <td class="ok">OK</td>
+        </tr>
+        <tr>
+          <td class="head">roundLength</td>
+          <td class="dim">num()</td>
+          <td class="dim">value: 300</td>
+          <td class="ok">OK</td>
+        </tr>
+        <tr>
+          <td class="head">numRounds</td>
+          <td class="dim">num()</td>
+          <td class="dim">value: 3</td>
+          <td class="ok">OK</td>
+        </tr>
+        <tr>
+          <td class="head">intervalLength</td>
+          <td class="dim">num()</td>
+          <td class="dim">value: 60</td>
+          <td class="ok">OK</td>
+        </tr>
+        <tr>
+          <td class="head">regenRate</td>
+          <td class="dim">num()</td>
+          <td class="dim">value: 2.0</td>
+          <td class="ok">OK</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="note">
+      新規 5 ID すべて <b>最初から ELEM stub に登録</b>。
+      build() の <code>num()</code> 呼び出しと stub の value、checkbox の checked プロパティが
+      正しく対応している。<b>段階3 (α) Step C のバグ再発なし</b>。
+    </p>
+  </div>
+
+  <!-- ===== 6. 教訓・予防策 ===== -->
+  <div class="panel">
+    <h2>6. 教訓・予防策</h2>
+
+    <div class="lesson-box">
+      <h3>R6 verify.js ELEM stub バグの予防（再掲・継続適用）</h3>
+      <p>
+        段階3 (α) Step C で発覚した既存バグの教訓に基づき、段階4 Step A から
+        「新規 UI 追加時は最初から ELEM stub に登録 + build() 突合チェック」を必須化している。
+        今回も <b>5 ID 全件登録済み</b>で着手し、build() との突合まで実施した。
+      </p>
+      <ul>
+        <li>新規 UI ID: 5 件 全件登録</li>
+        <li>build() 内 <code>num()</code> 呼び出しと突合 → 整合確認</li>
+        <li>Step B でラウンド表示用の UI を追加するときも、同じ突合を <b>必ず実施</b></li>
+      </ul>
+
+      <h4>R5 Identity Check 失敗の予防</h4>
+      <p>
+        新規 state フィールドの初期化と stepSim 末尾の <code>roundFrame++</code> は
+        <b>Math.random 不使用</b>で完全に確定的。
+        Identity Check は MD5 比較で発覚するため、ここに乱数が混じった瞬間 PASS が崩れる。
+        今回も <code>roundEnabled=false</code> 既定で従来経路を一切踏まない構造により PASS。
+      </p>
+    </div>
+  </div>
+
+  <!-- ===== 7. 次のステップ予告 ===== -->
+  <div class="panel">
+    <h2>7. 次のステップ（プラン外の予告）</h2>
+
+    <table>
+      <thead><tr><th>Step</th><th>内容</th><th>変える箇所</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="head">B</td>
+          <td class="lblL">
+            <b>ラウンド境界 + インターバル + UI</b><br>
+            ・<code>roundEnabled=true</code> 既定化<br>
+            ・<code>s.roundFrame &gt;= ROUND_LENGTH</code> で <code>endRound(s)</code> 呼出（部分リセット）<br>
+            ・<code>stepInterval(s)</code> でスタミナ +2.0/F、AI スキップ、
+              <code>predictedCounts</code> の decay も停止（R2 対策）<br>
+            ・HP 持ち越し、predictedCounts 持ち越し、フレーム状態リセット、x 初期位置に戻す<br>
+            ・UI で「R2/3 残り 145F」「休憩中 残り 35F」表示
+          </td>
+          <td class="dim">stepSim / 新規 endRound / stepInterval / render</td>
+        </tr>
+        <tr>
+          <td class="head">C</td>
+          <td class="lblL">
+            <b>採点 + 判定 + 最終結果表示</b><br>
+            ・<code>scoreRound</code>: clean + 0.3×chip で 10-9 / 10-8 / 10-10 判定<br>
+            ・<code>computeDecision</code>: 累計ポイント比較で最終判定<br>
+            ・「攻撃した側がポイントを取る」が機械的に成立 →
+              <b>守備一辺倒 = ポイント負けの構造的代償</b>が自動的に立ち上がる
+          </td>
+          <td class="dim">新規 scoreRound / computeDecision / 最終結果 UI</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="note">
+      段階4 Step C (modelPrior UI) は <span class="pill hold">保留中</span>。
+      段階5 完成後に再開判断を行う。
+      段階5 完成時点で「ガードを崩す機構」B/C（スタミナペナルティ／ガードクラッシュ）の必要性も
+      実測ベースで再評価できる状態になる。
+    </p>
+  </div>
+
+  <div class="footer">
+    <b>参照ファイル</b>
+    <ul>
+      <li><code>src/index.html</code> —
+        グローバル定数 (l.276-282) ／
+        UI placeholder (l.158-160) ／
+        UI 入力欄 (l.235-243) ／
+        initSim (l.368-377) ／
+        stepSim 末尾 (l.882) ／
+        render (l.893-895) ／
+        build() (l.1363-1369)</li>
+      <li><code>tools/verify.js</code> —
+        ELEM stub 追加 (l.19-23) ／
+        runMatch 戻り値 (l.284)</li>
+      <li>プラン: <code>~/.claude/plans/ai-gleaming-hollerith.md</code> 段階5</li>
+      <li><a href="2026-05-27-prediction-model-stepA.html">reports/2026-05-27-prediction-model-stepA.html</a>（直前の Step A、構成参考）</li>
+      <li><a href="2026-05-27-defensive-ai-stepA.html">reports/2026-05-27-defensive-ai-stepA.html</a>（同流儀の先例）</li>
+      <li><a href="2026-05-27-current-state-analysis.html">reports/2026-05-27-current-state-analysis.html</a></li>
+      <li><a href="../TASKS.md">TASKS.md</a> ／ <a href="../LOG.md">LOG.md</a></li>
+    </ul>
+  </div>
+
+</body>
+</html>

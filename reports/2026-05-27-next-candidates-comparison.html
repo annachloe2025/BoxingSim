@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>次候補比較 — 段階5 配管完成後の選択肢 2026-05-27</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; padding: 18px 22px 60px;
+    background: #14181d; color: #d8dee6;
+    font-family: "Consolas", "SFMono-Regular", "Courier New", monospace;
+    font-size: 13px; line-height: 1.55;
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; color: #8fd3ff; }
+  .sub { color: #7c8794; margin: 0 0 14px; font-size: 12px; line-height: 1.7; }
+  .sub b { color: #d8dee6; font-weight: normal; }
+
+  .panel {
+    background: #1c2229; border: 1px solid #2c343d; border-radius: 8px;
+    padding: 12px 16px; margin-bottom: 14px;
+  }
+  .panel h2 {
+    font-size: 14px; margin: 0 0 10px; color: #8fd3ff; letter-spacing: .03em;
+    border-bottom: 1px solid #2c343d; padding-bottom: 6px;
+  }
+  .panel h3 { font-size: 12.5px; margin: 12px 0 6px; color: #aeb9c4; }
+  .panel h4 { font-size: 12px; margin: 10px 0 4px; color: #9aa7b4; font-weight: normal; }
+  .panel p { margin: 6px 0; }
+  .panel ul { margin: 6px 0 6px 18px; padding: 0; }
+  .panel ul li { padding: 1px 0; }
+  .panel ol { margin: 6px 0 6px 22px; padding: 0; }
+  .panel ol li { padding: 2px 0; }
+  code { color: #aeb9c4; background: #11161b; padding: 1px 4px; border-radius: 3px; font-size: 12px; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; margin: 6px 0; }
+  th, td { border: 1px solid #2c343d; padding: 5px 8px; text-align: center; vertical-align: top; }
+  th { color: #9aa7b4; font-weight: normal; background: #11161b; font-size: 11.5px; letter-spacing: .03em; }
+  td.lbl { text-align: left; color: #d8dee6; }
+  td.lblL { text-align: left; color: #d8dee6; }
+  td.num { color: #ffd27d; font-variant-numeric: tabular-nums; }
+  td.dim { color: #7c8794; text-align: left; }
+  td.hi { color: #5aafff; font-weight: bold; }
+  td.warn { color: #ff7d7d; font-weight: bold; }
+  td.ok { color: #6fd3a0; font-weight: bold; }
+  td.head { color: #8fd3ff; }
+  td.amber { color: #ffb066; font-weight: bold; }
+
+  .quote {
+    background: #11161b; border-left: 3px solid #ffd27d;
+    padding: 8px 12px; margin: 6px 0; border-radius: 4px;
+    font-size: 12.5px; color: #d8e6ff;
+  }
+  .quote em { color: #ffd27d; font-style: normal; }
+
+  .note { font-size: 11.5px; color: #7c8794; line-height: 1.7; margin-top: 6px; }
+  .note b { color: #aeb9c4; font-weight: normal; }
+
+  .meta {
+    background: #1c2229; border-left: 3px solid #ffd27d; padding: 8px 12px;
+    border-radius: 4px; margin-bottom: 14px; font-size: 11.5px; color: #d8dee6; line-height: 1.7;
+  }
+  .meta a { color: #8fd3ff; text-decoration: none; }
+  .meta a:hover { text-decoration: underline; }
+
+  .good-box {
+    background: #16221c; border: 2px solid #6fd3a0; border-radius: 6px;
+    padding: 10px 14px; margin: 10px 0;
+  }
+  .good-box h3 { color: #6fd3a0; margin: 0 0 6px; font-size: 13px; }
+  .good-box ul li { padding: 2px 0; font-size: 12px; }
+
+  .bad-box {
+    background: #22171a; border: 2px solid #ff7d7d; border-radius: 6px;
+    padding: 10px 14px; margin: 10px 0;
+  }
+  .bad-box h3 { color: #ff7d7d; margin: 0 0 6px; font-size: 13px; }
+  .bad-box ul li { padding: 2px 0; font-size: 12px; }
+
+  .warn-box {
+    background: #2a1f13; border: 2px solid #ffb066; border-radius: 6px;
+    padding: 10px 14px; margin: 10px 0;
+  }
+  .warn-box h3 { color: #ffb066; margin: 0 0 6px; font-size: 13px; }
+  .warn-box ul li { padding: 2px 0; font-size: 12px; }
+
+  .info-box {
+    background: #11202b; border: 2px solid #5aafff; border-radius: 6px;
+    padding: 10px 14px; margin: 10px 0;
+  }
+  .info-box h3 { color: #5aafff; margin: 0 0 6px; font-size: 13px; }
+  .info-box p { margin: 4px 0; font-size: 12px; }
+  .info-box ul li { padding: 2px 0; font-size: 12px; }
+
+  .cand {
+    background: #11161b; border: 1px solid #2c343d; border-radius: 6px;
+    padding: 10px 14px; margin: 10px 0;
+  }
+  .cand.c1 { border-left: 4px solid #6fd3a0; }
+  .cand.c2 { border-left: 4px solid #ffd27d; }
+  .cand.c3 { border-left: 4px solid #5aafff; }
+  .cand.c4 { border-left: 4px solid #b48aff; }
+  .cand.c5 { border-left: 4px solid #ffb066; }
+  .cand h3 { font-size: 13px; margin: 0 0 6px; color: #e8edf3; }
+  .cand h3 .tag {
+    display: inline-block; font-size: 10.5px; padding: 1px 7px;
+    border-radius: 999px; margin-left: 6px; color: #14181d;
+  }
+  .cand.c1 h3 .tag { background: #6fd3a0; }
+  .cand.c2 h3 .tag { background: #ffd27d; }
+  .cand.c3 h3 .tag { background: #5aafff; }
+  .cand.c4 h3 .tag { background: #b48aff; }
+  .cand.c5 h3 .tag { background: #ffb066; }
+  .cand h4 { margin: 8px 0 4px; font-size: 12px; color: #aeb9c4; font-weight: normal; }
+  .cand p { margin: 4px 0; font-size: 12px; }
+  .cand ul { margin: 4px 0 4px 18px; padding: 0; font-size: 12px; }
+  .cand ul li { padding: 1px 0; }
+  .cand code { font-size: 11.5px; }
+
+  .footer { color: #7c8794; font-size: 11.5px; margin-top: 22px; line-height: 1.8; border-top: 1px solid #2c343d; padding-top: 12px; }
+  .footer a { color: #8fd3ff; text-decoration: none; }
+  .footer a:hover { text-decoration: underline; }
+  .footer ul { margin: 4px 0 4px 18px; padding: 0; }
+  .footer ul li { padding: 1px 0; }
+
+  .decision {
+    background: #1c2229; border: 2px dashed #ffd27d; border-radius: 6px;
+    padding: 10px 14px; margin: 10px 0; font-size: 12px;
+  }
+  .decision b { color: #ffd27d; }
+</style>
+</head>
+<body>
+  <h1>次候補比較 — 段階5 配管完成後の選択肢</h1>
+  <p class="sub">
+    段階5（ラウンドシステム + 判定）の配管完成を節目に、次に積む機構の候補を整理する。
+    本レポートは<b>機械的に観察された事実とその構造的解釈</b>を並べるためのもので、
+    <b>方向の決定はユーザー判断に委ねる</b>。推奨は強く出さず、選択軸の提示にとどめる。
+  </p>
+
+  <div class="decision">
+    <b>このレポートの目的</b>: 5 候補（採点係数調整 / HP 残存率算入 / ガード崩し攻撃 C / 段階4 Step C / lag 再決定）を、
+    動機・期待効果・依存・工数感・リスク・理念整合の軸で比較する。
+    <b>決定は保留中</b>。本レポートは判断材料の整理であり、選択そのものは行わない。
+  </div>
+
+  <div class="meta">
+    <b>関連</b>:
+    <a href="2026-05-27-round-system-stepC-complete.html">段階5 Step C 完成 + 総括</a> ／
+    <a href="2026-05-27-round-system-stepB.html">段階5 Step B ラウンド境界</a> ／
+    <a href="2026-05-27-prediction-model-stepB.html">段階4 Step B 予測モデル soft 化</a> ／
+    <a href="2026-05-27-defensive-ai-stepC-complete.html">段階3 (α) 守備 AI 完成</a> ／
+    <a href="2026-05-27-current-state-analysis.html">2026-05-27 現状分析</a> ／
+    <a href="../TASKS.md">TASKS.md</a> ／ <a href="../LOG.md">LOG.md</a>
+  </div>
+
+  <!-- ===== 1. 現在地（段階5 配管完成後に機械的に判明している事実） ===== -->
+  <div class="panel">
+    <h2>1. 現在地（段階5 配管完成後）</h2>
+
+    <p>
+      段階5（ラウンドシステム + 判定システム）は <b>Step A/B/C すべて完成</b>。
+      配管は動作し、設計目標は<b>部分達成</b>。次の方向を決めるための基準点として、機械的に観察された事実を抽出する。
+    </p>
+
+    <h3>配管側の達成（Step C 完成レポート由来）</h3>
+    <table>
+      <thead>
+        <tr><th>項目</th><th>観測値</th><th>意味</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="head">Identity Fallback</td>
+          <td class="ok">PASS</td>
+          <td class="lblL"><code>roundEnabled=false</code> で Step B baseline <code>021cb52050c855823089c9b9cd360129</code> と MD5 完全一致</td>
+        </tr>
+        <tr>
+          <td class="head">時間切れ</td>
+          <td class="ok">全シナリオ 0/50</td>
+          <td class="lblL">ラウンド境界での部分リセットが停滞ループを解消</td>
+        </tr>
+        <tr>
+          <td class="head">スイートスポット (3/5)</td>
+          <td class="ok">維持</td>
+          <td class="lblL">KO 中央 434F、5基準のうち 4/5 ◯</td>
+        </tr>
+        <tr>
+          <td class="head">5劇の再現性</td>
+          <td class="ok">①②③④ 完全 / ⑤ 限定</td>
+          <td class="lblL">①攻防成立 ②カウンター応酬 ③スタ 0F 粘り ④chip 崩し は維持。⑤判定経由の逆転は配管動作するが lag=0/0 中心</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>機械的に表面化した不整合</h3>
+    <table>
+      <thead>
+        <tr><th>項目</th><th>観測値</th><th>意味</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="amber">判定到達率</td>
+          <td class="warn">lag=2/4 以降 ほぼ 0%</td>
+          <td class="lblL">判定システムが意味を持つ条件が狭い。lag=0/0 / 1/2 / 両守備 3/5 のみ判定発火</td>
+        </tr>
+        <tr>
+          <td class="amber">判定発生条件下の勝敗</td>
+          <td class="warn">守備寄りが勝ち越し</td>
+          <td class="lblL">非対称 0/0 で P=7 / E=15、両守備 3/5 で P=4 / E=0（n=4）。設計目標「守備一辺倒で判定負け」と機械的に逆方向</td>
+        </tr>
+        <tr>
+          <td class="amber">chip 係数 0.3</td>
+          <td class="warn">弱い</td>
+          <td class="lblL">両守備 3/5 で chip=207 あるが累計 score に効きが薄い。「有効打 = clean + 0.3×chip」の chip 寄与が圧倒的に小</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="info-box">
+      <h3>構造的解釈</h3>
+      <p>
+        <b>「ガード過多の根本は『ガードを崩す機構が無いこと』」</b>（2026-05-27 ユーザー設計洞察、LOG.md 参照）。
+        段階5 で「判定」という代償構造は組まれたが、現状では (a) 判定に到達する前に KO で決着、または
+        (b) 到達しても守備側が勝つ、の二重不整合が観察された。
+        判定システムは<b>配管としては動作</b>し、<b>代償としては機械的に弱い</b>。
+        次の手はこの非対称を埋める方向（判定の重みを増やす／別の代償機構を加える／知覚側を進化させて KO 決着を緩和する／lag 既定値を見直す）になる。
+      </p>
+    </div>
+  </div>
+
+  <!-- ===== 2. 候補比較表 ===== -->
+  <div class="panel">
+    <h2>2. 5 候補の比較表</h2>
+
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 14%;">候補</th>
+          <th>何をする</th>
+          <th>動機</th>
+          <th>期待効果</th>
+          <th>依存・前提</th>
+          <th>工数感</th>
+          <th>リスク</th>
+          <th>理念整合</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="head"><b>① 採点係数調整</b></td>
+          <td class="lblL">scoreRound の chip 重み 0.3 → 0.5〜1.0、10-8 閾値変更</td>
+          <td class="lblL">段階5 残課題。<b>設計目標未達への直接調整</b>。配管に乗っている数値のみ</td>
+          <td class="lblL">「守備一辺倒で判定負け」が成立する側に倒れる可能性。判定発火条件下の勝敗が変わる</td>
+          <td class="dim">段階5 配管（完成済）。新機構なし</td>
+          <td class="ok">小（数値 2-3 個）</td>
+          <td class="lblL">chip 寄与が過大になると攻撃側が殴り合うインセンティブを失う恐れ。10-8 閾値が緩いと判定一辺倒</td>
+          <td class="lblL">「結果を見て係数を調整」は機械的観察に基づく正攻法。理念整合 ◯</td>
+        </tr>
+        <tr>
+          <td class="head"><b>② HP 残存率算入</b></td>
+          <td class="lblL">scoreRound に HP 残存率を係数として算入</td>
+          <td class="lblL">段階5 残課題。<b>判定発火条件拡張</b>。「KO 寸前まで耐えた」を判定 score に反映</td>
+          <td class="lblL">守備過多で chip 大量被弾しても HP 残ってれば点になる構造。判定の意味範囲が広がる</td>
+          <td class="dim">段階5 配管 + HP 観測（既存）</td>
+          <td class="ok">小〜中（採点式拡張）</td>
+          <td class="lblL">HP と clean が二重カウントになる恐れ（clean は既に HP を削る）。重み設計が必要</td>
+          <td class="lblL">実物の判定は「ダメージ蓄積 + 印象」。HP 残存率はその近似。理念整合 ◯</td>
+        </tr>
+        <tr>
+          <td class="head"><b>③ ガード崩し攻撃 C</b></td>
+          <td class="lblL">ガードクラッシュ攻撃（新 MOVES、ガード時に大きなのけぞり等を与える）</td>
+          <td class="lblL">「次の段階候補」筆頭。段階5 が「足りない」を機械的に裏付けた<b>次の自然な候補</b></td>
+          <td class="lblL">守備姿勢に直接の代償。攻撃側の「ガード崩し」選択肢が増える。実物のクラッシュ系に対応</td>
+          <td class="dim">段階5 配管 + 新 MOVES 追加（仕様検討必要）</td>
+          <td class="warn">中〜大（新機構、仕様 → 実装 → 検証）</td>
+          <td class="lblL">クラッシュが強すぎると「守備不能」、弱いと無視される。chipRatio 強ストレートと役割重複の恐れ</td>
+          <td class="lblL">実物の代償構造を機械化。<b>理念整合の本質的方向</b>（feedback-mechanics-first-fun-emerges）</td>
+        </tr>
+        <tr>
+          <td class="head"><b>④ 段階4 Step C</b></td>
+          <td class="lblL">modelPrior 設定 UI + modelDecay 調整 + 性格との交互作用観察</td>
+          <td class="lblL">段階4 配管は Step B まで完成（MT=0.3 既定）。<b>保留中の継続</b></td>
+          <td class="lblL">予測モデルの精度・運用幅の拡大。「スカウト + 試合中読み更新」の機械化深化</td>
+          <td class="dim">段階4 Step A/B 配管（完成済）</td>
+          <td class="ok">小〜中（UI + 観測）</td>
+          <td class="lblL">予測モデルが守備偏重を強める可能性（α R3 / Step B 観察）。段階5 の判定到達率をさらに下げる恐れ</td>
+          <td class="lblL">「実物ボクサーが何を予測してるか」を機械化、理念整合 ◯。ただし段階5 残課題と直交的</td>
+        </tr>
+        <tr>
+          <td class="head"><b>⑤ lag 既定値再決定</b></td>
+          <td class="lblL">presenceLag / detailLag の既定値を変更（verifier 推奨 第1: p=2/d=4、第2: p=3/d=5、補助: p=1/d=2）</td>
+          <td class="lblL">α 段階からの<b>繰越課題</b>。MT=0.3 でも block/clean=0.26 と低い</td>
+          <td class="lblL">「判定到達」のシナリオを広げる可能性。lag=0/0 ⇄ lag>=2/4 の二極化が緩和されるか</td>
+          <td class="dim">既定値変更のみ。配管変更なし</td>
+          <td class="ok">極小（PERS 既定値1組変更）</td>
+          <td class="lblL">既定値変更は影響範囲が広い（過去レポートの観測値が再現できなくなる）。慎重な比較が必要</td>
+          <td class="lblL">数値の選び直しは観察ベースで実施可能。理念整合 ◯ だが本質的方向ではない</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ===== 3. 候補ごとの詳細 ===== -->
+  <div class="panel">
+    <h2>3. 候補ごとの詳細</h2>
+
+    <!-- 候補 1 -->
+    <div class="cand c1">
+      <h3>① 採点係数調整 <span class="tag">段階5 残課題</span></h3>
+      <p>
+        scoreRound 関数（<code>src/index.html:802</code>）の数値を調整する。
+        段階5 配管は完成しているため、機構の追加は不要。
+        段階5 Step C 完成レポートで「chip 係数 0.3 が弱い」「10-8 閾値が緩い」が機械的に観察済み。
+      </p>
+
+      <h4>何を機械的に変えるか</h4>
+      <ul>
+        <li><b>chip 重み 0.3 → 0.5〜1.0</b>: scoreRound 内の <code>clean + 0.3 × chip</code> の係数を引き上げ。
+          段階5 観測で chip=207（両守備 3/5）あっても判定に効かなかった構造への直接修正</li>
+        <li><b>10-8 閾値変更</b>: 現状「差 &lt; 1 で 10-10、差 &lt; 10 で 10-9、それ以上で 10-8」。
+          差の閾値を狭める（e.g. 10-8 は差 &gt; 5）と決定的ラウンドが増え、判定の重みが上がる</li>
+        <li><b>10-10 閾値の調整</b>: 差 &lt; 1 は厳しすぎる可能性。差 &lt; 2 や &lt; 3 にすると引き分けラウンドが増える</li>
+      </ul>
+
+      <h4>期待される観察（verify.js）</h4>
+      <ul>
+        <li>判定発生条件下の P:E 比率が逆転 or 均衡化する可能性</li>
+        <li>守備寄りシナリオで chip 蓄積による「判定負け」が機械的に発火する可能性</li>
+        <li>判定到達率は変わらない（KO 決着率は採点に依存しない）</li>
+      </ul>
+
+      <h4>リスク・前提</h4>
+      <ul>
+        <li><b>chip 過大化</b>: clean を打つ意味が薄れ「強ストレートで chip 削り合戦」になる恐れ</li>
+        <li><b>閾値変更の連鎖効果</b>: 10-8 を出やすくすると、ラウンド毎の差が累積して判定一辺倒になる</li>
+        <li>判定到達率自体は改善しない。lag=2/4 以降の KO 決着率は不変</li>
+      </ul>
+
+      <h4>次に何が立ち上がる見込みか</h4>
+      <p>
+        「守備一辺倒で判定負け」が成立した場合、AI の scoreActions に対して守備偏重ペナルティが間接的に機械化される。
+        その結果として段階4 Step B の MT 高守備過多や α R3（両守備型ガ切替過多）が緩和される可能性がある。
+        ただし、これは間接効果であり、根本機構（ガード崩し）の代替にはならない。
+      </p>
+    </div>
+
+    <!-- 候補 2 -->
+    <div class="cand c2">
+      <h3>② HP 残存率の採点算入 <span class="tag">段階5 残課題</span></h3>
+      <p>
+        scoreRound に HP 残存率を係数または加点として算入する。
+        判定発火条件の拡張で、「KO 寸前まで耐えた」状況を判定 score に反映する。
+      </p>
+
+      <h4>何を機械的に変えるか</h4>
+      <ul>
+        <li>scoreRound に <code>hpDelta = (s.E.hp - s.P.hp) × hpWeight</code> 相当を導入</li>
+        <li>または各ラウンド終了時の HP 差をスコアに加算（重み未決定）</li>
+        <li>roundScores の構造を <code>{pPoint, ePoint, pHp, eHp}</code> に拡張</li>
+      </ul>
+
+      <h4>期待される観察（verify.js）</h4>
+      <ul>
+        <li>守備寄りで chip 大量被弾＋HP 微減のキャラの判定勝率が上がる可能性</li>
+        <li>攻撃寄りで HP を大きく削るが KO に届かないパターンの差別化</li>
+        <li>判定発火範囲が広がる（HP 差が決定的なラウンドで決着）</li>
+      </ul>
+
+      <h4>リスク・前提</h4>
+      <ul>
+        <li><b>clean との二重カウント</b>: clean は既に HP を削る。HP を直接 score に入れると clean が二重評価される</li>
+        <li>重み設計が複雑化。hpWeight を機械的に決める軸が必要（チューニングが難しい）</li>
+        <li>判定到達率の問題（lag=2/4 以降 0%）には効かない</li>
+      </ul>
+
+      <h4>次に何が立ち上がる見込みか</h4>
+      <p>
+        判定の意味範囲が広がるが、設計目標「守備一辺倒で判定負け」とは方向が異なる
+        （HP 算入はむしろ守備側を有利にする可能性）。
+        ① 採点係数調整と組み合わせて初めて意味のある形になる可能性が高い。
+      </p>
+    </div>
+
+    <!-- 候補 3 -->
+    <div class="cand c3">
+      <h3>③ ガード崩し攻撃 C（ガードクラッシュ） <span class="tag">次の段階候補・筆頭</span></h3>
+      <p>
+        新 MOVES として「ガード時に大きなのけぞり or 崩しを与える攻撃」を追加。
+        段階5 が「ガード崩しの代償化には別機構が必要」と機械的に裏付けた、<b>次の自然な候補</b>。
+      </p>
+
+      <h4>何を機械的に変えるか</h4>
+      <ul>
+        <li>MOVES にガードクラッシュ系を追加（仕様未確定。startup 長 / damage 中 / ガード時に大きな blockstun）</li>
+        <li>scoreActions にクラッシュ系の評価式を追加（守備偏重の相手に対する選好）</li>
+        <li>blockstun の上限（α 段階で +2 縛り）の構造をクラッシュ系にどう適用するか検討必要</li>
+        <li>性格軸への影響検討（攻撃性 / クラッシュ選好）</li>
+      </ul>
+
+      <h4>期待される観察（verify.js）</h4>
+      <ul>
+        <li>守備偏重の AI が「ガードしすぎると崩される」を機械的に学習する素地</li>
+        <li>α R3（両守備型ガ切替過多）の構造的解消の可能性</li>
+        <li>段階5 の判定到達率は上がらないが、KO 内訳が「クラッシュ後の追撃」「通常」で分化</li>
+      </ul>
+
+      <h4>リスク・前提</h4>
+      <ul>
+        <li><b>仕様検討が必要</b>: 既存 MOVES（強ストレート chipRatio=0.3）と役割重複しないように設計</li>
+        <li><b>強すぎる場合</b>: 守備の意味が消失（α 段階の改善が反転）</li>
+        <li><b>弱い場合</b>: AI が選ばず無視される（B4 フェイントが「待ち状態」不在で無視されたのと同じ構造）</li>
+        <li>工数が他候補より大きい（仕様 → 実装 → 検証の3段、A/B/C 分割になる見込み）</li>
+      </ul>
+
+      <h4>次に何が立ち上がる見込みか</h4>
+      <p>
+        実物ボクシングの「ガードへの代償」がフレームレベルで再現される。
+        これが入ると、段階5 判定システムと合わせて<b>「ガードしすぎはどっちでも損」</b>という構造が機械的に完成する。
+        理念整合（「面白さは結果として立ち上がる」）の本質的方向。
+        ただし、設計次第で α 段階の構造的解消が崩れるリスクもある。
+      </p>
+    </div>
+
+    <!-- 候補 4 -->
+    <div class="cand c4">
+      <h3>④ 段階4 Step C: modelPrior UI 等 <span class="tag">保留中</span></h3>
+      <p>
+        段階4（敵行動予測モデル）の Step C。Step A/B 配管完成（MT=0.3 既定）から保留中。
+        modelPrior の UI 設定、modelDecay の調整、性格軸との交互作用観察を行う。
+      </p>
+
+      <h4>何を機械的に変えるか</h4>
+      <ul>
+        <li>UI スライダー追加: modelPrior（attackTarget / guardTarget / state / attackKind の4軸×P/E）</li>
+        <li>modelDecay の調整（現状 0.99 固定）</li>
+        <li>verify.js の指標拡張（観測空白活用率は実装済み、predictedAtkT の attacker 側効果検証が未着手）</li>
+      </ul>
+
+      <h4>期待される観察（verify.js）</h4>
+      <ul>
+        <li>「スカウト」想定（modelPrior を事前に注入）した場合の lag=0/0 系シナリオの改善</li>
+        <li>低 lag (p1/d2) の時間切れ悪化原因の構造解明</li>
+        <li>attackKind 分布が MT で不変問題の解消可否</li>
+      </ul>
+
+      <h4>リスク・前提</h4>
+      <ul>
+        <li><b>守備偏重の強化</b>: MT 高守備過多が α R3 を再発させる可能性（Step B の verifier 観察）</li>
+        <li><b>段階5 判定到達率への副作用</b>: 守備が強化されると KO 決着がさらに増え、判定が一層飾りに</li>
+        <li>段階5 残課題（chip 弱い等）と直交的で、優先順位の判断が必要</li>
+      </ul>
+
+      <h4>次に何が立ち上がる見込みか</h4>
+      <p>
+        予測モデルの運用幅が広がり、「実物ボクサーのスカウト」の機械化が深化する。
+        ただし、段階5 で表面化した問題（判定到達率・chip 弱さ）には直接効かない。
+        AI の内部進化として独立した価値はあるが、現在の不整合解消には別系統の作業が必要。
+      </p>
+    </div>
+
+    <!-- 候補 5 -->
+    <div class="cand c5">
+      <h3>⑤ lag 既定値再決定 <span class="tag">α 段階繰越</span></h3>
+      <p>
+        presenceLag / detailLag の既定値を変更する。
+        verifier 推奨は第1候補 (p=2, d=4)、第2候補 (p=3, d=5)、補助 (p=1, d=2)。
+        α 段階完了時の繰越課題で、段階4/5 を通じても未着手。
+      </p>
+
+      <h4>何を機械的に変えるか</h4>
+      <ul>
+        <li>PERS.P / PERS.E の presenceLag / detailLag 既定値変更</li>
+        <li>UI スライダー初期値の同期</li>
+        <li>verify.js の既定シナリオも再校正</li>
+      </ul>
+
+      <h4>期待される観察（verify.js）</h4>
+      <ul>
+        <li>既定 lag を p=2/d=4 にすると、平均的試合がスイートスポット帯に寄る</li>
+        <li>block/clean 比率の改善（現状 MT=0.3 でも 0.26）</li>
+        <li>判定到達率は変わらない可能性（KO 決着の構造は不変）</li>
+      </ul>
+
+      <h4>リスク・前提</h4>
+      <ul>
+        <li><b>過去レポートの観測値との非互換</b>: 既定値変更で過去レポートが再現できなくなる</li>
+        <li>影響範囲が広い（全シナリオで数値が変わる）</li>
+        <li>判定到達率の問題には効かない（KO の速度が変わるだけ）</li>
+      </ul>
+
+      <h4>次に何が立ち上がる見込みか</h4>
+      <p>
+        スイートスポットがデフォルト挙動として観察できるようになり、AI 対戦の標準的な質感が安定する。
+        ただし段階5 の本質課題（判定システムの薄さ）には間接的にしか効かない。
+        本質的方向というより<b>地ならし</b>の作業。
+      </p>
+    </div>
+  </div>
+
+  <!-- ===== 4. 依存関係と自然な順序 ===== -->
+  <div class="panel">
+    <h2>4. 候補間の依存関係 / 自然な順序</h2>
+
+    <h3>工数感の比較（昇順）</h3>
+    <table>
+      <thead>
+        <tr><th>候補</th><th>工数</th><th>変更範囲</th><th>新機構の追加</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="head">⑤ lag 既定値再決定</td>
+          <td class="ok">極小</td>
+          <td class="lblL">PERS 既定値1組変更</td>
+          <td class="dim">なし（既存配管のみ）</td>
+        </tr>
+        <tr>
+          <td class="head">① 採点係数調整</td>
+          <td class="ok">小</td>
+          <td class="lblL">scoreRound 内の数値 2-3 個</td>
+          <td class="dim">なし（既存配管のみ）</td>
+        </tr>
+        <tr>
+          <td class="head">② HP 残存率算入</td>
+          <td class="ok">小〜中</td>
+          <td class="lblL">scoreRound 拡張、roundScores 構造変更</td>
+          <td class="dim">採点拡張の延長</td>
+        </tr>
+        <tr>
+          <td class="head">④ 段階4 Step C</td>
+          <td class="amber">小〜中</td>
+          <td class="lblL">UI + 観測指標</td>
+          <td class="lblL">新規 UI 数個、verify.js 拡張</td>
+        </tr>
+        <tr>
+          <td class="head">③ ガード崩し攻撃 C</td>
+          <td class="warn">中〜大</td>
+          <td class="lblL">MOVES 拡張、scoreActions 拡張、性格軸検討</td>
+          <td class="warn">新機構（A/B/C 分割の見込み）</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>系統別の依存関係</h3>
+    <ul>
+      <li><b>①②（採点系統）</b>: 段階5 配管に乗っている。<b>互いに補完的</b>（chip 強化 + HP 算入 で「判定の意味」が増す）。
+        単独でも有効だが、組み合わせると効果が出やすい</li>
+      <li><b>③（ガード崩し系統）</b>: <b>新機構</b>。段階5 と直交的に「代償構造」を追加する。
+        実装後、段階5 採点との相互作用検証が必要になる</li>
+      <li><b>④（予測モデル系統）</b>: 段階4 配管の継続。<b>段階5 残課題とは直交</b>。
+        守備偏重を強める方向に動く可能性があるため、段階5 の不整合解消には逆向きに効く恐れ</li>
+      <li><b>⑤（既定値系統）</b>: 全候補と直交。<b>地ならし</b>。
+        実施するなら早めの方が後続レポートの整合性が取りやすい</li>
+    </ul>
+
+    <h3>「軽い → 重い」の順で並べたときの自然な流れ</h3>
+    <ol>
+      <li>⑤ lag 既定値再決定（地ならし、極小）</li>
+      <li>① 採点係数調整（段階5 配管に乗った調整、小）</li>
+      <li>② HP 残存率算入（採点拡張の延長、小〜中）</li>
+      <li>④ 段階4 Step C（保留中の継続、小〜中）</li>
+      <li>③ ガード崩し攻撃 C（新機構、A/B/C 分割の中〜大）</li>
+    </ol>
+    <p class="note">
+      ただしこの順序は<b>工数だけの並び</b>。理念整合や設計目標達成度の軸では順序が変わる。
+      例えば③は工数最大だが「本質的方向」、①は工数最小だが「設計目標達成への直接調整」。
+    </p>
+  </div>
+
+  <!-- ===== 5. 所見 ===== -->
+  <div class="panel">
+    <h2>5. 所見（reporter としての観察ベース）</h2>
+
+    <div class="info-box">
+      <h3>選択軸の提示</h3>
+      <p>
+        本レポートは推奨を強く出さない。以下は候補選択の<b>軸の整理</b>。
+      </p>
+      <ul>
+        <li>
+          <b>段階5 の設計目標達成を最小工数で目指すなら ①</b>:
+          採点係数調整は段階5 配管に乗っており、chip 0.3→0.5〜1.0 のような数値変更だけで
+          「守備一辺倒で判定負け」が成立する側に倒れる可能性がある（機械的観察に基づく直接修正）
+        </li>
+        <li>
+          <b>理念整合（実物の代償構造の機械化）を優先するなら ③</b>:
+          ガード崩し攻撃 C は「ガード過多の根本は『ガードを崩す機構が無いこと』」（ユーザー設計洞察）への
+          直接対応で、実物ボクシングのクラッシュ系を FSM に追加する。工数は中〜大だが本質的方向
+        </li>
+        <li>
+          <b>判定の意味範囲を広げたいなら ②</b>:
+          HP 残存率算入は判定発火条件の拡張で、「KO 寸前まで耐えた試合」を機械的に評価できるようにする。
+          ① と組み合わせると効果が増す
+        </li>
+        <li>
+          <b>AI 内部の進化を優先するなら ④</b>:
+          段階4 Step C は予測モデルの運用幅拡大。段階5 残課題とは直交的で、
+          優先順位は段階5 の不整合をどう扱うかで変わる
+        </li>
+        <li>
+          <b>地ならしを先にやるなら ⑤</b>:
+          lag 既定値再決定は影響範囲が広いため、他候補に着手する前にやる方が後続の観測値が整合的になる
+        </li>
+      </ul>
+    </div>
+
+    <div class="warn-box">
+      <h3>機械的に観察された事実から導かれる注意点</h3>
+      <ul>
+        <li>
+          <b>① と ② は単独だと部分対応</b>: 採点係数だけ調整しても判定到達率（lag=2/4 以降 0%）は変わらない。
+          HP 残存率算入だけでも同じ。判定システムの「飾り」状態を本質的に解決するには ③ または lag 系統の見直し（⑤）が必要
+        </li>
+        <li>
+          <b>③ は他候補の前提を変える可能性</b>: ガード崩し攻撃が入ると α 段階の構造的解消（threat 依存・切替コスト）の
+          バランスが変わる。設計次第で守備が機能しなくなる恐れ。仕様検討から積む必要あり
+        </li>
+        <li>
+          <b>④ は段階5 と方向が逆向きの可能性</b>: 予測モデルの強化は守備偏重を強める観察が Step B でなされた。
+          段階5 の「判定到達率を上げたい」と方向が逆になる可能性がある
+        </li>
+        <li>
+          <b>⑤ は単独だと判定到達率に効かない</b>: lag を変えても KO 決着の構造は不変。
+          判定の意味範囲を広げるには採点側の改修と組み合わせる必要あり
+        </li>
+      </ul>
+    </div>
+
+    <div class="quote">
+      <em>記録としての観察</em>:
+      段階5 配管完成は「ラウンド + 判定」という代償構造の機械化を達成した。
+      だが観測値からは「代償が機械的に弱い」が浮き彫りになった（判定到達率ほぼ 0%、判定発生条件下で守備寄り勝ち越し）。
+      これは<b>失敗ではなく観察結果</b>。次の手は、この観察に何を返すかで決まる。
+      数値調整で「足りない代償」を補強するか、新機構で「別の代償」を追加するか、
+      AI 側を進化させて KO 決着のバランスを変えるか、地ならしを先にするか。
+      決定はユーザーに委ねる。
+    </div>
+  </div>
+
+  <div class="footer">
+    <b>関連レポート / 資料</b>
+    <ul>
+      <li><a href="2026-05-27-round-system-stepC-complete.html">2026-05-27 段階5 Step C 完成 + 総括</a>（本レポートの基準点）</li>
+      <li><a href="2026-05-27-round-system-stepB.html">2026-05-27 段階5 Step B ラウンド境界 + インターバル</a></li>
+      <li><a href="2026-05-27-round-system-stepA.html">2026-05-27 段階5 Step A 配管 + Identity Check</a></li>
+      <li><a href="2026-05-27-prediction-model-stepB.html">2026-05-27 段階4 Step B 予測モデル soft 化</a></li>
+      <li><a href="2026-05-27-prediction-model-stepA.html">2026-05-27 段階4 Step A 予測モデル配管</a></li>
+      <li><a href="2026-05-27-defensive-ai-stepC-complete.html">2026-05-27 段階3 (α) Step C 完成</a></li>
+      <li><a href="2026-05-27-current-state-analysis.html">2026-05-27 現状分析（過去の候補比較レポート）</a></li>
+      <li><a href="2026-05-26-perception-lag.html">2026-05-26 段階3 中間 知覚遅延（体裁参考）</a></li>
+      <li><a href="../TASKS.md">TASKS.md</a> ／ <a href="../LOG.md">LOG.md</a></li>
+      <li>プラン: <code>~/.claude/plans/ai-gleaming-hollerith.md</code></li>
+    </ul>
+    <p style="margin-top: 10px;">
+      <b>本レポートのスタンス</b>: 機械的に観察された事実とその構造的解釈を並べる。
+      推奨は強く出さず、選択軸の提示にとどめる。
+      <b>方向の決定はユーザーに委ねる（保留中）</b>。
+    </p>
+  </div>
+
+</body>
+</html>

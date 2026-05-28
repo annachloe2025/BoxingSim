@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>観測スキーマ・ルールAI・連続移動モデル・ユーティリティAI</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; padding: 18px 22px 60px;
+    background: #14181d; color: #d8dee6;
+    font-family: "Consolas", "SFMono-Regular", "Courier New", monospace;
+    font-size: 13px; line-height: 1.55;
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; color: #8fd3ff; }
+  .sub { color: #7c8794; margin: 0 0 14px; font-size: 12px; line-height: 1.7; }
+  .sub b { color: #d8dee6; font-weight: normal; }
+
+  .panel {
+    background: #1c2229; border: 1px solid #2c343d; border-radius: 8px;
+    padding: 12px 16px; margin-bottom: 14px;
+  }
+  .panel h2 {
+    font-size: 14px; margin: 0 0 10px; color: #8fd3ff; letter-spacing: .03em;
+    border-bottom: 1px solid #2c343d; padding-bottom: 6px;
+  }
+  .panel h3 { font-size: 12.5px; margin: 12px 0 6px; color: #aeb9c4; }
+  .panel p { margin: 6px 0; }
+  .panel ul { margin: 6px 0 6px 18px; padding: 0; }
+  .panel ul li { padding: 1px 0; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; margin: 6px 0; }
+  th, td { border: 1px solid #2c343d; padding: 5px 8px; text-align: center; }
+  th { color: #9aa7b4; font-weight: normal; background: #11161b; font-size: 11.5px; letter-spacing: .03em; }
+  td.lbl { text-align: left; color: #d8dee6; }
+  td.num { color: #ffd27d; font-variant-numeric: tabular-nums; }
+  td.dim { color: #7c8794; }
+  td.warn { color: #ff7d7d; }
+  td.ok { color: #6fd3a0; }
+  td.hi { color: #5aafff; }
+
+  code {
+    background: #11161b; padding: 1px 6px; border-radius: 3px;
+    color: #aeb9c4; font-size: 12px;
+  }
+  .formula {
+    background: #11161b; border-left: 3px solid #5aafff;
+    padding: 8px 12px; margin: 6px 0; border-radius: 4px;
+    font-size: 12.5px; color: #d8e6ff;
+  }
+  .note { font-size: 11.5px; color: #7c8794; line-height: 1.7; margin-top: 6px; }
+  .note b { color: #aeb9c4; font-weight: normal; }
+</style>
+</head>
+<body>
+  <h1>観測スキーマ・ルールAI・連続移動モデル・ユーティリティAI</h1>
+  <p class="sub">
+    日付: <b>2026-05-25 (後半)</b> ／ 場所: <b>BoxingSim / index.html</b><br>
+    AI対戦に向けた4つの基盤投入: ①観測（observation）スキーマ ②単純ルールAI ③連続移動＋キャンセル ④ユーティリティAI（性格4軸）。
+    完全情報・無遅延の「相打ちジャブのループ」が、非対称な性格を入れた瞬間に崩れることまでを確認した日。
+  </p>
+
+  <div class="panel">
+    <h2>1. 観測（observation）スキーマ</h2>
+    <p>AI に渡す情報を3区分に整理。後の「曖昧化（知覚遅延）」のため <b>★印で曖昧化対象</b> を明示しておく。</p>
+    <table>
+      <thead><tr><th>区分</th><th>内容</th><th>備考</th></tr></thead>
+      <tbody>
+        <tr><td class="lbl">self</td><td class="dim">完全把握</td><td class="ok">全フィールド真値</td></tr>
+        <tr><td class="lbl">opponent</td><td class="dim">phaseRemaining / action は ★ 後で曖昧化</td><td class="warn">本来人間には見えない</td></tr>
+        <tr><td class="lbl">relative</td><td class="dim">間合い・接近・届く技・射程内</td><td class="dim">幾何情報</td></tr>
+      </tbody>
+    </table>
+    <ul>
+      <li>観測は <b>毎フレーム両者ぶん</b> 生成</li>
+      <li>AI の出力は行動1つ、行動不能中の入力は無視する想定</li>
+      <li>index.html に <code>buildObs</code> 実装と画面表示。完全データ版</li>
+      <li>Node で値の整合を検証済み</li>
+    </ul>
+  </div>
+
+  <div class="panel">
+    <h2>2. 単純ルール AI</h2>
+    <p>固定 if 文の3条件で書いた最初の AI。</p>
+    <ol>
+      <li>相手攻撃中で射程内 → ガード</li>
+      <li>ジャブ届く → ジャブ</li>
+      <li>遠い → 前進</li>
+    </ol>
+    <p>1フレーム内の評価順による不公平（後評価側が即反応）を修正し、<b>両者が同じ局面を見て同時決定</b> する方式に変更。</p>
+    <p class="note">完全情報＋ラグなしだと <b>相打ちジャブの反復ループ</b> に収束 → これが「曖昧さを後で導入する」動機として記録される。</p>
+  </div>
+
+  <div class="panel">
+    <h2>3. 連続移動 + キャンセル モデル</h2>
+    <p>実ボクサーの感覚に寄せて、移動を「フレーム単位の連続入力」に刷新。</p>
+    <table>
+      <thead><tr><th>移動種</th><th>速度</th><th>性質</th></tr></thead>
+      <tbody>
+        <tr><td class="lbl">普通移動（前 / 後）</td><td class="num">0.4</td><td class="dim">開始1F のみキャンセル不可</td></tr>
+        <tr><td class="lbl">ガード移動（前 / 後）</td><td class="num">0.2</td><td class="dim">常時ガード</td></tr>
+        <tr><td class="lbl">ステップイン / ステップバック</td><td class="num">0.6</td><td class="dim">ガード不可、停止時1F硬直</td></tr>
+      </tbody>
+    </table>
+    <h3>キャンセル＝状態ごとの受付入力方式</h3>
+    <table>
+      <thead><tr><th>状態</th><th>受け付ける入力</th></tr></thead>
+      <tbody>
+        <tr><td class="lbl">アイドル</td><td class="ok">全受付</td></tr>
+        <tr><td class="lbl">移動中</td><td class="hi">ジャブ / ストレート / ガード</td></tr>
+        <tr><td class="lbl">攻撃中</td><td class="warn">受付なし</td></tr>
+      </tbody>
+    </table>
+    <p class="note">将来のコンボ設計にも流用可能な汎用形。AI が毎フレーム意図を返す形で <b>連続移動</b> を実現。
+    間合いに入った瞬間にジャブへキャンセルされ、縁付近（一歩の行き過ぎ）で止まることを確認。</p>
+    <p>観測の <code>canAct</code> は「キャンセル可能か」に意味更新。stateLabel / charCard / 技編集テーブルも新仕様へ。</p>
+    <p class="note">注: FSM 図・マトリクス・カード（boxer_fsm*.html）はまだ旧移動のまま。後日更新予定。</p>
+  </div>
+
+  <div class="panel">
+    <h2>4. ユーティリティ AI （性格4軸）</h2>
+    <p>固定 if 文ルールから置き換え。各行動を観測＋性格で点数化し、確率的に選ぶ。</p>
+    <h3>性格4軸</h3>
+    <ul>
+      <li><b>攻撃性</b> / <b>防御性</b> / <b>好む間合い</b> / <b>我慢強さ</b></li>
+      <li>UI スライダーで Player・敵ごとに設定</li>
+    </ul>
+    <h3>選択式</h3>
+    <div class="formula">
+      確率 ∝ score<sup>SCORE_POW</sup> ／ <b>DECIDE_EVERY=3F</b>（毎フレームのジッタ防止）
+    </div>
+    <ul>
+      <li>各行動の点数・選択確率を画面表示（選択を ▶ 表示）</li>
+      <li><b>1位以外も選ぶ</b> ことを確認</li>
+    </ul>
+    <p class="note">将来のカウンター型 / 持久型 / パワー型 / ヒットアンドアウェイ型は、この4軸のプリセットとして実装予定。</p>
+  </div>
+
+  <div class="panel">
+    <h2>5. 非対称な性格で鏡写しループが崩れる</h2>
+    <p>攻撃型 P × 守備型 E のような非対称設定で、Node 検証により以下の創発挙動を確認。</p>
+    <ul>
+      <li>踏み込み</li>
+      <li>間合い取り直し</li>
+      <li>ガード</li>
+      <li>差し返し</li>
+    </ul>
+    <p class="note">完全情報＋無遅延でも「<b>性格の非対称さ</b>」が局面を非定常にできることが分かった。
+    一方で同型同性格では依然として相打ちループが残るので、後の知覚曖昧化の動機は維持。</p>
+  </div>
+
+  <div class="panel">
+    <h2>6. この日（後半）の到達点</h2>
+    <p>AI を動かす土台（observation / 連続移動 / ユーティリティAI）が揃った。
+    続く同日の終盤で <b>HP・ダメージ・ガード統合・カウンター</b> が一気に入り、最適化のゴールが測れる戦闘系へ進む（別レポート）。</p>
+  </div>
+</body>
+</html>

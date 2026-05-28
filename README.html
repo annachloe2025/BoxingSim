@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BoxingSim — Dashboard</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; padding: 22px 28px 60px;
+    background: #14181d; color: #d8dee6;
+    font-family: "Consolas", "SFMono-Regular", "Courier New", monospace;
+    font-size: 13px; line-height: 1.6;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px; color: #8fd3ff; letter-spacing: .03em; }
+  .sub { color: #7c8794; margin: 0 0 22px; font-size: 12px; }
+  .sub b { color: #d8dee6; font-weight: normal; }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .full { grid-column: 1 / -1; }
+
+  .panel {
+    background: #1c2229; border: 1px solid #2c343d; border-radius: 8px;
+    padding: 14px 18px;
+  }
+  .panel h2 {
+    font-size: 14px; margin: 0 0 10px; color: #8fd3ff; letter-spacing: .03em;
+    border-bottom: 1px solid #2c343d; padding-bottom: 6px;
+  }
+  .panel h3 { font-size: 12.5px; margin: 12px 0 6px; color: #aeb9c4; }
+  .panel ul { margin: 6px 0 6px 18px; padding: 0; }
+  .panel ul li { padding: 1px 0; }
+  .panel p { margin: 6px 0; }
+  .panel a { color: #ffd27d; text-decoration: none; }
+  .panel a:hover { text-decoration: underline; }
+  .panel a.code { color: #8fd3ff; }
+  .panel .dim { color: #7c8794; }
+
+  .badge {
+    display: inline-block; padding: 2px 8px; margin: 0 6px 0 0;
+    border-radius: 3px; font-size: 11.5px;
+    background: #11161b; border: 1px solid #2c343d; color: #aeb9c4;
+  }
+  .badge.done { border-color: #6fd3a0; color: #6fd3a0; }
+  .badge.now  { border-color: #5aafff; color: #5aafff; }
+  .badge.next { border-color: #ffd27d; color: #ffd27d; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; margin: 6px 0; }
+  th, td { border: 1px solid #2c343d; padding: 5px 8px; text-align: left; vertical-align: top; }
+  th { color: #9aa7b4; font-weight: normal; background: #11161b; font-size: 11.5px; letter-spacing: .03em; }
+  td.dim { color: #7c8794; }
+  code { background: #11161b; color: #d8e6ff; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+
+  .now-bar {
+    background: linear-gradient(90deg, #1d2a35 0%, #14181d 100%);
+    border: 1px solid #2c343d; border-left: 3px solid #5aafff;
+    padding: 10px 14px; margin-bottom: 14px; border-radius: 5px;
+  }
+  .now-bar .label { color: #5aafff; font-size: 11.5px; letter-spacing: .03em; }
+  .now-bar .val { color: #d8e6ff; font-size: 14px; margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<h1>BoxingSim — Dashboard</h1>
+<p class="sub">
+  <b>最終更新:</b> 2026-05-28 / <b>場所:</b> <code>C:\Users\hoeho\Documents\Claude\BoxingSim\</code><br>
+  フレーム単位ボクシング戦闘エンジン。FSM 方法論の検証台。
+</p>
+
+<div class="now-bar">
+  <div class="label">▌ 現在地</div>
+  <div class="val">段階5 <b>結論を再評価</b>（<a href="reports/2026-05-28-prediction-strength-ko-artifact.html">予測強度・KO実体の検証</a>）。Step C の「KO増加 → ガード崩しが必要」は、KO増加が<b>ラウンド構造の見かけ</b>（時間切れがKOに変換）だったと判明し覆った。判定到達は<b>予測強度 MT がレバー</b>（両守備3/5: 4→28%、非対称0/0: 44→64%、MT0→0.9 で単調増加）。ただし高lag帯は観測空白で予測が効かず判定率ほぼ0=別軸の構造問題。<br><b>次の方向は再検討中（未決定）</b>。候補の含意整理は新レポート、5候補比較は <a href="reports/2026-05-27-next-candidates-comparison.html">次候補比較レポート</a> 参照。</div>
+</div>
+
+<div class="grid">
+
+  <!-- 最新レポート -->
+  <div class="panel">
+    <h2>レポート一覧</h2>
+    <h3>次の方向の検討</h3>
+    <ul>
+      <li><span class="badge now">再評価</span> <a href="reports/2026-05-28-prediction-strength-ko-artifact.html">予測強度・KO実体の検証 — 段階5 結論を再評価（KO増加は見かけ・判定は予測強度がレバー）</a></li>
+      <li><span class="badge next">比較</span> <a href="reports/2026-05-27-next-candidates-comparison.html">次候補比較 — 段階5 配管完成後の選択肢（決定保留中）</a></li>
+    </ul>
+    <h3>段階5 ラウンドシステム + 判定 ✅ 配管完成</h3>
+    <ul>
+      <li><span class="badge done">完成版</span> <a href="reports/2026-05-27-round-system-stepC-complete.html">Step C 完成 + 段階5 総括（配管完成・設計目標は部分達成）</a></li>
+      <li><span class="badge done">Step B</span> <a href="reports/2026-05-27-round-system-stepB.html">ラウンド境界 + インターバル + UI（時間切れ激減 29→2、スイートスポット維持）</a></li>
+      <li><span class="badge done">Step A</span> <a href="reports/2026-05-27-round-system-stepA.html">配管 + Identity Check PASS</a></li>
+    </ul>
+    <h3>段階4 敵行動予測モデル（Step A/B 完了、Step C 保留）</h3>
+    <ul>
+      <li><span class="badge done">Step B</span> <a href="reports/2026-05-27-prediction-model-stepB.html">scoreActions の soft 化 + 観測 &gt; 予測原則（MT 既定 0.5→0.3 調整）</a></li>
+      <li><span class="badge done">Step A</span> <a href="reports/2026-05-27-prediction-model-stepA.html">配管 + 観測蓄積 + Identity Check PASS（予測精度 state 72%）</a></li>
+    </ul>
+    <h3>段階3 (α) 守備 AI 構造改善 ✅ 完成</h3>
+    <ul>
+      <li><span class="badge done">完成版</span> <a href="reports/2026-05-27-defensive-ai-stepC-complete.html">Step C 完成 + 段階3 (α) 総括（バグ発覚と真の合成効果）</a></li>
+      <li><span class="badge done">Step B</span> <a href="reports/2026-05-27-defensive-ai-stepB.html">guardScore 式の構造修正（※guardCommitment 部分は ELEM stub バグで無効化、Step C で判明）</a></li>
+      <li><span class="badge done">Step A</span> <a href="reports/2026-05-27-defensive-ai-stepA.html">配管 + 観測フック + Identity Check PASS</a></li>
+    </ul>
+    <h3>分析・現状</h3>
+    <ul>
+      <li><span class="badge now">分析</span> <a href="reports/2026-05-27-current-state-analysis.html">BoxingSim 現状分析 2026-05-27</a></li>
+    </ul>
+    <h3>段階3: 知覚反応</h3>
+    <ul>
+      <li><span class="badge done">完成</span> <a href="reports/2026-05-26-phase3-complete.html">段階3 完成版: 多段知覚 + 強ストレート + フェイント</a></li>
+      <li><span class="badge done">観測</span> <a href="reports/2026-05-26-perception-lag.html">段階3 中間: 知覚遅延の挙動観測</a></li>
+    </ul>
+    <h3>段階2: 頭/腹打ち分け</h3>
+    <ul>
+      <li><span class="badge done">完成</span> <a href="reports/2026-05-26-head-body-phase2.html">段階2 完成: 頭/腹打ち分け</a></li>
+    </ul>
+    <h3>段階1: スタミナ</h3>
+    <ul>
+      <li><span class="badge done">完成</span> <a href="reports/2026-05-26-stamina-phase1.html">段階1 完成: スタミナシステム</a></li>
+    </ul>
+    <h3>初期構築（フェーズ1 + 基盤）</h3>
+    <ul>
+      <li><span class="badge done">基盤</span> <a href="reports/2026-05-25-combat-core.html">戦闘の核: HP・ダメージ・ガード統合・カウンター</a></li>
+      <li><span class="badge done">基盤</span> <a href="reports/2026-05-25-observation-ai-movement.html">観測スキーマ・ルールAI・連続移動・ユーティリティAI</a></li>
+      <li><span class="badge done">設計</span> <a href="reports/2026-05-25-fsm-design.html">FSM 設計とドキュメント化</a></li>
+      <li><span class="badge done">基盤</span> <a href="reports/2026-05-24-phase1-minimum-system.html">フェーズ1: 最小システムの完成</a></li>
+    </ul>
+  </div>
+
+  <!-- 進捗 -->
+  <div class="panel">
+    <h2>進捗（段階別）</h2>
+    <table>
+      <tr><th>段階</th><th>内容</th><th>状態</th></tr>
+      <tr><td>1</td><td>スタミナ</td><td><span class="badge done">完了</span></td></tr>
+      <tr><td>2</td><td>頭/腹 打ち分け</td><td><span class="badge done">完了</span></td></tr>
+      <tr><td>3</td><td>知覚反応 + 強ストレート + フェイント</td><td><span class="badge done">完了</span></td></tr>
+      <tr><td>4?</td><td>コーナー + バックステップ制限</td><td><span class="badge next">候補</span></td></tr>
+      <tr><td>—</td><td>ダウン / 立ち上がり</td><td><span class="badge next">候補</span></td></tr>
+    </table>
+    <p class="dim" style="margin-top: 8px;">→ 詳細: <a href="TASKS.md">TASKS.md</a> / <a href="LOG.md">LOG.md</a> / <a href="docs/design/fsm_gap_inventory.html">fsm_gap_inventory.html</a></p>
+  </div>
+
+  <!-- 主要ファイル -->
+  <div class="panel">
+    <h2>主要ファイル</h2>
+    <table>
+      <tr><th>用途</th><th>パス</th></tr>
+      <tr><td>実装本体</td><td><a class="code" href="src/index.html">src/index.html</a></td></tr>
+      <tr><td>検証ハーネス</td><td><a class="code" href="tools/verify.js">tools/verify.js</a></td></tr>
+      <tr><td>設計方針</td><td><a class="code" href="CLAUDE.md">CLAUDE.md</a></td></tr>
+      <tr><td>開発ログ</td><td><a class="code" href="LOG.md">LOG.md</a></td></tr>
+      <tr><td>タスク一覧</td><td><a class="code" href="TASKS.md">TASKS.md</a></td></tr>
+      <tr><td>FSM 差分棚卸し</td><td><a class="code" href="docs/design/fsm_gap_inventory.html">docs/design/fsm_gap_inventory.html</a></td></tr>
+    </table>
+  </div>
+
+  <!-- 理念 -->
+  <div class="panel">
+    <h2>理念・大目的</h2>
+    <ul>
+      <li><a href="docs/vision/user-creative-ai-vision.md">AI で面白いものを量産する統一構想</a></li>
+      <li><a href="docs/vision/project-fsm-as-foundation.md">FSM 方法論の検証台</a></li>
+      <li><a href="docs/vision/feedback-mechanics-first-fun-emerges.md">機械的に積む。面白さは結果</a></li>
+      <li><a href="docs/vision/feedback-prioritize-fsm-quality.md">FSM ブラッシュアップ最優先</a></li>
+    </ul>
+    <p class="dim" style="margin-top: 8px;">→ 記憶索引: <a href="docs/memory/MEMORY.md">docs/memory/MEMORY.md</a></p>
+  </div>
+
+  <!-- サブエージェント -->
+  <div class="panel full">
+    <h2>サブエージェント体制（2026-05-27 導入）</h2>
+    <table>
+      <tr><th>名前</th><th>担当</th><th>定義</th></tr>
+      <tr>
+        <td><span class="badge now">designer</span></td>
+        <td>仕様検討・FSM 設計・spec HTML ドラフト作成。コードと検証は書かない</td>
+        <td><a class="code" href=".claude/agents/designer.md">.claude/agents/designer.md</a></td>
+      </tr>
+      <tr>
+        <td><span class="badge now">implementer</span></td>
+        <td>固まった仕様を src/index.html に実装。verify.js も追従させる</td>
+        <td><a class="code" href=".claude/agents/implementer.md">.claude/agents/implementer.md</a></td>
+      </tr>
+      <tr>
+        <td><span class="badge now">reporter</span></td>
+        <td>節目ごとの HTML レポート生成、LOG.md / README.html 更新</td>
+        <td><a class="code" href=".claude/agents/reporter.md">.claude/agents/reporter.md</a></td>
+      </tr>
+      <tr>
+        <td><span class="badge now">verifier</span></td>
+        <td>verify.js 実行、結果の構造的解釈</td>
+        <td><a class="code" href=".claude/agents/verifier.md">.claude/agents/verifier.md</a></td>
+      </tr>
+    </table>
+    <p class="dim" style="margin-top: 10px;">統括はメインセッション。ユーザーとの対話・サブエージェント呼び分け・記憶管理を担う。</p>
+  </div>
+
+  <!-- フォルダ構造 -->
+  <div class="panel full">
+    <h2>フォルダ構造</h2>
+    <table>
+      <tr><th>パス</th><th>役割</th></tr>
+      <tr><td><code>src/</code></td><td>実装本体（index.html）</td></tr>
+      <tr><td><code>tools/</code></td><td>検証ハーネス（verify.js）</td></tr>
+      <tr><td><code>docs/vision/</code></td><td>理念・大目的（長期に動かない）</td></tr>
+      <tr><td><code>docs/design/</code></td><td>FSM 図・仕様書（成果物）</td></tr>
+      <tr><td><code>docs/memory/</code></td><td>個別記憶ノート（進行中の判断材料）</td></tr>
+      <tr><td><code>reports/</code></td><td>節目ごとの完成レポート（HTML）</td></tr>
+      <tr><td><code>archive/</code></td><td>過去の試作・整理前の置き場</td></tr>
+      <tr><td><code>.claude/agents/</code></td><td>サブエージェント定義</td></tr>
+    </table>
+  </div>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BoxingSim 段階4 Step A: 配管 + 観測蓄積 + Identity Check 2026-05-27</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; padding: 18px 22px 60px;
+    background: #14181d; color: #d8dee6;
+    font-family: "Consolas", "SFMono-Regular", "Courier New", monospace;
+    font-size: 13px; line-height: 1.55;
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; color: #8fd3ff; }
+  .sub { color: #7c8794; margin: 0 0 14px; font-size: 12px; line-height: 1.7; }
+  .sub b { color: #d8dee6; font-weight: normal; }
+
+  .panel {
+    background: #1c2229; border: 1px solid #2c343d; border-radius: 8px;
+    padding: 12px 16px; margin-bottom: 14px;
+  }
+  .panel h2 {
+    font-size: 14px; margin: 0 0 10px; color: #8fd3ff; letter-spacing: .03em;
+    border-bottom: 1px solid #2c343d; padding-bottom: 6px;
+  }
+  .panel h3 { font-size: 12.5px; margin: 12px 0 6px; color: #aeb9c4; }
+  .panel h4 { font-size: 12px; margin: 10px 0 4px; color: #9aa7b4; font-weight: normal; }
+  .panel p { margin: 6px 0; }
+  .panel ul { margin: 6px 0 6px 18px; padding: 0; }
+  .panel ul li { padding: 1px 0; }
+  .panel ol { margin: 6px 0 6px 22px; padding: 0; }
+  .panel ol li { padding: 2px 0; }
+  code { color: #aeb9c4; background: #11161b; padding: 1px 4px; border-radius: 3px; font-size: 12px; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; margin: 6px 0; }
+  th, td { border: 1px solid #2c343d; padding: 5px 8px; text-align: center; vertical-align: top; }
+  th { color: #9aa7b4; font-weight: normal; background: #11161b; font-size: 11.5px; letter-spacing: .03em; }
+  td.lbl { text-align: left; color: #d8dee6; }
+  td.lblL { text-align: left; color: #d8dee6; }
+  td.num { color: #ffd27d; font-variant-numeric: tabular-nums; }
+  td.dim { color: #7c8794; text-align: left; }
+  td.hi { color: #5aafff; font-weight: bold; }
+  td.warn { color: #ff7d7d; font-weight: bold; }
+  td.ok { color: #6fd3a0; font-weight: bold; }
+  td.head { color: #8fd3ff; }
+
+  .formula {
+    background: #11161b; border-left: 3px solid #5aafff;
+    padding: 8px 12px; margin: 6px 0; border-radius: 4px;
+    font-size: 12.5px; color: #d8e6ff;
+  }
+  .formula em { color: #ffd27d; font-style: normal; }
+  .formula code { color: #aeb9c4; }
+
+  .note { font-size: 11.5px; color: #7c8794; line-height: 1.7; margin-top: 6px; }
+  .note b { color: #aeb9c4; font-weight: normal; }
+
+  .meta {
+    background: #1c2229; border-left: 3px solid #ffd27d; padding: 8px 12px;
+    border-radius: 4px; margin-bottom: 14px; font-size: 11.5px; color: #d8dee6; line-height: 1.7;
+  }
+  .meta a { color: #8fd3ff; text-decoration: none; }
+  .meta a:hover { text-decoration: underline; }
+
+  .pass-box {
+    background: #16221c; border: 2px solid #6fd3a0; border-radius: 6px;
+    padding: 12px 16px; margin: 10px 0;
+  }
+  .pass-box h3 { color: #6fd3a0; margin: 0 0 8px; font-size: 13.5px; }
+  .pass-box p { margin: 4px 0; font-size: 12px; }
+  .pass-box ul { margin: 6px 0 6px 22px; }
+  .pass-box ul li { padding: 2px 0; font-size: 12px; }
+  .pass-box code { color: #d8e6ff; }
+
+  .lesson-box {
+    background: #14202b; border: 2px solid #5aafff; border-radius: 6px;
+    padding: 12px 16px; margin: 10px 0;
+  }
+  .lesson-box h3 { color: #5aafff; margin: 0 0 8px; font-size: 13.5px; }
+  .lesson-box h4 { color: #8fd3ff; margin: 8px 0 4px; font-size: 12.5px; }
+  .lesson-box p { margin: 4px 0; font-size: 12px; }
+  .lesson-box ul { margin: 6px 0 6px 22px; }
+  .lesson-box ul li { padding: 2px 0; font-size: 12px; }
+
+  .change {
+    background: #11161b; border-left: 3px solid #5aafff; border-radius: 4px;
+    padding: 8px 12px; margin: 8px 0; font-size: 12px;
+  }
+  .change h4 { color: #8fd3ff; margin: 0 0 4px; font-size: 12.5px; }
+  .change p { margin: 4px 0; }
+
+  .footer { color: #7c8794; font-size: 11.5px; margin-top: 22px; line-height: 1.8; border-top: 1px solid #2c343d; padding-top: 12px; }
+  .footer a { color: #8fd3ff; text-decoration: none; }
+  .footer a:hover { text-decoration: underline; }
+  .footer ul { margin: 4px 0 4px 18px; padding: 0; }
+  .footer ul li { padding: 1px 0; }
+
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 10.5px; margin-left: 4px; }
+  .pill.pass { background: #6fd3a0; color: #14181d; }
+  .pill.noop { background: #2c343d; color: #aeb9c4; }
+  .pill.next { background: #ffce4d; color: #14181d; }
+  .pill.new { background: #5aafff; color: #14181d; }
+
+  .big { color: #ffd27d; font-weight: bold; font-size: 14px; }
+  .delta { color: #6fd3a0; font-weight: bold; }
+</style>
+</head>
+<body>
+  <h1>段階4 (敵行動予測モデル) Step A: 配管 + 観測蓄積 + Identity Check</h1>
+  <p class="sub">
+    実物ボクサーの「スカウト + 試合中読み更新」を機械化する 3 段プラン (A/B/C) の <b>Step A</b> 完了レポート。
+    予測分布の構造体・更新ルール・観測 API への露出を整備し、
+    <b>scoreActions への接続は行わず</b>（既定 <code>modelTrust=0</code>）、
+    verify.js での <b>bit-identical（完全一致）</b> を確認した。
+    意思決定への反映は Step B / C で行う。
+  </p>
+
+  <div class="meta">
+    <b>関連</b>:
+    <a href="2026-05-27-defensive-ai-stepA.html">2026-05-27 段階3 (α) Step A（同じ Step A 流儀の先例）</a> ／
+    <a href="2026-05-27-current-state-analysis.html">2026-05-27 現状分析</a> ／
+    プラン: <code>~/.claude/plans/ai-gleaming-hollerith.md</code> ／
+    <a href="../TASKS.md">TASKS.md</a> ／ <a href="../LOG.md">LOG.md</a>
+  </div>
+
+  <!-- ===== 1. 背景 ===== -->
+  <div class="panel">
+    <h2>1. 背景</h2>
+
+    <p>
+      ユーザー提案を起点に立てた段階4プラン。
+      実物ボクサーは試合前のスカウト（事前情報）と試合中の読み更新（観測ベイズ）で
+      相手の次の挙動を予測しているが、現状の FSM は <b>即時観測しか持たず時間方向の期待値が存在しない</b>。
+      この時間方向の空白を埋めるのが本タスクの動機。
+    </p>
+
+    <table>
+      <thead><tr><th>軸</th><th>本タスクの立ち位置</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="head">理念</td>
+          <td class="lblL">「実物ボクサーが何を予測しているか」を機械化するのが動機。
+            <b>「フェイント効いてほしい」を逆算しない</b>（結論ありきの調整は禁止）</td>
+        </tr>
+        <tr>
+          <td class="head">スコープ</td>
+          <td class="lblL">既存の決定軸ごとに確率分布を持たせる。<b>メタ層なし</b>（予測する予測、を作らない）</td>
+        </tr>
+        <tr>
+          <td class="head">分割</td>
+          <td class="lblL">段階3 (α) Step A と同じ流儀で A（配管）／ B（接続）／ C（UI・調整）に三段分割</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="note">
+      Step A の役割は、段階3 (α) Step A と同じく、後段 (B/C) で挙動を動かしたときの
+      <b>差分が「Step B で動いた／Step C で動いた」と切り分けて読める</b> 基準を作ること。
+    </p>
+  </div>
+
+  <!-- ===== 2. 実装内容 ===== -->
+  <div class="panel">
+    <h2>2. 実装内容 — <code>src/index.html</code></h2>
+
+    <h3>2-1. 変更箇所サマリ（全 <code>src/index.html</code>、<code>tools/verify.js</code> は無編集）</h3>
+
+    <table>
+      <thead>
+        <tr>
+          <th>項目</th>
+          <th>行</th>
+          <th>内容</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="lblL">PERS 拡張</td>
+          <td class="dim">l.413-423</td>
+          <td class="lblL">3 フィールド追加: <code>modelPrior</code>（擬似カウント） /
+            <code>modelDecay</code>=0.99 / <code>modelTrust</code>=0</td>
+        </tr>
+        <tr>
+          <td class="lblL">makeChar</td>
+          <td class="dim">l.330</td>
+          <td class="lblL"><code>predictedCounts: null, predictedOpp: null</code> を追加</td>
+        </tr>
+        <tr>
+          <td class="lblL">initSim</td>
+          <td class="dim">l.348-367</td>
+          <td class="lblL">frame=0 で <code>predictedCounts</code> / <code>predictedOpp</code> をプライアから初期化</td>
+        </tr>
+        <tr>
+          <td class="lblL">stepSim</td>
+          <td class="dim">l.804-805</td>
+          <td class="lblL">progress() 後に <code>updatePrediction(s, "P"); updatePrediction(s, "E")</code></td>
+        </tr>
+        <tr>
+          <td class="lblL">updatePrediction <span class="pill new">新規</span></td>
+          <td class="dim">l.1060-</td>
+          <td class="lblL">新規関数。4 ヘルパ + 本体。順序: decay → 観測加算 → 正規化。
+            <b>Math.random 不使用</b></td>
+        </tr>
+        <tr>
+          <td class="lblL">buildObs</td>
+          <td class="dim">l.1011</td>
+          <td class="lblL">戻り値に <code>prediction: me.predictedOpp || null</code> を追加</td>
+        </tr>
+        <tr>
+          <td class="lblL">renderObs</td>
+          <td class="dim">l.1099-1104</td>
+          <td class="lblL">「敵の次予測」パネル 4 軸表示。<code>fmtPredDist</code> ヘルパ</td>
+        </tr>
+        <tr>
+          <td class="lblL">build()</td>
+          <td class="dim">l.1183-1196</td>
+          <td class="lblL">PERS 差し替え時に modelPrior / modelDecay / modelTrust を注入（R6 教訓）</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>2-2. <code>tools/verify.js</code>: 編集なし</h3>
+    <ul>
+      <li>ELEM stub 全件突合チェック実施: <b>17 ID 全件登録済み</b>（未登録ゼロ）</li>
+      <li>Step A では UI スライダー追加なしのため、verify.js 側拡張は不要</li>
+    </ul>
+  </div>
+
+  <!-- ===== 3. 予測の表現 ===== -->
+  <div class="panel">
+    <h2>3. 予測の表現（プラン通り）</h2>
+
+    <p>既存の決定軸ごとに「次フレーム何を選ぶか」の確率分布を保持。</p>
+
+    <table>
+      <thead><tr><th>軸</th><th>値</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="head">attackTarget</td>
+          <td class="lblL">head, body</td>
+        </tr>
+        <tr>
+          <td class="head">guardTarget</td>
+          <td class="lblL">head, body</td>
+        </tr>
+        <tr>
+          <td class="head">state</td>
+          <td class="lblL">idle, attack, guard, move</td>
+        </tr>
+        <tr>
+          <td class="head">attackKind</td>
+          <td class="lblL">jab, str, hvy, feint</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Step A プライア既定値</h3>
+    <div class="formula">
+attackTarget: { head: 50, body: 50 }<br>
+guardTarget:  { head: 50, body: 50 }<br>
+state:        { idle: 25, attack: 25, guard: 25, move: 25 }<br>
+attackKind:   { jab: 40, str: 30, hvy: 15, feint: 15 }<br>
+modelDecay:   <em>0.99</em>   <span style="color:#7c8794;">（実効ウィンドウ ~100F）</span><br>
+modelTrust:   <em>0</em>      <span style="color:#7c8794;">（Step A は完全 no-op）</span>
+    </div>
+
+    <p class="note">
+      <b>更新順序</b>: 毎フレーム <code>decay → 観測加算 → 正規化</code>。
+      decay=0.99 は「実効的に直近 100F 程度の観測を効かせる」設計で、
+      試合長（数百 F）に対して半分弱の窓を覗く形になる。
+      ベイズ的にはディリクレ分布の擬似カウント更新と等価。
+    </p>
+  </div>
+
+  <!-- ===== 4. Identity Check 結果 ===== -->
+  <div class="panel">
+    <h2>4. Identity Check 結果</h2>
+
+    <div class="pass-box">
+      <h3>PASS（完全 bit-identical）</h3>
+      <p>
+        編集前 vs 編集後 verify.js 出力の <b>MD5 完全一致</b>:
+      </p>
+      <p style="text-align:center; font-size:13px;">
+        <code>6e43a3fabb2327bf2cecc4c80af9c64f</code>
+      </p>
+      <ul>
+        <li>段階3 (α) Step C 完成時から <b>進捗ゼロ</b>（scoreActions 未変更 + <code>modelTrust=0</code> + <code>updatePrediction</code> 確定的）</li>
+        <li>新規追加された予測モデルは <b>意思決定回路に一切接続されていない</b></li>
+        <li>updatePrediction は Math.random 不使用 → 同入力に対し常に同出力（決定論）</li>
+      </ul>
+    </div>
+
+    <p class="note">
+      段階3 (α) Step A と同じく「式に手を入れる前に配管を済ませる」スタイル。
+      Step B で <code>scoreActions</code> の oppGT / oppAtkT 分岐を soft 版に書き換えた瞬間に
+      初めて出力差分が出る — それが <b>「Step B によって生じた差」だと確定的に切り分けられる</b>。
+    </p>
+  </div>
+
+  <!-- ===== 5. 予測モデル動作確認 ===== -->
+  <div class="panel">
+    <h2>5. 予測モデル動作確認 — seed=100, 1 試合 176F</h2>
+
+    <p>
+      予測モデルの内部値（<code>predictedOpp</code>）は意思決定には影響しないが、
+      正しく更新されているかは <b>top-1 一致率</b>で確認できる。
+      「次フレームの実観測 = 予測分布の最頻クラス」と一致した割合を集計した。
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>軸</th>
+          <th>top-1 精度</th>
+          <th>random との差</th>
+          <th>備考</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="head">state</td>
+          <td class="num"><span class="big">72.2%</span></td>
+          <td class="delta">25% → +47pt</td>
+          <td class="dim">4 値分類。プライアより大幅に学習が利いている</td>
+        </tr>
+        <tr>
+          <td class="head">attackTarget</td>
+          <td class="num"><span class="big">58.5%</span></td>
+          <td class="delta">50% → +8.5pt</td>
+          <td class="dim">2 値。微差だが <b>有意に偏り検出</b></td>
+        </tr>
+        <tr>
+          <td class="head">guardTarget</td>
+          <td class="num">100% (3/3)</td>
+          <td class="delta">—</td>
+          <td class="dim">サンプル少だが妥当な向き</td>
+        </tr>
+        <tr>
+          <td class="head">attackKind</td>
+          <td class="dim">観測サンプル小</td>
+          <td class="dim">—</td>
+          <td class="dim">Step B/C で集計強化</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>読み取り</h3>
+    <ul>
+      <li>全 <b>176 / 176 フレーム</b>で分布が変化 → 毎フレーム更新が機能</li>
+      <li>初期分布: プライアそのまま（観測ゼロ時の振舞いも自然）</li>
+      <li>state 軸 +47pt は <b>「同じ状態が数フレーム続く」フレーム単位構造</b>を予測モデルが拾えていることの裏付け
+        （idle/attack/guard/move の遷移はスパースで、attack 状態などは複数フレーム継続）</li>
+      <li>attackTarget +8.5pt は head/body の選好偏りを <b>プライア 50/50 から動かして検出できている</b>シグナル</li>
+    </ul>
+
+    <p class="note">
+      これらの数値は「予測モデルが動いていることの確認」であって、
+      Step B で意思決定に接続したとき試合がどう変わるかとは別の話。
+      Step B の効果測定では、別の指標（被弾率変化、フェイント効果など）で評価する。
+    </p>
+  </div>
+
+  <!-- ===== 6. 教訓・予防策 ===== -->
+  <div class="panel">
+    <h2>6. 教訓・予防策</h2>
+
+    <div class="lesson-box">
+      <h3>R6 verify.js ELEM stub バグの予防</h3>
+      <p>
+        段階3 (α) Step C で発覚した既存バグ（UI 要素追加時に verify.js 側 ELEM stub への登録漏れが
+        sim 動作を壊す）の教訓に基づき、Step A 着手時に <code>build()</code> 内の
+        全 <code>num()</code> / <code>lag()</code> 呼び出しと ELEM stub を <b>必須突合</b>した。
+      </p>
+      <ul>
+        <li>今回は <b>未登録ゼロ</b>（17 ID 全件登録済み）</li>
+        <li>Step A は UI スライダー追加なしで配管のみだが、Step C で UI を追加するときに
+          この突合を <b>必ず行う</b></li>
+      </ul>
+
+      <h4>R5 Identity Check 失敗の予防</h4>
+      <p>
+        <code>updatePrediction</code> は <b>Math.random を使わず</b>、完全に確定的。
+        スナップショット参照と算術のみ。
+        Identity Check は MD5 比較で発覚するため、ここに乱数が混じった瞬間 PASS が崩れる。
+      </p>
+    </div>
+  </div>
+
+  <!-- ===== 7. 次のステップ予告 ===== -->
+  <div class="panel">
+    <h2>7. 次のステップ（プラン外の予告）</h2>
+
+    <table>
+      <thead><tr><th>Step</th><th>内容</th><th>動かすパラメータ</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="head">B</td>
+          <td class="lblL"><code>scoreActions</code> の oppGT / oppAtkT 分岐を soft 版に書き換え、
+            予測分布で重みづけ</td>
+          <td class="dim"><code>modelTrust</code> 既定 0.5 で有効化。
+            <b>観測 &gt; 予測</b> 原則（観測なし時のみ予測でブレンド）</td>
+        </tr>
+        <tr>
+          <td class="head">C</td>
+          <td class="lblL"><code>modelPrior</code> 設定 UI、<code>modelDecay</code> 調整、
+            性格との交互作用観察</td>
+          <td class="dim">スカウト相当のプライア注入 UI を追加。
+            ELEM stub 突合は <b>このタイミングで必須実施</b></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="note">
+      Step B / C で挙動を動かしたとき、本レポートの bit-identical 基準と、
+      動作確認で得た予測精度（state 72.2% など）が回帰検出と効果測定の物差しになる。
+      「予測が走っている」「予測が判断に効いている」が二段で確認できる構造。
+    </p>
+  </div>
+
+  <div class="footer">
+    <b>参照ファイル</b>
+    <ul>
+      <li><code>src/index.html</code> —
+        PERS 拡張 (l.413-423) ／
+        makeChar (l.330) ／
+        initSim (l.348-367) ／
+        stepSim (l.804-805) ／
+        updatePrediction (l.1060-) ／
+        buildObs (l.1011) ／
+        renderObs (l.1099-1104) ／
+        build() (l.1183-1196)</li>
+      <li><code>tools/verify.js</code> — 編集なし（ELEM stub 17 ID 全件登録済みを確認）</li>
+      <li>プラン: <code>~/.claude/plans/ai-gleaming-hollerith.md</code></li>
+      <li><a href="2026-05-27-defensive-ai-stepA.html">reports/2026-05-27-defensive-ai-stepA.html</a>（同じ Step A 流儀の先例）</li>
+      <li><a href="2026-05-27-current-state-analysis.html">reports/2026-05-27-current-state-analysis.html</a></li>
+      <li><a href="../TASKS.md">TASKS.md</a> ／ <a href="../LOG.md">LOG.md</a></li>
+    </ul>
+  </div>
+
+</body>
+</html>

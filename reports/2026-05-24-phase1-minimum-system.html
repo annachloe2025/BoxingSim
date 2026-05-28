@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>フェーズ1: 最小システムの完成</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; padding: 18px 22px 60px;
+    background: #14181d; color: #d8dee6;
+    font-family: "Consolas", "SFMono-Regular", "Courier New", monospace;
+    font-size: 13px; line-height: 1.55;
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; color: #8fd3ff; }
+  .sub { color: #7c8794; margin: 0 0 14px; font-size: 12px; line-height: 1.7; }
+  .sub b { color: #d8dee6; font-weight: normal; }
+
+  .panel {
+    background: #1c2229; border: 1px solid #2c343d; border-radius: 8px;
+    padding: 12px 16px; margin-bottom: 14px;
+  }
+  .panel h2 {
+    font-size: 14px; margin: 0 0 10px; color: #8fd3ff; letter-spacing: .03em;
+    border-bottom: 1px solid #2c343d; padding-bottom: 6px;
+  }
+  .panel h3 { font-size: 12.5px; margin: 12px 0 6px; color: #aeb9c4; }
+  .panel p { margin: 6px 0; }
+  .panel ul { margin: 6px 0 6px 18px; padding: 0; }
+  .panel ul li { padding: 1px 0; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; margin: 6px 0; }
+  th, td { border: 1px solid #2c343d; padding: 5px 8px; text-align: center; }
+  th { color: #9aa7b4; font-weight: normal; background: #11161b; font-size: 11.5px; letter-spacing: .03em; }
+  td.lbl { text-align: left; color: #d8dee6; }
+  td.num { color: #ffd27d; font-variant-numeric: tabular-nums; }
+  td.dim { color: #7c8794; }
+
+  code {
+    background: #11161b; padding: 1px 6px; border-radius: 3px;
+    color: #aeb9c4; font-size: 12px;
+  }
+  .note { font-size: 11.5px; color: #7c8794; line-height: 1.7; margin-top: 6px; }
+  .note b { color: #aeb9c4; font-weight: normal; }
+</style>
+</head>
+<body>
+  <h1>フェーズ1: 最小システムの完成</h1>
+  <p class="sub">
+    日付: <b>2026-05-24</b> ／ 場所: <b>BoxingSim / index.html</b><br>
+    プロジェクト開始日。方針合意から、フレームを再生ボタンで進められる最小システム（再生・コマ送り・コマ戻し・接触イベントログ）までを1日で構築した記録。
+    被弾効果は未導入、接触をログに記録するのみ。
+  </p>
+
+  <div class="panel">
+    <h2>1. プロジェクト方針合意</h2>
+    <p>初日の相談で確定した5本の柱。</p>
+    <ul>
+      <li>フレーム単位の戦闘エンジン型シミュレーター（格ゲーのフレームデータをボクシングに応用）</li>
+      <li>距離は <b>1次元から開始</b>、将来的に2次元へ</li>
+      <li>行動の判断は当面手動入力、将来的にAI化</li>
+      <li>被弾の影響（ダメージ・勝敗等）は当面扱わない。<b>フレームの噛み合いの観察を優先</b></li>
+      <li>技術はブラウザ（HTML/JS）、表示は文字ベース</li>
+    </ul>
+    <p class="note">この5本のうち「文字ベース・1次元・被弾未導入」の3つは「機械的仕組みを先に積む」設計理念から導出されている。CLAUDE.md / LOG.md / TASKS.md の3点を同日に作成。</p>
+  </div>
+
+  <div class="panel">
+    <h2>2. 最小フレームエンジン（index.html）</h2>
+    <p>モーション作成ツールのように、フレームを1コマずつ動かせる土台を作る。</p>
+    <table>
+      <thead><tr><th>操作</th><th>意味</th></tr></thead>
+      <tbody>
+        <tr><td class="lbl">再生 / 一時停止</td><td class="dim">連続フレーム進行のオン・オフ</td></tr>
+        <tr><td class="lbl">コマ送り</td><td class="dim">1F だけ進める</td></tr>
+        <tr><td class="lbl">コマ戻し</td><td class="dim">1F だけ戻す（履歴を保持）</td></tr>
+        <tr><td class="lbl">リセット</td><td class="dim">初期状態に戻す</td></tr>
+      </tbody>
+    </table>
+    <p>キャラクターは <b>Player と 敵</b> の2体。各キャラに 1次元座標と、4種の状態 <code>待機 / 始動 / 発生 / 硬直</code> を持たせ、毎フレーム常時表示する。</p>
+  </div>
+
+  <div class="panel">
+    <h2>3. 技データと行動列の編集</h2>
+    <p>各技は <code>始動 → 発生 → 硬直</code> の3区間を持つ。表で値を編集でき、行動列（フレーム毎に何を出すか）も入力可能。</p>
+    <p class="note">この時点では能動的に「振る」だけの存在で、ガード・キャンセル・AI などは未実装。</p>
+  </div>
+
+  <div class="panel">
+    <h2>4. 接触判定と接触イベントログ</h2>
+    <p>攻撃にはリーチを設定。<b>発生フレーム中に相手が間合い内にいれば「接触」</b>とみなす。</p>
+    <ul>
+      <li>現段階では被弾効果を与えず、<b>接触イベントとして記録するのみ</b></li>
+      <li>接触時の相手の状態（待機 / 始動 / 発生 / 硬直）も記録</li>
+      <li>これにより「刺さった / お見合い / 相打ち」を観察できる</li>
+    </ul>
+  </div>
+
+  <div class="panel">
+    <h2>5. UI 調整</h2>
+    <ul>
+      <li>プレビューに収まるよう全体をコンパクト化（余白・文字・ログ高さを縮小）</li>
+      <li>キャラカードに状態と同じ大きさで「現在の行動（前進 / ジャブ等）」を併記</li>
+      <li>間合いゲージ上に攻撃のリーチを帯で可視化: <b>発生中=濃 / 始動中=淡 / 自分=緑・敵=赤</b></li>
+      <li>凡例を追加</li>
+    </ul>
+    <p class="note">「自分の現在状態」「相手の現在状態」「両者の射程帯」を1画面に同時表示できる構成。次フェーズ以降の議論の土台になる。</p>
+  </div>
+
+  <div class="panel">
+    <h2>6. この日の到達点</h2>
+    <p>フレーム単位の進行・状態表示・接触記録という<b>観察のための最小単位</b>が揃った。
+    被弾効果（ダメージ・のけぞり・KO）は意図的に未導入のまま、まず「フレームが噛み合うのを見る」段階を確保。</p>
+    <p class="note">翌 2026-05-25 から路線が FSM 設計（ステートマシンとして「カチッと」定義する方向）へ切り替わる。</p>
+  </div>
+</body>
+</html>

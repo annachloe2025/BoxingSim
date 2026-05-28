@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BoxingSim 段階3 (α) Step B: guardScore 構造修正 + guardCommitment 有効化 2026-05-27</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; padding: 18px 22px 60px;
+    background: #14181d; color: #d8dee6;
+    font-family: "Consolas", "SFMono-Regular", "Courier New", monospace;
+    font-size: 13px; line-height: 1.55;
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; color: #8fd3ff; }
+  .sub { color: #7c8794; margin: 0 0 14px; font-size: 12px; line-height: 1.7; }
+  .sub b { color: #d8dee6; font-weight: normal; }
+
+  .panel {
+    background: #1c2229; border: 1px solid #2c343d; border-radius: 8px;
+    padding: 12px 16px; margin-bottom: 14px;
+  }
+  .panel h2 {
+    font-size: 14px; margin: 0 0 10px; color: #8fd3ff; letter-spacing: .03em;
+    border-bottom: 1px solid #2c343d; padding-bottom: 6px;
+  }
+  .panel h3 { font-size: 12.5px; margin: 12px 0 6px; color: #aeb9c4; }
+  .panel h4 { font-size: 12px; margin: 10px 0 4px; color: #9aa7b4; font-weight: normal; }
+  .panel p { margin: 6px 0; }
+  .panel ul { margin: 6px 0 6px 18px; padding: 0; }
+  .panel ul li { padding: 1px 0; }
+  .panel ol { margin: 6px 0 6px 22px; padding: 0; }
+  .panel ol li { padding: 2px 0; }
+  code { color: #aeb9c4; background: #11161b; padding: 1px 4px; border-radius: 3px; font-size: 12px; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; margin: 6px 0; }
+  th, td { border: 1px solid #2c343d; padding: 5px 8px; text-align: center; vertical-align: top; }
+  th { color: #9aa7b4; font-weight: normal; background: #11161b; font-size: 11.5px; letter-spacing: .03em; }
+  td.lbl { text-align: left; color: #d8dee6; }
+  td.lblL { text-align: left; color: #d8dee6; }
+  td.num { color: #ffd27d; font-variant-numeric: tabular-nums; }
+  td.dim { color: #7c8794; text-align: left; }
+  td.hi { color: #5aafff; font-weight: bold; }
+  td.warn { color: #ff7d7d; font-weight: bold; }
+  td.ok { color: #6fd3a0; font-weight: bold; }
+  td.head { color: #8fd3ff; }
+  td.sweet { color: #5aafff; font-weight: bold; background: #11202b; }
+
+  .formula {
+    background: #11161b; border-left: 3px solid #5aafff;
+    padding: 8px 12px; margin: 6px 0; border-radius: 4px;
+    font-size: 12.5px; color: #d8e6ff;
+  }
+  .formula em { color: #ffd27d; font-style: normal; }
+  .formula code { color: #aeb9c4; }
+
+  .diff-row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    margin: 6px 0;
+  }
+  .diff-col {
+    background: #11161b; border: 1px solid #2c343d; border-radius: 4px;
+    padding: 8px 10px; font-size: 12px;
+  }
+  .diff-col.old { border-left: 3px solid #7c8794; }
+  .diff-col.new { border-left: 3px solid #5aafff; }
+  .diff-col h4 { margin: 0 0 4px; font-size: 11.5px; color: #aeb9c4; font-weight: normal; }
+
+  .note { font-size: 11.5px; color: #7c8794; line-height: 1.7; margin-top: 6px; }
+  .note b { color: #aeb9c4; font-weight: normal; }
+
+  .meta {
+    background: #1c2229; border-left: 3px solid #ffd27d; padding: 8px 12px;
+    border-radius: 4px; margin-bottom: 14px; font-size: 11.5px; color: #d8dee6; line-height: 1.7;
+  }
+  .meta a { color: #8fd3ff; text-decoration: none; }
+  .meta a:hover { text-decoration: underline; }
+
+  .good-box {
+    background: #16221c; border: 2px solid #6fd3a0; border-radius: 6px;
+    padding: 10px 14px; margin: 10px 0;
+  }
+  .good-box h3 { color: #6fd3a0; margin: 0 0 6px; font-size: 13px; }
+  .good-box ul li { padding: 2px 0; font-size: 12px; }
+
+  .bad-box {
+    background: #22171a; border: 2px solid #ff7d7d; border-radius: 6px;
+    padding: 10px 14px; margin: 10px 0;
+  }
+  .bad-box h3 { color: #ff7d7d; margin: 0 0 6px; font-size: 13px; }
+  .bad-box ul li { padding: 2px 0; font-size: 12px; }
+
+  .warn-box {
+    background: #22201a; border: 2px solid #ffce4d; border-radius: 6px;
+    padding: 10px 14px; margin: 10px 0;
+  }
+  .warn-box h3 { color: #ffce4d; margin: 0 0 6px; font-size: 13px; }
+  .warn-box ul li { padding: 2px 0; font-size: 12px; }
+
+  .sweet-box {
+    background: #11202b; border: 2px solid #5aafff; border-radius: 6px;
+    padding: 10px 14px; margin: 10px 0;
+  }
+  .sweet-box h3 { color: #5aafff; margin: 0 0 6px; font-size: 13px; }
+  .sweet-box p { margin: 4px 0; font-size: 12px; }
+  .sweet-box ul li { padding: 2px 0; font-size: 12px; }
+
+  .footer { color: #7c8794; font-size: 11.5px; margin-top: 22px; line-height: 1.8; border-top: 1px solid #2c343d; padding-top: 12px; }
+  .footer a { color: #8fd3ff; text-decoration: none; }
+  .footer a:hover { text-decoration: underline; }
+  .footer ul { margin: 4px 0 4px 18px; padding: 0; }
+  .footer ul li { padding: 1px 0; }
+
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 10.5px; margin-left: 4px; }
+  .pill.ok { background: #6fd3a0; color: #14181d; }
+  .pill.warn { background: #ffce4d; color: #14181d; }
+  .pill.bad { background: #ff7d7d; color: #14181d; }
+  .pill.sweet { background: #5aafff; color: #14181d; }
+  .pill.next { background: #2c343d; color: #aeb9c4; }
+</style>
+</head>
+<body>
+  <h1>段階3 (α) Step B: guardScore 式の構造修正 + guardCommitment 有効化</h1>
+
+  <div class="panel" style="border: 2px solid #ff7d7d; background: #22171a;">
+    <h2 style="color: #ff7d7d; border-bottom-color: #ff7d7d;">⚠ 重要: このレポートの数値は部分的に無効</h2>
+    <p>
+      このレポートを作成した時点では、<code>tools/verify.js</code> の ELEM stub に
+      <code>gcP</code> / <code>gcE</code> が未登録だったため、<code>build()</code> 内で
+      <code>parseFloat(undefined)</code> が NaN になり <code>|| 0</code> でフォールバックされていた。
+    </p>
+    <p>
+      つまりこのレポートが示す数値は「<b>guardScore 式変更だけの効果</b>
+      （threat 依存比 3.67× → 2.29×）」であり、
+      <b>guardCommitment は実は無効化されていた</b>。
+    </p>
+    <p>
+      guardCommitment 真の効果と、その上に重ねた guardSwapStartup の効果、
+      および本バグ発覚と修正の経緯は
+      <a href="2026-05-27-defensive-ai-stepC-complete.html" style="color: #ff7d7d;">段階3 (α) Step C 完成 + 守備 AI 構造改善 総括</a>
+      を参照。
+    </p>
+  </div>
+
+  <p class="sub">
+    守備 AI 構造改善 3 段プラン (A/B/C) のうち <b>Step B</b> 実装報告。
+    Step A で配管された <code>guardCommitment</code> を <b>0 → 0.5</b> で有効化し、
+    あわせて <code>scoreActions</code> の guard 系スコア式を組み替えて
+    <b>threat フラグ依存比を 3.7× → 2.3× に圧縮</b>した。
+    挙動の構造変化を非対称 lag 7 段スキャンと性格 3 パターンで観測。
+  </p>
+
+  <div class="meta">
+    <b>関連</b>:
+    <a href="2026-05-27-defensive-ai-stepA.html">2026-05-27 Step A 配管</a> ／
+    <a href="2026-05-26-perception-lag.html">2026-05-26 perception-lag 中間</a> ／
+    <a href="2026-05-26-phase3-complete.html">2026-05-26 段階3 完成</a> ／
+    プラン: <code>~/.claude/plans/ai-gleaming-hollerith.md</code> ／
+    <a href="../TASKS.md">TASKS.md</a> ／ <a href="../LOG.md">LOG.md</a>
+  </div>
+
+  <!-- ===== 1. 背景 ===== -->
+  <div class="panel">
+    <h2>1. 背景</h2>
+    <p>
+      <a href="2026-05-26-perception-lag.html">perception-lag 中間</a> で抽出された守備 AI 構造的問題 3 点のうち、
+      Step B は <b>#1（threatened フラグ依存）</b> を構造的に解消することを担う。
+      Step A で配管と Identity Check（bit-identical PASS）まで済んでおり、本 Step では
+      既定値を no-op から実値に切り替えて挙動を動かす。
+    </p>
+    <ul>
+      <li><b>#1 threatened 依存</b>: ガード score が threatened の有無で 0.10 / 1.20 と段差 → <b>Step B で対象</b></li>
+      <li><b>#2 ガード切替コスト = 0F</b> → Step C (guardSwapStartup) で対応予定</li>
+      <li><b>#3 一方的試合</b> → #1 と #2 の合成効果で観察すべきもの</li>
+    </ul>
+  </div>
+
+  <!-- ===== 2. 実装内容 ===== -->
+  <div class="panel">
+    <h2>2. 実装内容</h2>
+
+    <h3>2-1. <code>scoreActions</code> guard 系スコア式（<code>src/index.html</code> l.435-438 付近）</h3>
+
+    <table>
+      <thead>
+        <tr><th>項目</th><th>旧</th><th>新</th><th>意味</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="lblL"><code>guardRangeBase</code></td>
+          <td class="dim"><code>inRange ? 0.30 : 0.05</code></td>
+          <td class="num">inRange ? <b>0.35</b> : <b>0.10</b></td>
+          <td class="dim">距離由来のガード基礎値を底上げ。inRange でも非 inRange でも threatened に頼らない最低保証を強化</td>
+        </tr>
+        <tr>
+          <td class="lblL"><code>guardThreatBoost</code></td>
+          <td class="dim"><code>threatened ? 0.80 : 0</code></td>
+          <td class="num">threatened ? <b>0.45</b> : 0</td>
+          <td class="dim">threat 依存ブーストを <b>0.80 → 0.45（-44%）</b>。段差を緩める</td>
+        </tr>
+        <tr>
+          <td class="lblL"><code>guardFwdScore</code> (inRange)</td>
+          <td class="dim"><code>0.10</code></td>
+          <td class="num"><b>0.18</b></td>
+          <td class="dim">前進しながらのガード（接近ガード）も底上げ</td>
+        </tr>
+        <tr>
+          <td class="lblL"><code>guardBackScore</code></td>
+          <td class="dim">変更なし</td>
+          <td class="dim">—</td>
+          <td class="dim">後退ガードは元から十分働いており据置</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="formula">
+      threat 依存比（threatened ON / OFF の guard score 比）:
+      <br>旧: (0.30 + 0.80) / 0.30 = <em>3.67×</em>
+      <br>新: (0.35 + 0.45) / 0.35 = <em>2.29×</em>
+    </div>
+
+    <h3>2-2. <code>PERS</code> guardCommitment 有効化</h3>
+    <ul>
+      <li><code>PERS.P.guardCommitment</code>: <code>0</code> → <b>0.5</b></li>
+      <li><code>PERS.E.guardCommitment</code>: <code>0</code> → <b>0.5</b></li>
+      <li>UI スライダー <code>gcP</code> / <code>gcE</code> の初期 value も <code>0</code> → <b>50</b> に同期</li>
+    </ul>
+    <p class="note">
+      Step A で配管した <code>×(1 ± 0.5·gc)</code> 倍率が gc=0.5 で
+      <b>一致 target = ×1.25 / 不一致 target = ×0.75</b> として実効化される。
+      「毎フレーム白紙の guard 選好」を緩和し、ガード方向に粘性を持たせる。
+    </p>
+  </div>
+
+  <!-- ===== 3. 非対称 lag スキャン 7段 ===== -->
+  <div class="panel">
+    <h2>3. 観測: 非対称 baseP / baseE × lag 7 段（50戦/段）</h2>
+
+    <table>
+      <thead>
+        <tr>
+          <th>lag (p/d)</th><th>P勝</th><th>E勝</th><th>時間切れ</th>
+          <th>KO中央F</th><th>clean</th><th>block (chip)</th>
+          <th>block/clean</th><th>殴り合い率</th><th>ガ切替/試合</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="head">0/0</td>
+          <td class="num">0</td><td class="num">2</td>
+          <td class="warn">48</td>
+          <td class="num">755</td><td class="num">401</td><td class="num">979 (150)</td>
+          <td class="warn">2.44</td>
+          <td class="num">10.6%</td>
+          <td class="num">18.2</td>
+        </tr>
+        <tr>
+          <td class="head">1/2</td>
+          <td class="num">11</td><td class="num">10</td>
+          <td class="num">29</td>
+          <td class="num">632</td><td class="num">642</td><td class="num">747 (144)</td>
+          <td class="num">1.16</td>
+          <td class="num">14.5%</td>
+          <td class="num">16.8</td>
+        </tr>
+        <tr>
+          <td class="sweet">2/4</td>
+          <td class="sweet">34</td><td class="sweet">15</td>
+          <td class="sweet">1</td>
+          <td class="sweet">574</td><td class="sweet">797</td><td class="sweet">441 (122)</td>
+          <td class="sweet">0.55</td>
+          <td class="sweet">17.5%</td>
+          <td class="sweet">8.3</td>
+        </tr>
+        <tr>
+          <td class="head">3/5</td>
+          <td class="num">29</td><td class="num">21</td>
+          <td class="ok">0</td>
+          <td class="num">433</td><td class="num">807</td><td class="num">187 (58)</td>
+          <td class="warn">0.23</td>
+          <td class="num">20.8%</td>
+          <td class="num">3.9</td>
+        </tr>
+        <tr>
+          <td class="head">4/6</td>
+          <td class="num">35</td><td class="num">15</td>
+          <td class="ok">0</td>
+          <td class="num">340</td><td class="num">803</td><td class="num">86 (36)</td>
+          <td class="warn">0.11</td>
+          <td class="num">23.3%</td>
+          <td class="num">2.2</td>
+        </tr>
+        <tr>
+          <td class="head">5/8</td>
+          <td class="num">34</td><td class="num">16</td>
+          <td class="ok">0</td>
+          <td class="num">389</td><td class="num">840</td><td class="num">80 (31)</td>
+          <td class="warn">0.10</td>
+          <td class="num">21.8%</td>
+          <td class="num">2.6</td>
+        </tr>
+        <tr>
+          <td class="head">7/10</td>
+          <td class="num">30</td><td class="num">20</td>
+          <td class="ok">0</td>
+          <td class="num">333</td><td class="num">820</td><td class="num">66 (24)</td>
+          <td class="warn">0.08</td>
+          <td class="num">22.5%</td>
+          <td class="num">2.1</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="note">
+      <b>注:</b> lag=2/4 行を青背景で強調（後述「スイートスポット」）。
+      block/clean は守備機能の機械的指標で、プラン目標は <b>0.5 〜 2.0</b> 帯。
+    </p>
+  </div>
+
+  <!-- ===== 4. 性格 3 パターン × lag 2 段 ===== -->
+  <div class="panel">
+    <h2>4. 観測: 性格パターン 3 ケース × lag=(3,5)(5,8)</h2>
+
+    <table>
+      <thead>
+        <tr>
+          <th>ケース</th><th>p/d</th><th>P勝</th><th>E勝</th><th>時間切れ</th>
+          <th>KO中央F</th><th>clean</th><th>block (chip)</th>
+          <th>block/clean</th><th>殴り合い率</th><th>ガ切替/試合</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="lblL">両攻撃型</td><td class="head">3/5</td>
+          <td class="num">31</td><td class="num">19</td>
+          <td class="ok">0</td>
+          <td class="num">291</td><td class="num">861</td><td class="num">50 (22)</td>
+          <td class="warn">0.058</td>
+          <td class="num">28.4%</td>
+          <td class="num">0.4</td>
+        </tr>
+        <tr>
+          <td class="lblL">両攻撃型</td><td class="head">5/8</td>
+          <td class="num">25</td><td class="num">25</td>
+          <td class="ok">0</td>
+          <td class="num">310</td><td class="num">941</td><td class="num">23 (12)</td>
+          <td class="warn">0.024</td>
+          <td class="num">27.0%</td>
+          <td class="num">0.3</td>
+        </tr>
+        <tr>
+          <td class="lblL">両守備型</td><td class="head">3/5</td>
+          <td class="num">8</td><td class="num">4</td>
+          <td class="warn">38</td>
+          <td class="num">648</td><td class="num">503</td><td class="num">351 (108)</td>
+          <td class="ok">0.70</td>
+          <td class="num">9.4%</td>
+          <td class="warn">43.8</td>
+        </tr>
+        <tr>
+          <td class="lblL">両守備型</td><td class="head">5/8</td>
+          <td class="num">20</td><td class="num">11</td>
+          <td class="warn">19</td>
+          <td class="num">632</td><td class="num">692</td><td class="num">201 (79)</td>
+          <td class="num">0.29</td>
+          <td class="num">11.4%</td>
+          <td class="warn">34.4</td>
+        </tr>
+        <tr>
+          <td class="lblL">攻 vs 守</td><td class="head">3/5</td>
+          <td class="num">33</td><td class="num">14</td>
+          <td class="num">3</td>
+          <td class="num">477</td><td class="num">778</td><td class="num">292 (79)</td>
+          <td class="num">0.38</td>
+          <td class="num">18.4%</td>
+          <td class="num">6.3</td>
+        </tr>
+        <tr>
+          <td class="lblL">攻 vs 守</td><td class="head">5/8</td>
+          <td class="num">46</td><td class="num">4</td>
+          <td class="ok">0</td>
+          <td class="num">393</td><td class="num">756</td><td class="num">121 (39)</td>
+          <td class="num">0.16</td>
+          <td class="num">18.8%</td>
+          <td class="num">4.2</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="note">
+      両攻撃型は df=0.2（低 defensiveness）のため guardRangeBase 引き上げの効果が小さく、
+      Step A 時とほぼ無変化 — <b>設計通り</b>。
+      両守備型は df=0.8 の guard score 拡大に対して guardCommitment=0.5 の継続バイアスが
+      明らかに弱く、ガ切替 43.8 / 試合で振動している（後述）。
+    </p>
+  </div>
+
+  <!-- ===== 5. 構造的解釈 ===== -->
+  <div class="panel">
+    <h2>5. 構造的解釈</h2>
+
+    <div class="good-box">
+      <h3>良い変化（緑）</h3>
+      <ul>
+        <li>
+          <b>lag=0/0 で守備が「過剰機能」する形に増強</b>。
+          block/clean = 2.44 で段階 2 Step C の方向に振れ戻り、
+          guardRangeBase 引き上げ + guardCommitment による同 target 強化が効いている
+        </li>
+        <li>
+          <b>lag=3/5 以上で「守備の最低限」が機械的に成立</b>。
+          threat boost を半減（0.80 → 0.45）したにもかかわらず
+          <b>block 件数は perception-lag baseline 比で逆増</b>:
+          lag=5/7 で baseline 52→80、lag=7/10 で 8→66。
+          threat 依存の構造低下は仕様通り
+        </li>
+        <li>
+          <b>ガード切替頻度が適切に増えた</b>。
+          非対称 lag=0/0 で Step A baseline 13.0 → Step B 18.2（+40%）。
+          殴り合い率も 9.0% → 10.6% に揃って上昇しており、
+          ガードの「使い分け」が増えた所作として読める
+        </li>
+      </ul>
+    </div>
+
+    <div class="bad-box">
+      <h3>悪い変化・懸念（赤）</h3>
+      <ul>
+        <li>
+          <b>lag=0/0 の時間切れ 48/50 = 96%</b> — プラン R1 基準（35% 未満）を大幅超。
+          無遅延条件では攻撃側が読まれすぎ、互いに当てに行けない泥沼が支配する
+        </li>
+        <li>
+          <b>lag=3-7 で block/clean が 0.5 を割る</b>（0.23 → 0.11 → 0.10 → 0.08）。
+          プラン目標を下回り、Step B 単独では構造的に解決できていない
+        </li>
+        <li>
+          両攻撃型はほぼ無変化（df=0.2 では guardRangeBase 引き上げの効果が小さい — 設計通りだが、
+          「攻撃寄りの性格は守備改善の恩恵を受けない」事実は留保）
+        </li>
+      </ul>
+    </div>
+
+    <div class="warn-box">
+      <h3>予想外の変化（黄）</h3>
+      <ul>
+        <li>
+          <b>両守備型 lag=3/5 のガード切替 43.8 回/試合</b> —
+          guardCommitment=0.5 は df=0.8 の guard score 拡大に対して
+          継続バイアスが弱い可能性。Step C の guardSwapStartup 導入で抑制されるか要観察
+        </li>
+        <li>
+          <b>whiff「攻撃中」分類が lag 増加で激増</b>
+          （lag=0/0 で 0% → lag=7/10 で 38%）。
+          ガード継続バイアスにより、相手が攻撃中でも自分は guard を続ける状況が生まれている
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ===== 6. スイートスポット lag=2/4 ===== -->
+  <div class="panel">
+    <h2>6. スイートスポットとしての lag=2/4</h2>
+
+    <div class="sweet-box">
+      <h3>非対称 lag=2/4 がプラン 5 基準を唯一同時に満たす</h3>
+      <p>
+        Step B 観測で <b>すべての基準を同時に満たした唯一のシナリオ</b>:
+      </p>
+      <ul>
+        <li>時間切れ <b>1/50 (2%)</b> &nbsp;⟶ &nbsp;プラン基準 &lt;35% ✅</li>
+        <li>KO 中央 <b>574F</b> &nbsp;⟶ &nbsp;プラン基準 300-600F ✅</li>
+        <li>block/clean <b>0.55</b> &nbsp;⟶ &nbsp;プラン基準 0.5-2.0 ✅</li>
+        <li>殴り合い率 <b>17.5%</b> &nbsp;⟶ &nbsp;プラン基準 &lt;40% ✅</li>
+        <li>5 劇すべて読み取り可（次節） ✅</li>
+      </ul>
+      <p>
+        Step C 完了後の <b>lag 既定値再決定</b>（perception-lag (B) ルート）における
+        有力候補として記録。
+      </p>
+    </div>
+
+    <h3>健全な基準テーブル（全シナリオ俯瞰）</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>シナリオ</th><th>時間切れ &lt;35%</th>
+          <th>KO 中央 300-600F</th><th>block/clean &gt;0.5</th>
+          <th>殴り合い &lt;40%</th><th>5 劇</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="lblL">非対称 0/0</td>
+          <td class="warn">❌ 96%</td><td class="dim">—</td>
+          <td class="ok">✅ 2.44</td><td class="ok">✅ 10.6%</td>
+          <td class="num">△</td>
+        </tr>
+        <tr>
+          <td class="lblL">非対称 1/2</td>
+          <td class="num">⚠ 58%</td><td class="num">⚠ 632F</td>
+          <td class="ok">✅ 1.16</td><td class="ok">✅ 14.5%</td>
+          <td class="ok">✅</td>
+        </tr>
+        <tr>
+          <td class="sweet">非対称 2/4</td>
+          <td class="sweet">✅ 2%</td><td class="sweet">✅ 574F</td>
+          <td class="sweet">✅ 0.55</td><td class="sweet">✅ 17.5%</td>
+          <td class="sweet">✅</td>
+        </tr>
+        <tr>
+          <td class="lblL">非対称 3/5</td>
+          <td class="ok">✅ 0%</td><td class="ok">✅ 433F</td>
+          <td class="warn">❌ 0.23</td><td class="ok">✅ 20.8%</td>
+          <td class="ok">✅</td>
+        </tr>
+        <tr>
+          <td class="lblL">非対称 5/8</td>
+          <td class="ok">✅ 0%</td><td class="ok">✅ 389F</td>
+          <td class="warn">❌ 0.10</td><td class="ok">✅ 21.8%</td>
+          <td class="ok">✅</td>
+        </tr>
+        <tr>
+          <td class="lblL">両攻撃 3/5</td>
+          <td class="ok">✅ 0%</td><td class="num">⚠ 291F</td>
+          <td class="warn">❌ 0.058</td><td class="ok">✅ 28.4%</td>
+          <td class="num">△</td>
+        </tr>
+        <tr>
+          <td class="lblL">両守備 3/5</td>
+          <td class="warn">❌ 76%</td><td class="ok">✅ 648F</td>
+          <td class="ok">✅ 0.70</td><td class="ok">✅ 9.4%</td>
+          <td class="ok">✅</td>
+        </tr>
+        <tr>
+          <td class="lblL">攻 vs 守 3/5</td>
+          <td class="ok">✅ 6%</td><td class="ok">✅ 477F</td>
+          <td class="warn">❌ 0.38</td><td class="ok">✅ 18.4%</td>
+          <td class="ok">✅</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ===== 7. 5 劇の再現性 ===== -->
+  <div class="panel">
+    <h2>7. 5 劇の再現性（phase3 完成版との比較）</h2>
+
+    <table>
+      <thead>
+        <tr><th>劇</th><th>観測指標</th><th>Step B での状況</th><th>判定</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="lblL">① ジャブの賭け</td>
+          <td class="dim">jab のガード率 / 回避率</td>
+          <td class="lblL">lag=2/4: ガード 21% / 回避 67%。lag=3/5: ガード 9% / 回避 45%</td>
+          <td class="ok">再現</td>
+        </tr>
+        <tr>
+          <td class="lblL">② ストレートは見てガード</td>
+          <td class="dim">str vs jab のガード率差</td>
+          <td class="lblL">lag=2/4: str 46% vs jab 21%。startup 差が機能している</td>
+          <td class="ok">再現</td>
+        </tr>
+        <tr>
+          <td class="lblL">③ 強ストレート vs ジャブ割り込み</td>
+          <td class="dim">hvy whiff% / jab counter 件数</td>
+          <td class="lblL">lag=3/5: hvy whiff 66% ／ jab counter 395 件</td>
+          <td class="ok">強く再現</td>
+        </tr>
+        <tr>
+          <td class="lblL">④ フェイント誘発</td>
+          <td class="dim">fnt 試行数</td>
+          <td class="lblL">両守備型 3/5 で 574 試行（最多）</td>
+          <td class="ok">再現</td>
+        </tr>
+        <tr>
+          <td class="lblL">⑤ チップ崩し</td>
+          <td class="dim">block 中の chip 比</td>
+          <td class="lblL">lag=2/4: chip 122/441 = 28%（phase3 完成版より比率上昇）</td>
+          <td class="ok">再現</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="note">
+      <b>5 劇すべて読み取れる</b>。phase3 完成版の質感は構造的に保持されている。
+      ガード式の組み替えで「読み合い」の出方は変位したが、解像できる事象が減ったわけではない。
+    </p>
+  </div>
+
+  <!-- ===== 8. リスク判定 (R1/R2/R3) ===== -->
+  <div class="panel">
+    <h2>8. リスク判定 (R1 / R2 / R3)</h2>
+
+    <table>
+      <thead>
+        <tr><th>ID</th><th>内容</th><th>状態</th><th>判断</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="head">R1</td>
+          <td class="lblL">lag=0 時間切れ過多</td>
+          <td class="warn">❌ 発火（96%）</td>
+          <td class="dim">
+            だが Step C を先に試すことを推奨。「ガード切替コスト 3F」が入ると上下打ち分けが意味を持ち、
+            無遅延でも攻撃が通って lag=0 時間切れ率が下がる見込み
+          </td>
+        </tr>
+        <tr>
+          <td class="head">R2</td>
+          <td class="lblL">Step C 起因の KO 増</td>
+          <td class="dim">未発火（Step C 未実施）</td>
+          <td class="dim">Step C 後に再判定</td>
+        </tr>
+        <tr>
+          <td class="head">R3</td>
+          <td class="lblL">guardCommitment と df の効果重複</td>
+          <td class="num">▲ 要観察</td>
+          <td class="dim">
+            両守備型のガ切替過多（43.8 回 / 試合）が、
+            guardCommitment が df 拡大に対して弱い兆候。
+            Step C 後にクロス感度実施を推奨
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ===== 9. 次の観察候補 ===== -->
+  <div class="panel">
+    <h2>9. 次の観察候補（Step C 前）</h2>
+
+    <ol>
+      <li>
+        Step B で残った構造的問題（lag=3-7 の block/clean &lt; 0.5）は、
+        Step C の <code>guardSwapStartup</code> 導入で「上下打ち分けが意味を持つ」状況を作ることで解決見込み
+      </li>
+      <li>
+        <code>guardCommitment</code> 感度分析（0.3 / 0.5 / 0.7）は
+        verify.js が CLI 引数未対応のため、Step C 後にまとめて実施
+      </li>
+      <li>
+        <b>lag=2/4 がスイートスポット</b> — Step C 後の lag 既定値再決定（perception-lag (B) ルート）の有力候補
+      </li>
+      <li>
+        両守備型のガ切替振動（43.8 回 / 試合）が <b>振動</b>か<b>機能</b>かの切り分けは Step C 後の比較で判明
+      </li>
+    </ol>
+  </div>
+
+  <div class="footer">
+    <b>参照ファイル</b>
+    <ul>
+      <li>
+        <code>src/index.html</code> —
+        <code>scoreActions</code> guard 系スコア式 (l.435-438 付近) ／
+        <code>PERS.{P,E}.guardCommitment</code> 0 → 0.5 ／
+        UI スライダー <code>gcP</code> / <code>gcE</code> 初期値 0 → 50
+      </li>
+      <li><code>tools/verify.js</code> — Step A 拡張をそのまま使用</li>
+      <li>プラン: <code>~/.claude/plans/ai-gleaming-hollerith.md</code></li>
+      <li><a href="2026-05-27-defensive-ai-stepA.html">reports/2026-05-27-defensive-ai-stepA.html</a>（Step A 配管 + Identity Check）</li>
+      <li><a href="2026-05-26-perception-lag.html">reports/2026-05-26-perception-lag.html</a>（守備 AI 構造的問題 3 点の出所、Step B baseline 比較元）</li>
+      <li><a href="2026-05-26-phase3-complete.html">reports/2026-05-26-phase3-complete.html</a>（5 劇再現性の比較元）</li>
+      <li><a href="../TASKS.md">TASKS.md</a> ／ <a href="../LOG.md">LOG.md</a></li>
+    </ul>
+  </div>
+
+</body>
+</html>

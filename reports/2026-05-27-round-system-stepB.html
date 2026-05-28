@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BoxingSim 段階5 Step B: ラウンド境界処理 + インターバル + UI 進行表示 2026-05-27</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; padding: 18px 22px 60px;
+    background: #14181d; color: #d8dee6;
+    font-family: "Consolas", "SFMono-Regular", "Courier New", monospace;
+    font-size: 13px; line-height: 1.55;
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; color: #8fd3ff; }
+  .sub { color: #7c8794; margin: 0 0 14px; font-size: 12px; line-height: 1.7; }
+  .sub b { color: #d8dee6; font-weight: normal; }
+
+  .panel {
+    background: #1c2229; border: 1px solid #2c343d; border-radius: 8px;
+    padding: 12px 16px; margin-bottom: 14px;
+  }
+  .panel h2 {
+    font-size: 14px; margin: 0 0 10px; color: #8fd3ff; letter-spacing: .03em;
+    border-bottom: 1px solid #2c343d; padding-bottom: 6px;
+  }
+  .panel h3 { font-size: 12.5px; margin: 12px 0 6px; color: #aeb9c4; }
+  .panel h4 { font-size: 12px; margin: 10px 0 4px; color: #9aa7b4; font-weight: normal; }
+  .panel p { margin: 6px 0; }
+  .panel ul { margin: 6px 0 6px 18px; padding: 0; }
+  .panel ul li { padding: 1px 0; }
+  .panel ol { margin: 6px 0 6px 22px; padding: 0; }
+  .panel ol li { padding: 2px 0; }
+  code { color: #aeb9c4; background: #11161b; padding: 1px 4px; border-radius: 3px; font-size: 12px; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; margin: 6px 0; }
+  th, td { border: 1px solid #2c343d; padding: 5px 8px; text-align: center; vertical-align: top; }
+  th { color: #9aa7b4; font-weight: normal; background: #11161b; font-size: 11.5px; letter-spacing: .03em; }
+  td.lbl { text-align: left; color: #d8dee6; }
+  td.lblL { text-align: left; color: #d8dee6; }
+  td.num { color: #ffd27d; font-variant-numeric: tabular-nums; }
+  td.dim { color: #7c8794; text-align: left; }
+  td.hi { color: #5aafff; font-weight: bold; }
+  td.warn { color: #ff7d7d; font-weight: bold; }
+  td.bad { color: #ff7d7d; font-weight: bold; background: #22171a; }
+  td.ok { color: #6fd3a0; font-weight: bold; }
+  td.head { color: #8fd3ff; }
+  td.sweet { color: #5aafff; font-weight: bold; background: #11202b; }
+  td.amber { color: #ffb066; font-weight: bold; background: #2a1f13; }
+
+  .formula {
+    background: #11161b; border-left: 3px solid #5aafff;
+    padding: 8px 12px; margin: 6px 0; border-radius: 4px;
+    font-size: 12.5px; color: #d8e6ff;
+  }
+  .formula em { color: #ffd27d; font-style: normal; }
+  .formula code { color: #aeb9c4; }
+
+  .note { font-size: 11.5px; color: #7c8794; line-height: 1.7; margin-top: 6px; }
+  .note b { color: #aeb9c4; font-weight: normal; }
+
+  .meta {
+    background: #1c2229; border-left: 3px solid #ffd27d; padding: 8px 12px;
+    border-radius: 4px; margin-bottom: 14px; font-size: 11.5px; color: #d8dee6; line-height: 1.7;
+  }
+  .meta a { color: #8fd3ff; text-decoration: none; }
+  .meta a:hover { text-decoration: underline; }
+
+  .pass-box {
+    background: #16221c; border: 2px solid #6fd3a0; border-radius: 6px;
+    padding: 12px 16px; margin: 10px 0;
+  }
+  .pass-box h3 { color: #6fd3a0; margin: 0 0 8px; font-size: 13.5px; }
+  .pass-box p { margin: 4px 0; font-size: 12px; }
+  .pass-box ul { margin: 6px 0 6px 22px; }
+  .pass-box ul li { padding: 2px 0; font-size: 12px; }
+  .pass-box code { color: #d8e6ff; }
+
+  .sweet-box {
+    background: #11202b; border: 2px solid #5aafff; border-radius: 6px;
+    padding: 10px 14px; margin: 10px 0;
+  }
+  .sweet-box h3 { color: #5aafff; margin: 0 0 6px; font-size: 13px; }
+  .sweet-box p { margin: 4px 0; font-size: 12px; }
+  .sweet-box ul { margin: 6px 0 6px 22px; }
+  .sweet-box ul li { padding: 2px 0; font-size: 12px; }
+
+  .amber-box {
+    background: #2a1f13; border: 2px solid #ffb066; border-radius: 6px;
+    padding: 10px 14px; margin: 10px 0;
+  }
+  .amber-box h3 { color: #ffb066; margin: 0 0 6px; font-size: 13px; }
+  .amber-box p { margin: 4px 0; font-size: 12px; }
+  .amber-box ul { margin: 6px 0 6px 22px; }
+  .amber-box ul li { padding: 2px 0; font-size: 12px; }
+
+  .lesson-box {
+    background: #14202b; border: 2px solid #5aafff; border-radius: 6px;
+    padding: 12px 16px; margin: 10px 0;
+  }
+  .lesson-box h3 { color: #5aafff; margin: 0 0 8px; font-size: 13.5px; }
+  .lesson-box h4 { color: #8fd3ff; margin: 8px 0 4px; font-size: 12.5px; }
+  .lesson-box p { margin: 4px 0; font-size: 12px; }
+  .lesson-box ul { margin: 6px 0 6px 22px; }
+  .lesson-box ul li { padding: 2px 0; font-size: 12px; }
+
+  .footer { color: #7c8794; font-size: 11.5px; margin-top: 22px; line-height: 1.8; border-top: 1px solid #2c343d; padding-top: 12px; }
+  .footer a { color: #8fd3ff; text-decoration: none; }
+  .footer a:hover { text-decoration: underline; }
+  .footer ul { margin: 4px 0 4px 18px; padding: 0; }
+  .footer ul li { padding: 1px 0; }
+
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 10.5px; margin-left: 4px; }
+  .pill.pass { background: #6fd3a0; color: #14181d; }
+  .pill.noop { background: #2c343d; color: #aeb9c4; }
+  .pill.next { background: #ffce4d; color: #14181d; }
+  .pill.new { background: #5aafff; color: #14181d; }
+  .pill.hold { background: #aa6f4d; color: #14181d; }
+  .pill.amber { background: #ffb066; color: #14181d; }
+
+  .big { color: #ffd27d; font-weight: bold; font-size: 14px; }
+  .delta-good { color: #6fd3a0; font-weight: bold; }
+  .delta-bad { color: #ff7d7d; font-weight: bold; }
+  .delta-amber { color: #ffb066; font-weight: bold; }
+  .md5 { font-size: 13px; letter-spacing: .04em; }
+</style>
+</head>
+<body>
+  <h1>段階5 (ラウンドシステム + 判定システム) Step B: ラウンド境界処理 + インターバル + UI 進行表示</h1>
+  <p class="sub">
+    実物ボクシングの試合構造を機械化する 3 段プラン (A/B/C) の <b>Step B</b> 完了レポート。
+    Step A で配管した <code>roundFrame</code> / <code>matchPhase</code> / <code>roundStats</code> を駆動し、
+    <b>roundEnabled=true</b> 既定で <b>ラウンド境界処理 + インターバル + UI 進行表示</b>を有効化した。
+    部分リセット (<code>partialReset</code>) は HP・スタミナ・予測分布を持ち越し、フレーム状態を初期化。
+    50戦 × 複数シナリオで観測した結果、<b>時間切れ激減</b>（最大 29 → 2）と <b>スイートスポット (p2/d4) 維持</b>を確認。
+    一方で <b>守備型 KO 中央値 +20%</b> は Step C 判定システムの導入動機を観測ベースで裏付けた。
+    Identity Fallback (<code>roundEnabled=false</code>) は Step A baseline と <b>MD5 完全一致</b>。
+  </p>
+
+  <div class="meta">
+    <b>関連</b>:
+    <a href="2026-05-27-round-system-stepA.html">2026-05-27 段階5 Step A（配管 + Identity Check）</a> ／
+    <a href="2026-05-27-prediction-model-stepB.html">2026-05-27 段階4 Step B（構成参考）</a> ／
+    <a href="2026-05-27-prediction-model-stepA.html">2026-05-27 段階4 Step A</a> ／
+    <a href="2026-05-27-current-state-analysis.html">2026-05-27 現状分析</a> ／
+    プラン: <code>~/.claude/plans/ai-gleaming-hollerith.md</code> 段階5 ／
+    <a href="../TASKS.md">TASKS.md</a> ／ <a href="../LOG.md">LOG.md</a>
+  </div>
+
+  <!-- ===== 1. 背景 ===== -->
+  <div class="panel">
+    <h2>1. 背景 — Step A から Step B への接続</h2>
+
+    <p>
+      Step A では <code>roundEnabled=false</code> 既定で従来挙動を bit-identical に保ったまま、
+      新規定数 (<code>ROUND_LENGTH</code>, <code>NUM_ROUNDS</code>, <code>INTERVAL_LENGTH</code>,
+      <code>STAMINA_INTERVAL_REGEN</code>) と新規 state フィールド
+      (<code>round</code>, <code>roundFrame</code>, <code>matchPhase</code>, <code>roundStats</code>) を整備した。
+      Step B の目的は、その配管を実際に駆動して <b>「ラウンド → インターバル → ラウンド」</b>
+      の試合構造を機械化することにある。
+    </p>
+
+    <ul>
+      <li><b>既定 ON 化</b>: <code>roundEnabled</code> を <code>false → true</code> に切替（UI も <code>checked</code>）</li>
+      <li><b>境界処理</b>: <code>roundFrame &gt;= ROUND_LENGTH</code> で <code>endRound(s)</code> 発火</li>
+      <li><b>インターバル</b>: <code>matchPhase="interval"</code> 中はスタミナ +2.0/F 回復、AI 停止、予測 decay 停止</li>
+      <li><b>部分リセット</b>: HP / スタミナ / 予測分布は持ち越し、フレーム状態と位置はリセット</li>
+      <li><b>UI 進行表示</b>: 「R2/3 残り 145F」「休憩中 残り 35F」「試合終了」を <code>roundDisplay</code> に出力</li>
+    </ul>
+
+    <p class="note">
+      Step A レポートで予告した「<code>endRound</code> / <code>stepInterval</code> を有効化した瞬間に
+      初めて出力差分が出る — それが <b>Step B によって生じた差</b>だと確定的に切り分けられる」が
+      本 Step で実現された。Identity Fallback (<code>roundEnabled=false</code>) は MD5 一致を維持。
+    </p>
+  </div>
+
+  <!-- ===== 2. 実装内容 ===== -->
+  <div class="panel">
+    <h2>2. 実装内容</h2>
+
+    <h3>2-1. <code>src/index.html</code> 変更箇所</h3>
+
+    <table>
+      <thead>
+        <tr><th>項目</th><th>行</th><th>内容</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="lblL">初期位置定数 <span class="pill new">新規</span></td>
+          <td class="dim">l.273-274</td>
+          <td class="lblL"><code>INIT_X_P=0.0, INIT_X_E=4.0</code>。<code>partialReset</code> での「コーナーに戻る」用</td>
+        </tr>
+        <tr>
+          <td class="lblL">roundEnabled 既定切替</td>
+          <td class="dim">l.282</td>
+          <td class="lblL"><code>false → true</code>。Step A 完了予告どおり</td>
+        </tr>
+        <tr>
+          <td class="lblL">MAX_FRAME 動的計算 <span class="pill new">新規</span></td>
+          <td class="dim">l.271-282</td>
+          <td class="lblL"><code>computeMaxFrame()</code>:
+            roundEnabled=true で <b>3R × 300 + 2×60 + 50 = 1070F</b>、false で 800F</td>
+        </tr>
+        <tr>
+          <td class="lblL">UI チェックボックス</td>
+          <td class="dim">l.241</td>
+          <td class="lblL"><code>checked</code> 属性追加</td>
+        </tr>
+        <tr>
+          <td class="lblL">initSim 初期位置</td>
+          <td class="dim">l.366-367</td>
+          <td class="lblL">ハードコード値から <code>INIT_X_P</code> / <code>INIT_X_E</code> 参照に変更</td>
+        </tr>
+        <tr>
+          <td class="lblL">境界処理関数群 <span class="pill new">新規</span></td>
+          <td class="dim">l.766-829</td>
+          <td class="lblL"><code>partialReset(ch, key)</code> /
+            <code>endRound(s)</code> / <code>startRound(s)</code> / <code>stepInterval(s)</code></td>
+        </tr>
+        <tr>
+          <td class="lblL">stepSim 分岐</td>
+          <td class="dim">l.831-840</td>
+          <td class="lblL"><code>matchPhase==="ended"</code> で凍結、
+            <code>"interval"</code> で <code>stepInterval</code> へ分岐</td>
+        </tr>
+        <tr>
+          <td class="lblL">roundStats 累積</td>
+          <td class="dim">l.876-880, l.895-900</td>
+          <td class="lblL">接触判定時に <code>blocks++</code> + chip 加算、
+            ヒット成立時に <code>clean += dmg</code>、被カウンター成立時に <code>counter++</code></td>
+        </tr>
+        <tr>
+          <td class="lblL">境界判定</td>
+          <td class="dim">l.935-941</td>
+          <td class="lblL">stepSim 末尾で <code>roundFrame &gt;= ROUND_LENGTH</code> →
+            <code>endRound</code> 呼出</td>
+        </tr>
+        <tr>
+          <td class="lblL">updatePrediction</td>
+          <td class="dim">l.1212-1213</td>
+          <td class="lblL">interval 中 early return（<b>R2 対策</b>: predictedCounts decay 停止）</td>
+        </tr>
+        <tr>
+          <td class="lblL">stepForward</td>
+          <td class="dim">l.1370-1373</td>
+          <td class="lblL">停止条件に <code>last.ended</code> 追加</td>
+        </tr>
+        <tr>
+          <td class="lblL">roundDisplay UI</td>
+          <td class="dim">l.967-983</td>
+          <td class="lblL">phase に応じた文言切替（active / interval / ended）</td>
+        </tr>
+        <tr>
+          <td class="lblL">charCard 拡張</td>
+          <td class="dim">l.1453-1462, l.1474</td>
+          <td class="lblL"><code>sideKey</code> 引数追加、ラウンドスタッツ暫定表示</td>
+        </tr>
+        <tr>
+          <td class="lblL">build()</td>
+          <td class="dim">l.1503-1506</td>
+          <td class="lblL"><code>computeMaxFrame()</code> 呼び出しで MAX_FRAME を再計算</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>2-2. <code>tools/verify.js</code> 変更箇所</h3>
+
+    <table>
+      <thead>
+        <tr><th>項目</th><th>行</th><th>内容</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="lblL">ELEM stub</td>
+          <td class="dim">l.19-20</td>
+          <td class="lblL"><code>roundEnabled.checked = true</code>
+            （UI 既定値と同期、Identity Fallback 用に環境変数または明示 false で false 化可）</td>
+        </tr>
+        <tr>
+          <td class="lblL">同期関数 <span class="pill new">新規</span></td>
+          <td class="dim">l.49-66</td>
+          <td class="lblL"><code>syncRoundConfigFromELEM()</code>:
+            ELEM から sandbox に round 系設定（5 件）を反映</td>
+        </tr>
+        <tr>
+          <td class="lblL">ループ条件</td>
+          <td class="dim">l.158</td>
+          <td class="lblL">既存 <code>frame &lt; MAX_FRAME &amp;&amp; !ko</code> に
+            <code>!s.ended</code> を追加（<code>matchPhase="ended"</code> 時の早期離脱）</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ===== 3. partialReset の状態管理表 ===== -->
+  <div class="panel">
+    <h2>3. 部分リセット (<code>partialReset</code>) の状態管理</h2>
+
+    <p>
+      ラウンド境界で <b>何を持ち越して何をリセットするか</b>が、判定システム導入後の試合構造を決める。
+      実物ボクシングのコーナー休憩を機械化する方針で以下の通り整理した。
+    </p>
+
+    <table>
+      <thead>
+        <tr><th>項目</th><th>扱い</th><th>理由</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="head">hp</td>
+          <td class="ok">持ち越し</td>
+          <td class="lblL">実物通り。前R で受けたダメージは次R に引き継ぐ</td>
+        </tr>
+        <tr>
+          <td class="head">stamina</td>
+          <td class="ok">持ち越し + インターバル中 +2.0/F 回復</td>
+          <td class="lblL">「コーナーで休憩」をメカ化。60F × 2.0 = +120 で実質完全回復</td>
+        </tr>
+        <tr>
+          <td class="head">predictedCounts / predictedOpp</td>
+          <td class="ok">持ち越し</td>
+          <td class="lblL">実物ボクサーは観測を忘れない。
+            interval 中は decay も停止（R2 対策）</td>
+        </tr>
+        <tr>
+          <td class="head">moveKey / phase / fip / stun / stopRec</td>
+          <td class="warn">リセット</td>
+          <td class="lblL">フレーム単位の状態。インターバルで一旦切れる</td>
+        </tr>
+        <tr>
+          <td class="head">decTimer / plan / scores</td>
+          <td class="warn">リセット</td>
+          <td class="lblL">次R で再判断（前R の決断は持ち越さない）</td>
+        </tr>
+        <tr>
+          <td class="head">atkLanded / atkWhiffed</td>
+          <td class="warn">リセット</td>
+          <td class="lblL">フレーム状態</td>
+        </tr>
+        <tr>
+          <td class="head">x（位置）</td>
+          <td class="num"><code>INIT_X_P</code> / <code>INIT_X_E</code> に戻す</td>
+          <td class="lblL">「コーナーに戻る」を表現</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="note">
+      持ち越し / リセットの選定は、「実物の何を機械化するか」「Step A レポート時に R2 として警戒した
+      predictedCounts decay 停止が必要か」の 2 軸で決定。
+      <b>結論ありきの調整ではなく、設計根拠ベース</b>で固めた。
+    </p>
+  </div>
+
+  <!-- ===== 4. Identity Fallback ===== -->
+  <div class="panel">
+    <h2>4. Identity Fallback (R5)</h2>
+
+    <div class="pass-box">
+      <h3>PASS — <code>roundEnabled=false</code> で Step A baseline と完全一致</h3>
+      <p>
+        Step B 実装後も <code>roundEnabled=false</code> を明示すれば、
+        <code>MAX_FRAME=800</code> / 境界処理スキップ / インターバル無し / stepInterval 不呼出
+        が成立し、Step A baseline と <b>bit-identical</b>。
+      </p>
+      <p style="text-align:center;" class="md5">
+        MD5: <code>81eb68488e55b9902d1010da41d7dd71</code>
+      </p>
+      <ul>
+        <li><code>computeMaxFrame()</code> が <code>roundEnabled=false</code> で 800F を返す</li>
+        <li><code>endRound</code> / <code>stepInterval</code> は <code>matchPhase</code> 分岐で踏まれない</li>
+        <li>roundStats 累積コード自体は走るが、Identity 比較対象の出力には混入しない構造を維持</li>
+        <li>Math.random 不使用 → 確定的</li>
+      </ul>
+    </div>
+
+    <p class="note">
+      Step A の <b>「式を動かしても従来回路は baseline と同一」</b>原則を継承。
+      「Step B で動いた差分」と「Step A までの基底」が <b>常に切り分け可能</b>な状態で
+      Step C に渡せる。
+    </p>
+  </div>
+
+  <!-- ===== 5. verifier 観測結果（roundEnabled=true 既定） ===== -->
+  <div class="panel">
+    <h2>5. verifier 観測結果（roundEnabled=true 既定、MT=0、50戦/シナリオ）</h2>
+
+    <h3>5-1. 非対称 lag スキャン（Step A baseline MT=0.3 vs Step B MT=0 round=ON）</h3>
+
+    <table>
+      <thead>
+        <tr>
+          <th>lag (p/d)</th>
+          <th>baseline 平均F</th>
+          <th>baseline 時間切れ</th>
+          <th>Step B 平均F</th>
+          <th>Step B 時間切れ</th>
+          <th>KO 中央 (B→S5B)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="head">0/0</td>
+          <td class="num">781.6</td><td class="num">43</td>
+          <td class="num">918.8</td><td class="ok">22</td>
+          <td class="lblL">700 → 855</td>
+        </tr>
+        <tr>
+          <td class="head">1/2</td>
+          <td class="num">691.5</td><td class="num">29</td>
+          <td class="num">662.0</td><td class="ok">2</td>
+          <td class="lblL">506 → 656</td>
+        </tr>
+        <tr>
+          <td class="sweet">2/4 (sweet)</td>
+          <td class="num">503.4</td><td class="num">2</td>
+          <td class="sweet">540.5</td><td class="sweet">0</td>
+          <td class="lblL">503 → 510</td>
+        </tr>
+        <tr>
+          <td class="head">3/5</td>
+          <td class="num">432.2</td><td class="num">0</td>
+          <td class="num">407.7</td><td class="num">0</td>
+          <td class="lblL">445 → 434</td>
+        </tr>
+        <tr>
+          <td class="head">4/6</td>
+          <td class="num">366.4</td><td class="num">0</td>
+          <td class="num">357.5</td><td class="num">0</td>
+          <td class="lblL">378 → 400</td>
+        </tr>
+        <tr>
+          <td class="head">5/8</td>
+          <td class="num">363.9</td><td class="num">0</td>
+          <td class="num">396.5</td><td class="num">0</td>
+          <td class="lblL">354 → 415</td>
+        </tr>
+        <tr>
+          <td class="head">7/10</td>
+          <td class="num">324.5</td><td class="num">0</td>
+          <td class="num">359.0</td><td class="num">0</td>
+          <td class="lblL">313 → 387</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>5-2. 性格パターン</h3>
+
+    <table>
+      <thead>
+        <tr>
+          <th>ケース</th>
+          <th>baseline 平均F</th>
+          <th>baseline 時間切れ</th>
+          <th>Step B 平均F</th>
+          <th>Step B 時間切れ</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="lblL">両攻撃 p3/d5</td>
+          <td class="num">288.7</td><td class="num">0</td>
+          <td class="num">313.0</td><td class="num">0</td>
+        </tr>
+        <tr>
+          <td class="lblL">両攻撃 p5/d8</td>
+          <td class="num">294.7</td><td class="num">0</td>
+          <td class="num">339.8</td><td class="num">0</td>
+        </tr>
+        <tr>
+          <td class="amber">両守備 p3/d5</td>
+          <td class="num">717.6</td><td class="warn">29</td>
+          <td class="amber">685.5</td><td class="ok">2</td>
+        </tr>
+        <tr>
+          <td class="lblL">両守備 p5/d8</td>
+          <td class="num">617.3</td><td class="warn">12</td>
+          <td class="num">555.0</td><td class="ok">0</td>
+        </tr>
+        <tr>
+          <td class="lblL">攻 vs 守 p3/d5</td>
+          <td class="num">458.9</td><td class="num">1</td>
+          <td class="num">456.5</td><td class="num">0</td>
+        </tr>
+        <tr>
+          <td class="lblL">攻 vs 守 p5/d8</td>
+          <td class="num">403.2</td><td class="num">0</td>
+          <td class="num">398.6</td><td class="num">0</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="sweet-box">
+      <h3>機械的に成立した効果</h3>
+      <ul>
+        <li><b>時間切れの激減</b>: 全シナリオで時間切れが半減〜ゼロ化。
+          特に両守備 p3/d5 が <b>29 → 2</b>、非対称 lag 0/0 が <b>43 → 22</b>。
+          ラウンド境界で AI/距離/プレッシャーがリセットされ、停滞ループから抜ける効果</li>
+        <li><b>試合長 +5〜+12%</b>: MAX_FRAME 800→1070 (+34%) の余裕を使い切らない健全な値</li>
+        <li><b>スイートスポット (p2/d4) 維持</b>: 中間 lag 帯は壊れていない</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ===== 6. 構造的解釈 ===== -->
+  <div class="panel">
+    <h2>6. 構造的解釈</h2>
+
+    <div class="sweet-box">
+      <h3>時間切れ激減の機械的説明</h3>
+      <p>
+        Step A baseline では <b>長期戦になると AI / 距離 / 予測分布が定常状態に陥り抜けられない</b>
+        という構造があった。Step B のラウンド境界は次の効果を機械的に与える:
+      </p>
+      <ul>
+        <li>位置を <code>INIT_X_P</code> / <code>INIT_X_E</code> に戻す → 距離関係の固定化が解ける</li>
+        <li><code>moveKey / phase / fip</code> をリセット → 硬直ループから抜ける</li>
+        <li><code>decTimer / plan / scores</code> をリセット → 次R で再判断（前R の凝り固まった決断を捨てる）</li>
+        <li>スタミナを実質完全回復 → 「動けないから殴れない」状態を解消</li>
+      </ul>
+      <p>
+        これらは <b>同時に</b> 発火することで停滞ループから機械的に脱出させる。観測上、
+        非対称 lag 0/0（最も停滞しやすい設定）で時間切れ <b>43 → 22 へ約半減</b>、両守備 p3/d5 で
+        <b>29 → 2 へほぼ消失</b>。
+      </p>
+    </div>
+
+    <div class="amber-box">
+      <h3>守備型 KO 中央値 +20% — Step C 判定システムの導入動機</h3>
+      <p>
+        <b>守備型 p3/d5 で KO 中央値 615F → 742F (+20%)</b>、
+        非対称 lag の高 lag 帯でも KO 中央値が <span class="delta-amber">+17〜+24%</span> 後退。
+        「決着するけど遅くなる」方向の変化。
+      </p>
+      <p>
+        これは構造的に予想される現象: ラウンド境界でリセットされるたびに「もう一度仕切り直し」が
+        入るため、守備型同士の張り合いでは <b>累積ダメージ蓄積が間延びする</b>。
+      </p>
+      <p>
+        ユーザー指摘「<em>ガードが多くなる問題は、ガードが問題ではなく、ガードを崩す機構が無いことが問題</em>」
+        の <b>機械的裏付け</b>。Step C で判定システム（攻撃した側がポイントを取る）を導入することで、
+        「ガード一辺倒 = ポイント負け」という構造的代償が生じ、KO に頼らない決着経路が成立する見込み。
+      </p>
+    </div>
+
+    <p class="note">
+      <b>「ガードを崩す機構」B/C（スタミナペナルティ／ガードクラッシュ）の必要性</b>を、
+      Step C 導入後の観測で再評価できる土台が整った。
+      理念整合: 「設計目的はあくまで試合構造の機械化、ガードへの代償は副作用」（Step A レポート理念欄）。
+    </p>
+  </div>
+
+  <!-- ===== 7. R1〜R6 リスク判定 ===== -->
+  <div class="panel">
+    <h2>7. R1〜R6 リスク判定</h2>
+
+    <table>
+      <thead>
+        <tr><th>ID</th><th>リスク内容</th><th>判定</th><th>詳細</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="head">R1</td>
+          <td class="lblL">HP 持ち越し → R2 即 KO</td>
+          <td class="ok">未発火</td>
+          <td class="lblL">300F 近傍 KO は単発、境界後に KO 集中するパターンは無し</td>
+        </tr>
+        <tr>
+          <td class="head">R2</td>
+          <td class="lblL">predictedCounts decay 停止が機能するか</td>
+          <td class="amber">⚠ MT=0 のため検証不完全</td>
+          <td class="lblL">MT=0 では predictedCounts 自体が使われない。
+            MT=0.3 再測必要。構造は守備型で +18% 維持 → 配管は機能</td>
+        </tr>
+        <tr>
+          <td class="head">R3</td>
+          <td class="lblL">フレーム履歴肥大化</td>
+          <td class="ok">未発火</td>
+          <td class="lblL">試合長 +5〜+12%、シム速度 baseline 並</td>
+        </tr>
+        <tr>
+          <td class="head">R4</td>
+          <td class="lblL">ラウンド最終 F カウンター取りこぼし</td>
+          <td class="ok">兆候なし</td>
+          <td class="lblL">counter 比率 baseline と整合</td>
+        </tr>
+        <tr>
+          <td class="head">R5</td>
+          <td class="lblL">Identity Check 失敗</td>
+          <td class="ok">PASS</td>
+          <td class="lblL">roundEnabled=false で MD5 baseline と完全一致</td>
+        </tr>
+        <tr>
+          <td class="head">R6</td>
+          <td class="lblL">ELEM stub バグ</td>
+          <td class="ok">未発火</td>
+          <td class="lblL">新規 ID 5 個全て登録済み、MAX_FRAME=1070 ヘッダ確認</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="note">
+      R2 のみ「MT=0 では原理的に検証不能」として保留。Step C 着手前の MT=0.3 既定再測で確定させる。
+    </p>
+  </div>
+
+  <!-- ===== 8. 5劇再現性 + 健全性総合 ===== -->
+  <div class="panel">
+    <h2>8. 5 劇再現性 + 健全な観測基準テーブル</h2>
+
+    <h3>8-1. 5 劇継続再現</h3>
+    <p>
+      全シナリオで kind 別 outcome（jab clean / str block / hvy chip / fnt 0-active / counter 多発）を観察。
+      <b>全劇継続再現</b>。
+    </p>
+
+    <h3>8-2. 健全な観測基準テーブル（roundEnabled=true 既定、MT=0）</h3>
+
+    <table>
+      <thead>
+        <tr>
+          <th>シナリオ</th>
+          <th>時間切れ&lt;35%</th>
+          <th>KO中央 300-600F</th>
+          <th>block/clean&gt;0.5</th>
+          <th>殴り合い&lt;40%</th>
+          <th>5劇</th>
+          <th>総合</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="head">p0/d0</td>
+          <td class="warn">44% ✗</td>
+          <td class="warn">855F ✗</td>
+          <td class="ok">2.22 ✓</td>
+          <td class="ok">8.7% ✓</td>
+          <td class="ok">✓</td>
+          <td class="amber">△</td>
+        </tr>
+        <tr>
+          <td class="head">p1/d2</td>
+          <td class="ok">4% ✓</td>
+          <td class="warn">656F ✗</td>
+          <td class="ok">0.85 ✓</td>
+          <td class="ok">13.8% ✓</td>
+          <td class="ok">✓</td>
+          <td class="num">○</td>
+        </tr>
+        <tr>
+          <td class="sweet">p2/d4</td>
+          <td class="sweet">0% ✓</td>
+          <td class="sweet">510F ✓</td>
+          <td class="sweet">0.47 △</td>
+          <td class="sweet">16.5% ✓</td>
+          <td class="sweet">✓</td>
+          <td class="sweet">◎</td>
+        </tr>
+        <tr>
+          <td class="head">p3/d5</td>
+          <td class="ok">0% ✓</td>
+          <td class="ok">434F ✓</td>
+          <td class="warn">0.23 ✗</td>
+          <td class="ok">18.9% ✓</td>
+          <td class="ok">✓</td>
+          <td class="amber">△</td>
+        </tr>
+        <tr>
+          <td class="head">p5/d8</td>
+          <td class="ok">0% ✓</td>
+          <td class="ok">415F ✓</td>
+          <td class="warn">0.09 ✗</td>
+          <td class="ok">19.9% ✓</td>
+          <td class="ok">✓</td>
+          <td class="amber">△</td>
+        </tr>
+        <tr>
+          <td class="head">両守備 p3/d5</td>
+          <td class="ok">4% ✓</td>
+          <td class="warn">742F ✗</td>
+          <td class="ok">0.65 ✓</td>
+          <td class="ok">10.9% ✓</td>
+          <td class="ok">✓</td>
+          <td class="amber">△</td>
+        </tr>
+        <tr>
+          <td class="head">攻 vs 守 p3/d5</td>
+          <td class="ok">0% ✓</td>
+          <td class="ok">450F ✓</td>
+          <td class="warn">0.29 ✗</td>
+          <td class="ok">17.0% ✓</td>
+          <td class="ok">✓</td>
+          <td class="amber">△</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="note">
+      <b>block/clean&lt;0.5 問題は MT=0 のため</b>（段階4 Step B で MT=0.3 が解決した経緯）。
+      MT=0.3 で再測すれば baseline 並み + ラウンド改善が乗る見込み。
+      スイートスポット p2/d4 は <b>5 基準すべて達成</b>。
+    </p>
+  </div>
+
+  <!-- ===== 9. Step C 着手前の課題 ===== -->
+  <div class="panel">
+    <h2>9. Step C 着手前の課題（verifier 提示）</h2>
+
+    <table>
+      <thead><tr><th>#</th><th>タスク</th><th>目的</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="head">1</td>
+          <td class="lblL"><b>MT=0.3 既定で再測</b></td>
+          <td class="dim">段階5 のロジック検証を MT&gt;0 と組み合わせる。
+            R2 の確定的判定および block/clean 改善の取り込み</td>
+        </tr>
+        <tr>
+          <td class="head">2</td>
+          <td class="lblL"><b>verify.js を rounds / roundStats 内訳出力対応に拡張</b></td>
+          <td class="dim">Step C で採点に使う累積値（clean / chip / blocks / counters）を直接確認</td>
+        </tr>
+        <tr>
+          <td class="head">3</td>
+          <td class="lblL"><b>インターバル中スタミナ回復の直接観測指標</b></td>
+          <td class="dim">現状は「時間切れ激減」という間接観測のみ。
+            <code>stamina_pre_interval</code> / <code>stamina_post_interval</code> を出力したい</td>
+        </tr>
+        <tr>
+          <td class="head">4</td>
+          <td class="lblL"><b>ラウンドごとの clean 偏り（前半 vs 後半）</b></td>
+          <td class="dim">実物の「後半逆転」「序盤決着」観察用。
+            Step C 採点の根拠としても必要</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="note">
+      これらを Step C 内で扱うか別タスクで処理するかは <b>要相談</b>。
+      段階4 Step B → Step C の前にも同様の観測タスクを挟む方針を採った経緯あり
+      （<a href="2026-05-27-prediction-model-stepB.html">段階4 Step B レポート §10</a> 参照）。
+    </p>
+  </div>
+
+  <!-- ===== 10. 教訓 ===== -->
+  <div class="panel">
+    <h2>10. 教訓</h2>
+
+    <div class="lesson-box">
+      <h3>Step A → Step B 接続の流儀（再確認）</h3>
+      <p>
+        段階3 (α) / 段階4 / 段階5 ともに「Step A で配管し Identity を保存、
+        Step B で既定を ON にして式を駆動する」という同じ流儀を採用している。
+        本 Step B でも:
+      </p>
+      <ul>
+        <li><b>roundEnabled=false でフォールバック PASS</b> を維持 → 「Step B の差分は全て Step B 由来」と切り分け可能</li>
+        <li><b>verify.js への ELEM stub 同期</b>を最初から実施（R6 教訓継続適用）</li>
+        <li><b>verifier 観測ベースの数値判断</b>: KO 中央値 +20% を Step C 動機として明示し、
+          「結論ありきの調整は禁止」を踏襲</li>
+      </ul>
+
+      <h4>R2 の取り扱い — 「MT=0 では検証不能」を明示する勇気</h4>
+      <p>
+        predictedCounts decay 停止 (interval 中の updatePrediction early return) は <b>MT=0 では
+        原理的に効果が出ない</b>。「動いているはず」と曖昧に書かず、検証不能と明示して MT=0.3
+        再測へ送る。これは段階4 Step B の「観測空白活用率 △ 測定不能だが起動証拠あり」と同じ流儀。
+      </p>
+
+      <h4>守備型 KO 中央値 +20% を「悪化」と書かない</h4>
+      <p>
+        ラウンド境界による仕切り直しで KO が遅れる現象は <b>構造的に予想される副作用</b>であり、
+        本 Step の故障ではない。これを Step C の判定システム導入動機として位置づけることで、
+        プラン (A/B/C) の連続性を観測ベースで担保する。
+      </p>
+    </div>
+  </div>
+
+  <!-- ===== 11. 次のステップ予告 ===== -->
+  <div class="panel">
+    <h2>11. 次のステップ予告（Step C）</h2>
+
+    <table>
+      <thead><tr><th>Step</th><th>内容</th><th>変える箇所</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="head">C</td>
+          <td class="lblL">
+            <b>採点 + 判定 + 最終結果表示</b><br>
+            ・<code>scoreRound</code>: clean + 0.3×chip で 10-9 / 10-8 / 10-10 判定<br>
+            ・<code>computeDecision</code>: 累計ポイント比較で最終判定（UD / SD / MD / draw）<br>
+            ・「攻撃した側がポイントを取る」が機械的に成立 →
+              <b>守備一辺倒 = ポイント負けの構造的代償</b>が自動的に立ち上がる<br>
+            ・本 Step B で観測された <b>守備型 KO 中央 +20%</b> の構造問題への直接的処方
+          </td>
+          <td class="dim">新規 scoreRound / computeDecision / 最終結果 UI</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="note">
+      段階4 Step C (modelPrior UI) は <span class="pill hold">保留中</span>。
+      段階5 完成後に再開判断を行う。
+      段階5 完成時点で「ガードを崩す機構」B/C（スタミナペナルティ／ガードクラッシュ）の必要性も
+      実測ベースで再評価できる状態になる。
+    </p>
+  </div>
+
+  <div class="footer">
+    <b>参照ファイル</b>
+    <ul>
+      <li><code>src/index.html</code> —
+        初期位置定数 (l.273-274) ／
+        MAX_FRAME 動的計算 (l.271-282) ／
+        UI チェックボックス (l.241) ／
+        initSim 初期位置 (l.366-367) ／
+        境界処理関数 (l.766-829) ／
+        stepSim 分岐 (l.831-840) ／
+        roundStats 累積 (l.876-880, l.895-900) ／
+        境界判定 (l.935-941) ／
+        updatePrediction (l.1212-1213) ／
+        stepForward (l.1370-1373) ／
+        roundDisplay (l.967-983) ／
+        charCard (l.1453-1462, l.1474) ／
+        build() (l.1503-1506)</li>
+      <li><code>tools/verify.js</code> —
+        ELEM stub (l.19-20) ／
+        syncRoundConfigFromELEM (l.49-66) ／
+        ループ条件 (l.158)</li>
+      <li>プラン: <code>~/.claude/plans/ai-gleaming-hollerith.md</code> 段階5 Step B</li>
+      <li><a href="2026-05-27-round-system-stepA.html">reports/2026-05-27-round-system-stepA.html</a>（Step A）</li>
+      <li><a href="2026-05-27-prediction-model-stepB.html">reports/2026-05-27-prediction-model-stepB.html</a>（構成参考）</li>
+      <li><a href="2026-05-27-prediction-model-stepA.html">reports/2026-05-27-prediction-model-stepA.html</a></li>
+      <li><a href="2026-05-27-current-state-analysis.html">reports/2026-05-27-current-state-analysis.html</a></li>
+      <li><a href="../TASKS.md">TASKS.md</a> ／ <a href="../LOG.md">LOG.md</a></li>
+    </ul>
+  </div>
+
+</body>
+</html>

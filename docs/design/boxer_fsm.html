@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ボクサー1人のステートマシン</title>
+<style>
+  :root{
+    --bg:#1e242b; --panel:#283039; --line:#3a444f;
+    --txt:#e6edf3; --sub:#8b97a3;
+    --idle:#9aa7b2; --move:#6fd3a0; --startup:#e6c34a;
+    --active:#ff8f8f; --recovery:#b58bdc; --guard:#5fc9d6; --hit:#ff6b6b;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--txt);
+    font-family:"Segoe UI",system-ui,sans-serif; padding:16px;
+  }
+  h1{font-size:17px; margin:0 0 4px}
+  .sub{font-size:12px; color:var(--sub); margin:0 0 14px}
+  .toolbar{ display:flex; gap:8px; align-items:center; margin-bottom:8px }
+  .toolbar button{
+    background:#2f3843; color:var(--txt); border:1px solid var(--line);
+    border-radius:6px; padding:4px 12px; font-size:14px; cursor:pointer;
+  }
+  .toolbar button:hover{ background:#3a4654 }
+  .toolbar .hint{ font-size:11px; color:var(--sub); margin-left:6px }
+  .diagram{
+    background:#ffffff; border:1px solid var(--line);
+    border-radius:8px; margin-bottom:18px;
+    height:70vh; overflow:hidden; position:relative; cursor:grab;
+  }
+  .diagram.grabbing{ cursor:grabbing }
+  .mermaid{ text-align:center; transform-origin:0 0 }
+  /* stateDiagram-v2 のノード文字色：mermaid内部スタイルに勝つため詳細度の高い専用セレクタを使う */
+  .mermaid .statediagram-state > .label > foreignObject:first-child > div > .nodeLabel,
+  .mermaid .statediagram-state .nodeLabel{
+    color:#000 !important;
+  }
+  h2{font-size:14px; margin:18px 0 8px; border-left:3px solid var(--startup); padding-left:8px}
+  table{
+    width:100%; border-collapse:collapse; font-size:13px;
+    background:var(--panel); border:1px solid var(--line); border-radius:8px; overflow:hidden;
+  }
+  th,td{ padding:7px 9px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top }
+  th{ background:#2f3843; color:var(--sub); font-weight:600 }
+  tr:last-child td{ border-bottom:none }
+  code{ background:#11151a; padding:1px 5px; border-radius:4px; font-size:12px }
+  .pill{ display:inline-block; padding:1px 8px; border-radius:10px; font-size:11px; font-weight:700; color:#11151a }
+  .p-idle{background:var(--idle)} .p-move{background:var(--move)}
+  .p-startup{background:var(--startup)} .p-active{background:var(--active)}
+  .p-recovery{background:var(--recovery)} .p-guard{background:var(--guard)} .p-hit{background:var(--hit)}
+  .note{font-size:12px; color:var(--sub); margin-top:6px; line-height:1.6}
+
+  /* 遷移マトリクス */
+  .matrix{ overflow-x:auto }
+  table.mx{ font-size:12px; min-width:760px }
+  table.mx th, table.mx td{ text-align:center; white-space:nowrap }
+  table.mx th.state, table.mx td.state{ text-align:left; font-weight:700; background:#2f3843; position:sticky; left:0 }
+  table.mx td{ color:var(--txt) }
+  table.mx td.none{ color:#586673 }
+  table.mx td.next{ font-weight:600 }
+  table.mx .tag{ font-size:10px; color:var(--sub); display:block }
+  .colev{ color:var(--sub); font-weight:600 }
+
+  /* 状態カード */
+  .cards{ display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:12px }
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px; border-top:4px solid var(--line) }
+  .card.c-idle{border-top-color:var(--idle)} .card.c-move{border-top-color:var(--move)}
+  .card.c-startup{border-top-color:var(--startup)} .card.c-active{border-top-color:var(--active)}
+  .card.c-recovery{border-top-color:var(--recovery)} .card.c-guard{border-top-color:var(--guard)}
+  .card.c-hit{border-top-color:var(--hit)}
+  .card h3{ margin:0 0 2px; font-size:15px }
+  .card .cat{ font-size:11px; color:var(--sub); margin-bottom:8px }
+  .card .row{ font-size:12px; margin:5px 0; line-height:1.5 }
+  .card .k{ color:var(--sub); display:block; font-size:11px }
+  .card .trans{ margin:3px 0 0; padding-left:0; list-style:none; font-size:12px }
+  .card .trans li{ margin:3px 0 }
+  .card .cond{ color:var(--startup) }
+  .card .arrow{ color:var(--sub) }
+  .card .to{ font-weight:600 }
+</style>
+</head>
+<body>
+  <h1>ボクサー1人のステートマシン（初版たたき台）</h1>
+  <p class="sub">状態と遷移の定義。同じ内容を「図（俯瞰）」「遷移マトリクス（一覧）」「状態カード（詳細）」の3通りで併記しています。</p>
+
+  <div class="toolbar">
+    <button id="zoomIn">＋ 拡大</button>
+    <button id="zoomOut">－ 縮小</button>
+    <button id="zoomReset">リセット</button>
+    <span class="hint">ホイールで拡大縮小／ドラッグで移動</span>
+  </div>
+  <div class="diagram" id="diagram">
+    <pre class="mermaid">
+stateDiagram-v2
+    direction LR
+    [*] --> Idle
+
+    state "待機・構え" as Idle
+    state "前進" as StepF
+    state "後退" as StepB
+    state "攻撃：始動" as AtkS
+    state "攻撃：発生" as AtkA
+    state "攻撃：硬直" as AtkR
+    state "ガード" as Guard
+    state "ガード硬直" as GuardStun
+    state "被弾：のけぞり" as Hit
+    state "ダウン" as Down
+    state "立ち上がり" as GetUp
+
+    Idle --> AtkS : 攻撃入力
+    Idle --> StepF : 前進入力
+    Idle --> StepB : 後退入力
+    Idle --> Guard : ガード入力
+
+    StepF --> Idle : 移動完了
+    StepB --> Idle : 移動完了
+
+    AtkS --> AtkA : 始動F経過
+    AtkA --> AtkR : 発生F経過
+    AtkR --> Idle : 硬直F経過
+
+    Guard --> Idle : ガード解除
+    Guard --> GuardStun : 攻撃を防御
+    GuardStun --> Guard : ガード硬直F経過
+
+    Idle --> Hit : 被弾
+    StepF --> Hit : 被弾
+    StepB --> Hit : 被弾
+    AtkS --> Hit : 被弾（カウンター）
+    AtkA --> Hit : 被弾（相打ち）
+    AtkR --> Hit : 被弾
+
+    Hit --> Idle : のけぞりF経過
+    Hit --> Down : 規定ダメージ超過
+    Down --> GetUp : ダウンカウント
+    GetUp --> Idle : 立ち上がり完了
+    Down --> [*] : テンカウント（KO）
+    </pre>
+  </div>
+
+  <h2>遷移マトリクス（現在の状態 × きっかけ → 次の状態）</h2>
+  <p class="note">行＝今いる状態、列＝起きたきっかけ。交差するマスが「次の状態」です。「—」はその状態ではそのきっかけを受け付けない（遷移しない）ことを表します。</p>
+  <div class="matrix">
+  <table class="mx">
+    <thead>
+      <tr>
+        <th class="state">状態 ＼ きっかけ</th>
+        <th class="colev">攻撃入力</th>
+        <th class="colev">前進入力</th>
+        <th class="colev">後退入力</th>
+        <th class="colev">ガード入力</th>
+        <th class="colev">ガード解除</th>
+        <th class="colev">フレーム経過</th>
+        <th class="colev">被弾</th>
+        <th class="colev">ガード成功</th>
+        <th class="colev">ダメージ / カウント</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="state"><span class="pill p-idle">待機・構え</span></td>
+        <td class="next">攻撃：始動</td><td class="next">前進</td><td class="next">後退</td><td class="next">ガード</td>
+        <td class="none">—</td><td class="none">—<span class="tag">待機継続</span></td>
+        <td class="next">被弾：のけぞり</td><td class="none">—</td><td class="none">—</td>
+      </tr>
+      <tr>
+        <td class="state"><span class="pill p-move">前進</span></td>
+        <td class="none">—<span class="tag">※1</span></td><td class="none">—</td><td class="none">—</td><td class="none">—<span class="tag">※1</span></td>
+        <td class="none">—</td><td class="next">待機<span class="tag">移動完了</span></td>
+        <td class="next">被弾：のけぞり</td><td class="none">—</td><td class="none">—</td>
+      </tr>
+      <tr>
+        <td class="state"><span class="pill p-move">後退</span></td>
+        <td class="none">—<span class="tag">※1</span></td><td class="none">—</td><td class="none">—</td><td class="none">—<span class="tag">※1</span></td>
+        <td class="none">—</td><td class="next">待機<span class="tag">移動完了</span></td>
+        <td class="next">被弾：のけぞり</td><td class="none">—</td><td class="none">—</td>
+      </tr>
+      <tr>
+        <td class="state"><span class="pill p-startup">攻撃：始動</span></td>
+        <td class="none">—</td><td class="none">—</td><td class="none">—</td><td class="none">—</td>
+        <td class="none">—</td><td class="next">攻撃：発生<span class="tag">始動F経過</span></td>
+        <td class="next">被弾：のけぞり<span class="tag">カウンター</span></td><td class="none">—</td><td class="none">—</td>
+      </tr>
+      <tr>
+        <td class="state"><span class="pill p-active">攻撃：発生</span></td>
+        <td class="none">—</td><td class="none">—</td><td class="none">—</td><td class="none">—</td>
+        <td class="none">—</td><td class="next">攻撃：硬直<span class="tag">発生F経過</span></td>
+        <td class="next">被弾：のけぞり<span class="tag">相打ち</span></td><td class="none">—</td><td class="none">—</td>
+      </tr>
+      <tr>
+        <td class="state"><span class="pill p-recovery">攻撃：硬直</span></td>
+        <td class="none">—<span class="tag">※2</span></td><td class="none">—</td><td class="none">—</td><td class="none">—</td>
+        <td class="none">—</td><td class="next">待機<span class="tag">硬直F経過</span></td>
+        <td class="next">被弾：のけぞり</td><td class="none">—</td><td class="none">—</td>
+      </tr>
+      <tr>
+        <td class="state"><span class="pill p-guard">ガード</span></td>
+        <td class="none">—</td><td class="none">—</td><td class="none">—</td><td class="none">—</td>
+        <td class="next">待機</td><td class="none">—<span class="tag">※3</span></td>
+        <td class="none">—<span class="tag">防御する</span></td><td class="next">ガード硬直</td><td class="none">—</td>
+      </tr>
+      <tr>
+        <td class="state"><span class="pill p-guard">ガード硬直</span></td>
+        <td class="none">—</td><td class="none">—</td><td class="none">—</td><td class="none">—</td>
+        <td class="none">—</td><td class="next">ガード<span class="tag">硬直F経過</span></td>
+        <td class="none">—</td><td class="none">—</td><td class="none">—</td>
+      </tr>
+      <tr>
+        <td class="state"><span class="pill p-hit">被弾：のけぞり</span></td>
+        <td class="none">—</td><td class="none">—</td><td class="none">—</td><td class="none">—</td>
+        <td class="none">—</td><td class="next">待機<span class="tag">のけぞりF経過</span></td>
+        <td class="none">—</td><td class="none">—</td><td class="next">ダウン<span class="tag">規定ダメージ超過</span></td>
+      </tr>
+      <tr>
+        <td class="state"><span class="pill p-hit">ダウン</span></td>
+        <td class="none">—</td><td class="none">—</td><td class="none">—</td><td class="none">—</td>
+        <td class="none">—</td><td class="none">—</td>
+        <td class="none">—</td><td class="none">—</td><td class="next">立ち上がり / 終了(KO)<span class="tag">ダウンカウント / テンカウント</span></td>
+      </tr>
+      <tr>
+        <td class="state"><span class="pill p-hit">立ち上がり</span></td>
+        <td class="none">—</td><td class="none">—</td><td class="none">—</td><td class="none">—</td>
+        <td class="none">—</td><td class="next">待機<span class="tag">立ち上がり完了</span></td>
+        <td class="none">—</td><td class="none">—</td><td class="none">—</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="note">
+    ※1 移動中に攻撃／ガードへ割り込めるか（移動キャンセル）は要相談。暫定はロック（割込み不可）。<br>
+    ※2 攻撃硬直を別の行動でキャンセルできるか（硬直キャンセル）は要相談。暫定はロック。<br>
+    ※3 ガードの型（押し続けで維持／一定時間で自動解除）は要相談。被弾系（のけぞり・ダウン・立ち上がり）の保持フレームも今後設定。
+  </p>
+
+  <h2>状態カード（1状態ずつの詳細定義）</h2>
+  <div class="cards">
+
+    <div class="card c-idle">
+      <h3>待機・構え</h3>
+      <div class="cat">分類：中立 ／ 起点</div>
+      <div class="row"><span class="k">説明</span>入力待ち。すべての行動の起点となる状態。</div>
+      <div class="row"><span class="k">この間できること</span>すべての入力を受付（攻撃・前進・後退・ガード）。</div>
+      <div class="row"><span class="k">保持フレーム</span>入力があるまで任意。時間では自動遷移しない。</div>
+      <div class="row"><span class="k">出ていく遷移</span>
+        <ul class="trans">
+          <li><span class="cond">攻撃入力</span> <span class="arrow">→</span> <span class="to">攻撃：始動</span></li>
+          <li><span class="cond">前進入力</span> <span class="arrow">→</span> <span class="to">前進</span></li>
+          <li><span class="cond">後退入力</span> <span class="arrow">→</span> <span class="to">後退</span></li>
+          <li><span class="cond">ガード入力</span> <span class="arrow">→</span> <span class="to">ガード</span></li>
+          <li><span class="cond">被弾</span> <span class="arrow">→</span> <span class="to">被弾：のけぞり</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card c-move">
+      <h3>前進</h3>
+      <div class="cat">分類：移動</div>
+      <div class="row"><span class="k">説明</span>間合いを詰める。前へ移動する。</div>
+      <div class="row"><span class="k">この間できること</span>原則ロック（移動キャンセルの可否は要相談）。</div>
+      <div class="row"><span class="k">保持フレーム</span>技データの 始動＋発生＋硬直（暫定：1／4／2）。</div>
+      <div class="row"><span class="k">出ていく遷移</span>
+        <ul class="trans">
+          <li><span class="cond">フレーム経過（移動完了）</span> <span class="arrow">→</span> <span class="to">待機・構え</span></li>
+          <li><span class="cond">被弾</span> <span class="arrow">→</span> <span class="to">被弾：のけぞり</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card c-move">
+      <h3>後退</h3>
+      <div class="cat">分類：移動</div>
+      <div class="row"><span class="k">説明</span>間合いを離す。後ろへ移動する。</div>
+      <div class="row"><span class="k">この間できること</span>原則ロック（移動キャンセルの可否は要相談）。</div>
+      <div class="row"><span class="k">保持フレーム</span>技データの 始動＋発生＋硬直（暫定：1／4／2）。</div>
+      <div class="row"><span class="k">出ていく遷移</span>
+        <ul class="trans">
+          <li><span class="cond">フレーム経過（移動完了）</span> <span class="arrow">→</span> <span class="to">待機・構え</span></li>
+          <li><span class="cond">被弾</span> <span class="arrow">→</span> <span class="to">被弾：のけぞり</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card c-startup">
+      <h3>攻撃：始動</h3>
+      <div class="cat">分類：攻撃（startup）</div>
+      <div class="row"><span class="k">説明</span>パンチの予備動作。まだ当たり判定はない。ここで被弾するとカウンター。</div>
+      <div class="row"><span class="k">この間できること</span>原則ロック（行動不可）。</div>
+      <div class="row"><span class="k">保持フレーム</span>技の始動F（暫定：ジャブ3／ストレート6）。</div>
+      <div class="row"><span class="k">出ていく遷移</span>
+        <ul class="trans">
+          <li><span class="cond">始動F経過</span> <span class="arrow">→</span> <span class="to">攻撃：発生</span></li>
+          <li><span class="cond">被弾（カウンター）</span> <span class="arrow">→</span> <span class="to">被弾：のけぞり</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card c-active">
+      <h3>攻撃：発生</h3>
+      <div class="cat">分類：攻撃（active）</div>
+      <div class="row"><span class="k">説明</span>当たり判定がアクティブ。相手が間合い内なら接触（ヒット）。</div>
+      <div class="row"><span class="k">この間できること</span>原則ロック。</div>
+      <div class="row"><span class="k">保持フレーム</span>技の発生F（暫定：ジャブ2／ストレート3）。</div>
+      <div class="row"><span class="k">出ていく遷移</span>
+        <ul class="trans">
+          <li><span class="cond">発生F経過</span> <span class="arrow">→</span> <span class="to">攻撃：硬直</span></li>
+          <li><span class="cond">被弾（相打ち）</span> <span class="arrow">→</span> <span class="to">被弾：のけぞり</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card c-recovery">
+      <h3>攻撃：硬直</h3>
+      <div class="cat">分類：攻撃（recovery）</div>
+      <div class="row"><span class="k">説明</span>打ち終わりの隙。いちばん被弾しやすいタイミング。</div>
+      <div class="row"><span class="k">この間できること</span>原則ロック（硬直キャンセルの可否は要相談）。</div>
+      <div class="row"><span class="k">保持フレーム</span>技の硬直F（暫定：ジャブ6／ストレート12）。</div>
+      <div class="row"><span class="k">出ていく遷移</span>
+        <ul class="trans">
+          <li><span class="cond">硬直F経過</span> <span class="arrow">→</span> <span class="to">待機・構え</span></li>
+          <li><span class="cond">被弾</span> <span class="arrow">→</span> <span class="to">被弾：のけぞり</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card c-guard">
+      <h3>ガード</h3>
+      <div class="cat">分類：防御</div>
+      <div class="row"><span class="k">説明</span>攻撃を防ぐ構え。ガード中は被弾せず防御する。</div>
+      <div class="row"><span class="k">この間できること</span>押し続け型／一定時間型は要相談。</div>
+      <div class="row"><span class="k">保持フレーム</span>型により異なる（要相談）。</div>
+      <div class="row"><span class="k">出ていく遷移</span>
+        <ul class="trans">
+          <li><span class="cond">ガード解除</span> <span class="arrow">→</span> <span class="to">待機・構え</span></li>
+          <li><span class="cond">攻撃を防御（ガード成功）</span> <span class="arrow">→</span> <span class="to">ガード硬直</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card c-guard">
+      <h3>ガード硬直</h3>
+      <div class="cat">分類：防御</div>
+      <div class="row"><span class="k">説明</span>ガードで攻撃を防いだ直後の硬直。</div>
+      <div class="row"><span class="k">この間できること</span>ロック。</div>
+      <div class="row"><span class="k">保持フレーム</span>ガード硬直F（要設定）。</div>
+      <div class="row"><span class="k">出ていく遷移</span>
+        <ul class="trans">
+          <li><span class="cond">ガード硬直F経過</span> <span class="arrow">→</span> <span class="to">ガード</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card c-hit">
+      <h3>被弾：のけぞり</h3>
+      <div class="cat">分類：被弾 ／ 現フェーズは観察のみ（未実装可）</div>
+      <div class="row"><span class="k">説明</span>攻撃を受けて仰け反る。</div>
+      <div class="row"><span class="k">この間できること</span>ロック。</div>
+      <div class="row"><span class="k">保持フレーム</span>のけぞりF（要設定）。</div>
+      <div class="row"><span class="k">出ていく遷移</span>
+        <ul class="trans">
+          <li><span class="cond">のけぞりF経過</span> <span class="arrow">→</span> <span class="to">待機・構え</span></li>
+          <li><span class="cond">規定ダメージ超過</span> <span class="arrow">→</span> <span class="to">ダウン</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card c-hit">
+      <h3>ダウン</h3>
+      <div class="cat">分類：被弾</div>
+      <div class="row"><span class="k">説明</span>規定ダメージを超えて倒れる。</div>
+      <div class="row"><span class="k">この間できること</span>ロック。</div>
+      <div class="row"><span class="k">保持フレーム</span>ダウンカウント（要設定）。</div>
+      <div class="row"><span class="k">出ていく遷移</span>
+        <ul class="trans">
+          <li><span class="cond">ダウンカウント</span> <span class="arrow">→</span> <span class="to">立ち上がり</span></li>
+          <li><span class="cond">テンカウント</span> <span class="arrow">→</span> <span class="to">終了（KO）</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card c-hit">
+      <h3>立ち上がり</h3>
+      <div class="cat">分類：被弾</div>
+      <div class="row"><span class="k">説明</span>ダウンから復帰する動作。</div>
+      <div class="row"><span class="k">この間できること</span>ロック。</div>
+      <div class="row"><span class="k">保持フレーム</span>立ち上がりF（要設定）。</div>
+      <div class="row"><span class="k">出ていく遷移</span>
+        <ul class="trans">
+          <li><span class="cond">立ち上がり完了</span> <span class="arrow">→</span> <span class="to">待機・構え</span></li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+
+  <p class="note">
+    この3つ（mermaid図／遷移マトリクス／状態カード）は同じ内容を別の見せ方にしたものです。
+    図で全体をつかみ、表で「どの状態で何が起きると何になるか」を一覧し、カードで1状態ずつ詳しく定義していけます。
+  </p>
+
+  <script type="module">
+    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+    mermaid.initialize({
+      startOnLoad:false,
+      theme:"default",
+      themeVariables:{
+        fontSize:"18px",
+        fontFamily:"Segoe UI,system-ui,sans-serif",
+        primaryColor:"#ffffff",        /* ノードの背景 */
+        primaryTextColor:"#000000",    /* ノードの文字 */
+        primaryBorderColor:"#333333",  /* ノードの枠 */
+        lineColor:"#666666"            /* 矢印 */
+      }
+    });
+
+    const host = document.querySelector(".mermaid");
+    await mermaid.run({ nodes:[host] });
+
+    // 描画後に、全テキスト要素へインラインで黒を直接打ち込む。
+    // インライン!importantはCSS優先順位の最上位なので、mermaid内部スタイルに必ず勝つ。
+    const svg = host.querySelector("svg");
+    if (svg){
+      // 効いているか確認するため、あえて目立つ赤にする
+      const FONT = "18px";
+      // HTMLラベル（foreignObject内のspan/div/p）の文字色＋太字＋サイズ
+      svg.querySelectorAll("foreignObject *").forEach(n=>{
+        n.style.setProperty("color", "#e23b3b", "important");
+        n.style.setProperty("font-weight", "700", "important");
+        n.style.setProperty("font-size", FONT, "important");
+      });
+      // SVGテキスト（htmlLabelsがfalseの場合や一部要素）の塗り＋太字＋サイズ
+      svg.querySelectorAll("text, tspan").forEach(n=>{
+        n.style.setProperty("fill", "#e23b3b", "important");
+        n.style.setProperty("font-weight", "700", "important");
+        n.style.setProperty("font-size", FONT, "important");
+      });
+      // ノードの背景を赤の補色（薄めのシアン）に
+      svg.querySelectorAll(".statediagram-state rect, g.node rect, rect.label-container, .node .basic").forEach(n=>{
+        n.style.setProperty("fill", "#aef3f3", "important");
+      });
+
+      // ===== 拡大・縮小・移動（パン／ズーム）=====
+      const box = document.getElementById("diagram");
+      // mermaidが付ける最大幅制限を外して自由に拡大できるように
+      svg.style.maxWidth = "none";
+      svg.removeAttribute("width");
+      svg.removeAttribute("height");
+
+      let scale = 1, tx = 0, ty = 0;
+      const clamp = (v,min,max)=> Math.max(min, Math.min(max, v));
+      const apply = ()=>{ host.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`; };
+
+      // カーソル位置を中心にズーム
+      box.addEventListener("wheel", (e)=>{
+        e.preventDefault();
+        const r = box.getBoundingClientRect();
+        const mx = e.clientX - r.left, my = e.clientY - r.top;
+        const factor = e.deltaY < 0 ? 1.12 : 1/1.12;
+        const ns = clamp(scale * factor, 0.2, 10);
+        tx = mx - (mx - tx) * (ns/scale);
+        ty = my - (my - ty) * (ns/scale);
+        scale = ns; apply();
+      }, { passive:false });
+
+      // ドラッグで移動
+      let dragging=false, lastX=0, lastY=0;
+      box.addEventListener("mousedown", (e)=>{ dragging=true; lastX=e.clientX; lastY=e.clientY; box.classList.add("grabbing"); });
+      window.addEventListener("mousemove", (e)=>{
+        if(!dragging) return;
+        tx += e.clientX - lastX; ty += e.clientY - lastY;
+        lastX = e.clientX; lastY = e.clientY; apply();
+      });
+      window.addEventListener("mouseup", ()=>{ dragging=false; box.classList.remove("grabbing"); });
+
+      // ボタン（中央基準でズーム）
+      const btnZoom = (factor)=>{
+        const r = box.getBoundingClientRect();
+        const mx = r.width/2, my = r.height/2;
+        const ns = clamp(scale * factor, 0.2, 10);
+        tx = mx - (mx - tx) * (ns/scale);
+        ty = my - (my - ty) * (ns/scale);
+        scale = ns; apply();
+      };
+      document.getElementById("zoomIn").onclick  = ()=> btnZoom(1.25);
+      document.getElementById("zoomOut").onclick = ()=> btnZoom(1/1.25);
+      document.getElementById("zoomReset").onclick = ()=>{ scale=1; tx=0; ty=0; apply(); };
+
+      apply();
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BoxingSim 現状分析 2026-05-27</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; padding: 18px 22px 60px;
+    background: #14181d; color: #d8dee6;
+    font-family: "Consolas", "SFMono-Regular", "Courier New", monospace;
+    font-size: 13px; line-height: 1.55;
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; color: #8fd3ff; }
+  .sub { color: #7c8794; margin: 0 0 14px; font-size: 12px; line-height: 1.7; }
+  .sub b { color: #d8dee6; font-weight: normal; }
+
+  .panel {
+    background: #1c2229; border: 1px solid #2c343d; border-radius: 8px;
+    padding: 12px 16px; margin-bottom: 14px;
+  }
+  .panel h2 {
+    font-size: 14px; margin: 0 0 10px; color: #8fd3ff; letter-spacing: .03em;
+    border-bottom: 1px solid #2c343d; padding-bottom: 6px;
+  }
+  .panel h3 { font-size: 12.5px; margin: 12px 0 6px; color: #aeb9c4; }
+  .panel h4 { font-size: 12px; margin: 10px 0 4px; color: #9aa7b4; font-weight: normal; }
+  .panel p { margin: 6px 0; }
+  .panel ul { margin: 6px 0 6px 18px; padding: 0; }
+  .panel ul li { padding: 1px 0; }
+  .panel ol { margin: 6px 0 6px 22px; padding: 0; }
+  .panel ol li { padding: 2px 0; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; margin: 6px 0; }
+  th, td { border: 1px solid #2c343d; padding: 5px 8px; text-align: center; vertical-align: top; }
+  th { color: #9aa7b4; font-weight: normal; background: #11161b; font-size: 11.5px; letter-spacing: .03em; }
+  td.lbl { text-align: left; color: #d8dee6; }
+  td.lblL { text-align: left; color: #d8dee6; }
+  td.num { color: #ffd27d; font-variant-numeric: tabular-nums; }
+  td.neg { color: #ff9d6d; }
+  td.pos { color: #6fd3a0; }
+  td.dim { color: #7c8794; text-align: left; }
+  td.hi { color: #5aafff; font-weight: bold; }
+  td.warn { color: #ff7d7d; font-weight: bold; }
+  td.ok { color: #6fd3a0; font-weight: bold; }
+  td.head { color: #8fd3ff; }
+  td.body { color: #ffce4d; }
+  td.recommend { color: #6fd3a0; font-weight: bold; }
+
+  .formula {
+    background: #11161b; border-left: 3px solid #5aafff;
+    padding: 8px 12px; margin: 6px 0; border-radius: 4px;
+    font-size: 12.5px; color: #d8e6ff;
+  }
+  .formula em { color: #ffd27d; font-style: normal; }
+  .formula code { color: #aeb9c4; }
+
+  .note { font-size: 11.5px; color: #7c8794; line-height: 1.7; margin-top: 6px; }
+  .note b { color: #aeb9c4; font-weight: normal; }
+
+  .meta {
+    background: #1c2229; border-left: 3px solid #ffd27d; padding: 8px 12px;
+    border-radius: 4px; margin-bottom: 14px; font-size: 11.5px; color: #d8dee6; line-height: 1.7;
+  }
+  .meta a { color: #8fd3ff; text-decoration: none; }
+  .meta a:hover { text-decoration: underline; }
+
+  .cards { display: grid; grid-template-columns: 1fr; gap: 10px; }
+  @media (min-width: 900px) { .cards { grid-template-columns: 1fr 1fr; } }
+  .card {
+    background: #11161b; border: 1px solid #2c343d; border-radius: 6px;
+    padding: 10px 12px;
+  }
+  .card.h { border-left: 3px solid #5aafff; }
+  .card.s { border-left: 3px solid #ffd27d; }
+  .card.heavy { border-left: 3px solid #ff7d7d; }
+  .card.feint { border-left: 3px solid #b48aff; }
+  .card.ok { border-left: 3px solid #6fd3a0; }
+  .card.warn { border-left: 3px solid #ff7d7d; }
+  .card h3 { margin: 0 0 6px; font-size: 13px; color: #e8edf3; }
+  .card p { margin: 4px 0; font-size: 11.5px; }
+  .card .meta-row { font-size: 11px; color: #7c8794; }
+  .card .meta-row b { color: #aeb9c4; font-weight: normal; }
+
+  .issue {
+    background: #11161b; border-left: 3px solid #ff7d7d; border-radius: 4px;
+    padding: 8px 12px; margin: 8px 0; font-size: 12px;
+  }
+  .issue h4 { color: #ff9d6d; margin: 0 0 4px; font-size: 12.5px; }
+  .issue p { margin: 4px 0; }
+
+  .recommend-box {
+    background: #16221c; border: 2px solid #6fd3a0; border-radius: 6px;
+    padding: 12px 16px; margin: 10px 0;
+  }
+  .recommend-box h3 { color: #6fd3a0; margin: 0 0 8px; font-size: 13.5px; }
+  .recommend-box p { margin: 4px 0; font-size: 12px; }
+  .recommend-box ol { margin: 6px 0 6px 22px; }
+  .recommend-box ol li { padding: 3px 0; font-size: 12px; }
+
+  .footer { color: #7c8794; font-size: 11.5px; margin-top: 22px; line-height: 1.8; border-top: 1px solid #2c343d; padding-top: 12px; }
+  .footer a { color: #8fd3ff; text-decoration: none; }
+  .footer a:hover { text-decoration: underline; }
+  .footer ul { margin: 4px 0 4px 18px; padding: 0; }
+  .footer ul li { padding: 1px 0; }
+
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 10.5px; margin-left: 4px; }
+  .pill.done { background: #6fd3a0; color: #14181d; }
+  .pill.part { background: #ffce4d; color: #14181d; }
+  .pill.todo { background: #ff7d7d; color: #14181d; }
+  .pill.gap { background: #2c343d; color: #aeb9c4; }
+</style>
+</head>
+<body>
+  <h1>BoxingSim 現状分析 2026-05-27</h1>
+  <p class="sub">
+    段階1〜3 完成後の<b>棚卸しレポート</b>。実装済み機能の整理、FSM 棚卸し 22項目との突き合わせ、
+    perception-lag 中間／phase3 完成版で立ち上がった残課題、未解決事項のリスト、
+    そして次の候補手を比較する。コード変更は行わない、分析と方針整理のためのドキュメント。
+  </p>
+
+  <div class="meta">
+    <b>関連</b>: <a href="2026-05-26-perception-lag.html">2026-05-26 perception-lag 中間</a> ／
+    <a href="2026-05-26-phase3-complete.html">2026-05-26 段階3 完成版</a> ／
+    <a href="../docs/design/fsm_gap_inventory.html">FSM 棚卸し</a> ／
+    <a href="../TASKS.md">TASKS.md</a> ／ <a href="../LOG.md">LOG.md</a>
+  </div>
+
+  <!-- ===== 1. 実装済み機能の整理（FSMの現状） ===== -->
+  <div class="panel">
+    <h2>1. 実装済み機能の整理（FSM の現状）</h2>
+
+    <h3>状態（4基底 × グループ着色）</h3>
+    <p>
+      待機 / 始動 / 発生 / 硬直。状態グループは「待機・移動 / 攻撃 / 被弾(のけぞり) / ガード(ガード硬直含む)」の
+      4色でカード背景着色。<code>stateLabel()</code> は moveKey と stun から派生表示。
+    </p>
+
+    <h3>MOVES（19種、<code>src/index.html:275-295</code>）</h3>
+    <table>
+      <thead><tr><th>系統</th><th>内訳</th><th>主なパラメータ</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="lbl">移動 5系統</td>
+          <td class="dim">前進/後退 ／ 上下ガード前進/後退 ／ ステップイン/バック ／ その場上下ガード</td>
+          <td class="num">速 0.2〜0.6 ／ lock=1 ／ stopRec=1 ／ guard:true</td>
+        </tr>
+        <tr>
+          <td class="lbl">攻撃 8種</td>
+          <td class="dim">ジャブ ▲/▼ ／ ストレート ▲/▼</td>
+          <td class="num">startup=4 / dmg=5 ｜ startup=6 / dmg=12</td>
+        </tr>
+        <tr>
+          <td class="lbl heavy">　└ 強ストレート ▲/▼</td>
+          <td class="dim">高威力・低速・ガードでもチップ</td>
+          <td class="warn">startup=10 / dmg=22 / chipRatio=0.3 / blockstun=18</td>
+        </tr>
+        <tr>
+          <td class="lbl feint">　└ フェイント ▲/▼</td>
+          <td class="dim">振り出しだけ、当たらない</td>
+          <td class="num">startup=4 / active=0 / recovery=0 / dmg=0</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="note">
+      target ∈ {head, body} を attack と guard 双方に付与。<code>getGuardTarget(opp) === m.target</code> でブロック判定。
+    </p>
+
+    <h3>主要パラメータ・機構</h3>
+    <ul>
+      <li><b>HP=100、KO</b>、被弾＝のけぞり (stunType="hit")、ガード＝ガード硬直 (stunType="block")。被弾時は moveKey=null で動作中断</li>
+      <li><b>カウンター</b>: 被弾時の相手フェーズで分類（始動 = ×1.5 / 発生 = 相打ち等倍 / 硬直 = パニッシュ等倍）。有利F は全種 ≤ +2（連続確定回避、グロッキー後送り）</li>
+      <li><b>スタミナ 100</b>、攻撃と移動で消費・待機で +1.0/F 回復。閾値効果: damage 係数 0.8〜1.0 ／ startup ×1.0〜1.2 ／ 移動 speed ×0.85〜1.0（<code>effectivePhaseLen</code>）</li>
+      <li><b>AI</b>: PERS 7軸 = 攻撃性 ／ 防御性 ／ 好む間合い ／ 我慢強さ ／ スタミナ意識 ／ <b>presenceLag (既定 3F) ／ detailLag (既定 5F)</b>。<code>scoreActions</code> で点数^2 確率選択、DECIDE_EVERY=3F</li>
+      <li><b>観測</b>: <code>buildObs</code> で self=完全 ／ opponent.x, hp = リアルタイム ／ ★フィールド (state, action, attackTarget, guardTarget, phaseRemaining, stamina) = detailLag 遅延 ／ ◯フィールド (isAttacking, isGuarding) = presenceLag 遅延</li>
+    </ul>
+  </div>
+
+  <!-- ===== 2. FSMの現状評価 ===== -->
+  <div class="panel">
+    <h2>2. FSM の現状評価（gap_inventory 22項目との突き合わせ）</h2>
+
+    <p>
+      <code>fsm_gap_inventory.html</code> 公称「未17 / 部分5 / 済0」だが、実態は段階1〜3 完了で
+      <b>A1（スタミナ）・B1（パンチ種別）・B2（防御細分化）・B4（フェイント）・C1（反応遅延）・C2（観測不完全さ）</b>
+      が実質「済〜部分」に進んでいる。棚卸し HTML 自体は更新されていない（<span style="color:#ff9d6d;">事実乖離</span>）。
+    </p>
+
+    <h3>再現できている実物の仕組み</h3>
+    <ul>
+      <li>フレーム単位の始動 → 発生 → 硬直、リーチ＋接触判定</li>
+      <li>上下打ち分け／ガード方向の照合</li>
+      <li>カウンター ／ 相打ち ／ パニッシュの分岐、ガード硬直</li>
+      <li>スタミナ消耗による startup 延長と速度低下</li>
+      <li>知覚の 2 段ラグ（presence vs detail）による <b>「賭けガード ／ 見てガード ／ フェイント誘発 ／ チップ崩し ／ ジャブ割り込み」</b>の 5 パターン共存</li>
+    </ul>
+
+    <h3>まだ抜けている仕組み（未着手で実物として無視できないもの）</h3>
+    <table>
+      <thead><tr><th>ID</th><th>項目</th><th>現状</th></tr></thead>
+      <tbody>
+        <tr><td class="warn">A2</td><td class="lblL">効きゲージ</td><td class="dim">未</td></tr>
+        <tr><td class="warn">A3</td><td class="lblL">ダウン・カウント</td><td class="dim">HP=0 で即KOのみ。手前の崩れがない</td></tr>
+        <tr><td class="warn">A4</td><td class="lblL">TKO</td><td class="dim">未</td></tr>
+        <tr><td class="warn">B2</td><td class="lblL">防御細分化（パリ ／ スリップ ／ ダック）</td><td class="dim">ガード一択</td></tr>
+        <tr><td class="warn">B3</td><td class="lblL">クリンチ</td><td class="dim">未</td></tr>
+        <tr><td class="warn">C3</td><td class="lblL">注意の偏り</td><td class="dim">未</td></tr>
+        <tr><td class="warn">D1</td><td class="lblL">コーナー</td><td class="dim">X_MIN/MAX で頭打ちのみ。コーナー固有の不利F・後退不能なし</td></tr>
+        <tr><td class="warn">D2</td><td class="lblL">二次元</td><td class="dim">未</td></tr>
+        <tr><td class="warn">D3</td><td class="lblL">構え非対称</td><td class="dim">未</td></tr>
+        <tr><td class="warn">E1</td><td class="lblL">ラウンド・インターバル</td><td class="dim">未</td></tr>
+        <tr><td class="warn">E2</td><td class="lblL">判定</td><td class="dim">時間切れ＝結果なし</td></tr>
+        <tr><td class="warn">E3</td><td class="lblL">反則</td><td class="dim">未</td></tr>
+        <tr><td class="warn">F1</td><td class="lblL">技量</td><td class="dim">未</td></tr>
+        <tr><td class="warn">F3</td><td class="lblL">性格の状況依存</td><td class="dim">未</td></tr>
+        <tr><td class="warn">G1</td><td class="lblL">ラウンド戦略</td><td class="dim">未</td></tr>
+        <tr><td class="warn">G2</td><td class="lblL">試合中学習</td><td class="dim">未</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ===== 3. 直近で立ち上がった問題 ===== -->
+  <div class="panel">
+    <h2>3. 直近で立ち上がった問題（perception-lag 中間 / phase3 完成版から）</h2>
+
+    <h3>A. 守備 AI の構造的問題 3 点（perception-lag 中間レポート由来、未解決）</h3>
+
+    <div class="issue">
+      <h4>① threatened フラグ依存</h4>
+      <p>
+        ガード score = <code>(threatened ? 1.20 : 0.10) × (0.30 + df)</code>。lag が入ると threatened が立つ前に被弾。
+        phase3 完成版で「inRange なら底上げ (0.30)」修正は入ったが、
+        <b>「threatened に支配される」構造自体は残存</b>。
+      </p>
+    </div>
+
+    <div class="issue">
+      <h4>② ガード切替コスト = 0F の前提崩れ</h4>
+      <p>
+        段階 2 時点は瞬時切替前提で守備が成立していた。lag 導入後も切替コストはゼロのまま。
+      </p>
+    </div>
+
+    <div class="issue">
+      <h4>③ 一方的試合</h4>
+      <p>
+        両者 lag=5F+ だと両者とも守備姿勢を取らず、先に当てた方の高速 KO。読み合いの圏が消失。
+      </p>
+    </div>
+
+    <h3>B. phase3 完成版で観測された残課題</h3>
+    <ul>
+      <li><b>カウンター頻発 550/50戦 ≒ 11件/試合</b>（待つ局面が少なく殴り合い寄り）</li>
+      <li><b>body 率 49〜52% に固定</b>。攻撃 target 選好が「相手 guardTarget の逆」のみで、相手 idle 中は guardTarget=null → 50/50 化</li>
+      <li><b>非対称知覚</b>（速い反応 vs 鈍い反応キャラ）未検証</li>
+      <li><b>フェイント連鎖</b>は確率発生のみ。AI に「フェイント → 本命」評価式なし</li>
+    </ul>
+  </div>
+
+  <!-- ===== 4. 未解決事項リスト ===== -->
+  <div class="panel">
+    <h2>4. 未解決事項リスト</h2>
+
+    <table>
+      <thead><tr><th>項目</th><th>出所</th><th>状態</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="lblL warn">守備 AI 構造改善（threatened 依存・切替コスト）</td>
+          <td class="dim">perception-lag (A)</td>
+          <td class="recommend">TASKS.md で明示・最優先扱い</td>
+        </tr>
+        <tr>
+          <td class="lblL">コーナー機構 + バックステップ回数制限 (D1)</td>
+          <td class="dim">TASKS.md / 記憶 corner-loop</td>
+          <td class="dim">「2択回避が顕在化したら」条件付き保留</td>
+        </tr>
+        <tr>
+          <td class="lblL">ダウン / 立ち上がり / TKO (A3, A4)</td>
+          <td class="dim">TASKS.md / gap A3-A4</td>
+          <td class="dim">将来候補</td>
+        </tr>
+        <tr>
+          <td class="lblL">距離 2 次元化 (D2)</td>
+          <td class="dim">TASKS.md</td>
+          <td class="dim">将来候補</td>
+        </tr>
+        <tr>
+          <td class="lblL">ラウンド制 / 判定 (E1, E2)</td>
+          <td class="dim">TASKS.md / phase3 完成版「次の方向」</td>
+          <td class="dim">時間切れ試合の決着付け</td>
+        </tr>
+        <tr>
+          <td class="lblL">技量・スタイル類型 (F1, F2)</td>
+          <td class="dim">TASKS.md</td>
+          <td class="dim">将来候補</td>
+        </tr>
+        <tr>
+          <td class="lblL">性格の状況依存 (F3)</td>
+          <td class="dim">TASKS.md / gap F3</td>
+          <td class="dim">将来候補</td>
+        </tr>
+        <tr>
+          <td class="lblL">試合中学習 (G1, G2)</td>
+          <td class="dim">TASKS.md</td>
+          <td class="dim">将来候補</td>
+        </tr>
+        <tr>
+          <td class="lblL">効きゲージ (A2)</td>
+          <td class="dim">gap A2 のみ</td>
+          <td class="warn">TASKS.md 未記載</td>
+        </tr>
+        <tr>
+          <td class="lblL">クリンチ (B3) / 反則 (E3) / 注意偏り (C3)</td>
+          <td class="dim">gap のみ</td>
+          <td class="warn">TASKS.md 未記載</td>
+        </tr>
+        <tr>
+          <td class="lblL">構え非対称 (D3)</td>
+          <td class="dim">gap のみ</td>
+          <td class="warn">TASKS.md 未記載</td>
+        </tr>
+        <tr>
+          <td class="lblL"><code>fsm_gap_inventory.html</code> の済/部分カウント更新</td>
+          <td class="dim">—</td>
+          <td class="warn">事実乖離（17/5/0 のまま）</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ===== 5. 次の候補手の比較 ===== -->
+  <div class="panel">
+    <h2>5. 次の候補手の比較</h2>
+
+    <table>
+      <thead><tr><th>候補</th><th>動機（実物のどの仕組みか）</th><th>trade-off</th></tr></thead>
+      <tbody>
+        <tr style="background:#16221c;">
+          <td class="recommend">(α) 守備 AI 構造改善</td>
+          <td class="dim">
+            実物ボクサーは「構え＝デフォルト」。threatened に依存せず常時ある程度ガードを選好すべき。
+            perception-lag レポートが (A) として推奨済み
+          </td>
+          <td class="dim">
+            <span class="pos">○</span> lag 値ごとの再調整コスト解消・既存 3 問題を一気に潰せる<br>
+            <span class="neg">×</span> 全体バランス再調整必要（攻めが通らなくなる方向にぶれる懸念）<br>
+            既存パラメータの再チューニングのみで新 FSM 要素なし＝「機能網羅」より「足元の歪み修正」
+          </td>
+        </tr>
+        <tr>
+          <td class="lbl">(β) コーナー機構 + バックステップ回数制限</td>
+          <td class="dim">
+            実物の D1。記憶 corner-loop の予想線「頭/腹 2 択 → バックステップ多発 → コーナー追い詰め」
+          </td>
+          <td class="dim">
+            <span class="pos">○</span> 空間（D1）という未着手領域に踏み込む新規性<br>
+            <span class="neg">×</span> phase3 完成版で「バックステップ多発」は表面化していない
+            （その場ガードで両択防御できてしまうため）。
+            記憶側でも「コーナー機構を入れる前に段階 3 でバランスを変える方が筋」と既に判断済み
+          </td>
+        </tr>
+        <tr>
+          <td class="lbl">(γ) ダウン / 立ち上がり / TKO (A3, A4)</td>
+          <td class="dim">
+            試合の終わり方を増やす。実物として「HP 0 = 一発 KO のみ」は明らかにギャップ
+          </td>
+          <td class="dim">
+            A2 (効き) を経由しないと「累積で崩れる」が定義できない＝ <b>A2 → A3 の順序が筋</b>。
+            今 A3 単独だと「HP 閾値で即ダウン」になり機械的に薄い
+          </td>
+        </tr>
+        <tr>
+          <td class="lbl">(δ) ラウンド制 + 判定 (E1, E2)</td>
+          <td class="dim">
+            時間切れ試合の決着付け。「ジャブで削って判定」戦略を成立させる
+          </td>
+          <td class="dim">
+            単独では駆け引きの粒度に効かない。試合構造の外枠
+          </td>
+        </tr>
+        <tr>
+          <td class="lbl">(ε) 効きゲージ (A2)</td>
+          <td class="dim">
+            蓄積で動作・反応・精度が崩れる
+          </td>
+          <td class="dim">
+            A3 の前提条件として理にかなう。スタミナ・detailLag と動的に連動できれば
+            段階 3 のコア理念（動的知覚変化）に直結
+          </td>
+        </tr>
+        <tr>
+          <td class="lbl">(ζ) 非対称知覚 + フェイント連鎖評価式</td>
+          <td class="dim">
+            個性軸の追加・既存 FSM を磨く
+          </td>
+          <td class="dim">
+            軽量・低リスク。phase3 完成版「次の方向」筆頭。F1 (技量) の先取り
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="recommend-box">
+      <h3>推奨: (α) 守備 AI 構造改善</h3>
+      <p>理由 3 点:</p>
+      <ol>
+        <li>
+          perception-lag 中間レポートが明示的に「推奨」マーク付きで提案し、TASKS.md にも「将来候補」筆頭で残っている既知の宿題。
+          phase3 完成版の inRange 修正は対症療法であって構造改善ではない、と中間レポートが自ら指摘している
+        </li>
+        <li>
+          方法論「機械的仕組みを先に積む」に照らすと、現状の
+          <code>guardScore = inRange ? 0.30 : 0.05 + threatened ? +0.80 : 0</code>
+          は「観測されたバランス問題を係数で押さえつけた状態」であって、
+          FSM の整合性として歪みが残っている。
+          新規機能（コーナー・ダウン）を上に積む前に足元を直す方が、後段の挙動の解釈可能性が上がる
+        </li>
+        <li>
+          同じ理由で <code>fsm_gap_inventory.html</code> の事実更新（17/5/0 → 実態反映）も同時にやっておくと、
+          次の選択肢の比較が機械的に行える
+        </li>
+      </ol>
+      <p class="note" style="color:#9aa7b4;">
+        (β) コーナーは記憶 corner-loop 自身が「段階 3 でバランスを変える方が先」と判断済みで、誘発条件（バックステップ多発）も今は出ていない。
+        (γ) ダウンは A2 → A3 の順序が筋。
+        (δ) 判定は AI 構造を直した後に時間切れがどう振る舞うか観察してから入れる方が定義しやすい。
+      </p>
+    </div>
+  </div>
+
+  <div class="footer">
+    <b>参照ファイル</b>
+    <ul>
+      <li><code>src/index.html</code>（MOVES: 275-295 行 ／ scoreActions: 385 行 ／ buildObs: 850 行 ／ effectivePhaseLen: 356 行）</li>
+      <li><a href="2026-05-26-perception-lag.html">reports/2026-05-26-perception-lag.html</a>（守備 AI 構造的問題 3 点、選択肢 A/B/C）</li>
+      <li><a href="2026-05-26-phase3-complete.html">reports/2026-05-26-phase3-complete.html</a>（5 つの劇・残課題・次の方向 8 項目）</li>
+      <li><a href="../docs/design/fsm_gap_inventory.html">docs/design/fsm_gap_inventory.html</a>（22 項目、内部カウントは未更新）</li>
+      <li><code>docs/memory/project-head-body-stepback-corner-loop.md</code>（コーナー機構の保留理由）</li>
+      <li><a href="../TASKS.md">TASKS.md</a>（将来候補一覧）</li>
+      <li><a href="../LOG.md">LOG.md</a>（2026-05-26 段階 1〜3 完成 ・ 2026-05-27 フォルダ整理）</li>
+    </ul>
+  </div>
+
+</body>
+</html>

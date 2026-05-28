@@ -1,0 +1,1651 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Boxing Sim - フレームエンジン (フェーズ1)</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; padding: 10px 12px;
+    background: #14181d; color: #d8dee6;
+    font-family: "Consolas", "SFMono-Regular", "Courier New", monospace;
+    font-size: 13px; line-height: 1.4;
+  }
+  h1 { font-size: 16px; margin: 0 0 2px; color: #8fd3ff; }
+  .sub { color: #7c8794; margin: 0 0 10px; font-size: 11px; }
+  .wrap { display: block; }
+  .panel {
+    background: #1c2229; border: 1px solid #2c343d; border-radius: 8px;
+    padding: 10px 12px; margin-bottom: 12px;
+  }
+  .panel h2 { font-size: 12px; margin: 0 0 6px; color: #9aa7b4; letter-spacing: .04em; }
+
+  /* controls */
+  .controls { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 10px; }
+  button {
+    background: #283039; color: #d8dee6;
+    border: 1px solid #3a4450; border-radius: 6px;
+    padding: 7px 12px; font-family: inherit; font-size: 13px; cursor: pointer;
+  }
+  button:hover { background: #323c47; }
+  button.primary { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+  button.primary:hover { background: #2d7dfb; }
+  .frameno { font-size: 22px; color: #ffd27d; min-width: 90px; }
+  .frameno small { font-size: 12px; color: #7c8794; }
+  select, input[type=text], input[type=number] {
+    background: #11161b; color: #d8dee6; border: 1px solid #3a4450;
+    border-radius: 5px; padding: 5px 6px; font-family: inherit; font-size: 13px;
+  }
+
+  /* track */
+  .track {
+    background: #11161b; border: 1px solid #2c343d; border-radius: 6px;
+    padding: 8px 10px; white-space: pre; font-size: 13px; margin-bottom: 10px;
+    letter-spacing: 1px; color: #7c8794;
+  }
+  .track .pmark { color: #6fd3a0; font-weight: bold; }
+  .track .emark { color: #ff8f8f; font-weight: bold; }
+  /* 攻撃リーチの可視化 */
+  .track .z-p-live { background: rgba(111,211,160,.45); }
+  .track .z-p-tele { background: rgba(111,211,160,.16); }
+  .track .z-e-live { background: rgba(255,143,143,.45); }
+  .track .z-e-tele { background: rgba(255,143,143,.16); }
+  .legend { font-size: 11px; color: #7c8794; margin-bottom: 10px; }
+  .legend i { display: inline-block; width: 11px; height: 11px; border-radius: 2px; vertical-align: middle; margin: 0 3px 0 8px; }
+  .legend i.lp { background: rgba(111,211,160,.5); }
+  .legend i.le { background: rgba(255,143,143,.5); }
+
+  /* char cards */
+  .chars { display: flex; gap: 12px; flex-wrap: wrap; }
+  .char { flex: 1 1 200px; background: #11161b; border: 1px solid #2c343d; border-radius: 6px; padding: 10px 12px; transition: background .12s, box-shadow .12s; }
+  .char.P { border-left: 3px solid #6fd3a0; }
+  .char.E { border-left: 3px solid #ff8f8f; }
+  /* 状態グループで背景を着色（攻防が一目で分かるように） */
+  .char.grp-move  { background: rgba(95,211,138,.14);  box-shadow: inset 0 0 0 1px rgba(95,211,138,.45); }   /* 待機・移動=緑 */
+  .char.grp-atk   { background: rgba(95,150,255,.18);   box-shadow: inset 0 0 0 1px rgba(95,150,255,.55); }   /* 攻撃=青 */
+  .char.grp-hit   { background: rgba(255,80,80,.22);    box-shadow: inset 0 0 0 1px rgba(255,80,80,.65); }    /* 被弾=赤 */
+  .char.grp-guard { background: rgba(255,206,77,.20);   box-shadow: inset 0 0 0 1px rgba(255,206,77,.6); }     /* ガード=黄色 */
+  .char .nm { font-size: 13px; color: #aeb9c4; margin-bottom: 6px; }
+  .char .hd { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; margin-bottom: 4px; }
+  .char .act { font-size: 20px; font-weight: bold; color: #e8edf3; }
+  .char .st { font-size: 20px; font-weight: bold; }
+  .st-待機 { color: #7c8794; }
+  .st-始動 { color: #ffd27d; }
+  .st-発生 { color: #ff7d7d; }
+  .st-硬直 { color: #9a8fff; }
+  .st-ガード { color: #6fd3ff; }
+  .st-移動 { color: #8fd3a0; }
+  .st-のけぞり { color: #ff6b6b; }
+  .char .row { display: flex; justify-content: space-between; font-size: 12px; color: #9aa7b4; }
+  .char .row b { color: #d8dee6; font-weight: normal; }
+  .bar { height: 6px; background: #232b34; border-radius: 3px; margin: 6px 0; overflow: hidden; }
+  .bar > i { display: block; height: 100%; background: #ffd27d; }
+  .hprow { display: flex; justify-content: space-between; font-size: 12px; color: #9aa7b4; }
+  .hprow b { color: #e8edf3; font-size: 14px; }
+  .hpbar { height: 9px; background: #232b34; border-radius: 4px; margin: 3px 0 6px; overflow: hidden; }
+  .hpbar > i { display: block; height: 100%; transition: width .1s; }
+  #status { font-size: 15px; font-weight: bold; color: #ffd27d; min-height: 20px; margin: 2px 0 8px; }
+  #log .block { color: #6fd3ff; }
+  #log .ko { color: #ffce4d; font-weight: bold; }
+  #log .counter { color: #ff5d9e; font-weight: bold; }
+
+  /* event log */
+  #log {
+    background: #11161b; border: 1px solid #2c343d; border-radius: 6px;
+    padding: 6px 10px; height: 96px; overflow-y: auto; font-size: 11px; margin-top: 8px;
+  }
+  #log .ev { padding: 1px 0; }
+  #log .f { color: #7c8794; }
+  #log .hit { color: #ff9d4d; }
+  #log .start { color: #6fd3ff; }
+
+  /* editor */
+  label.fld { display: block; margin: 8px 0 3px; font-size: 12px; color: #9aa7b4; }
+  textarea {
+    width: 100%; box-sizing: border-box; background: #11161b; color: #d8dee6;
+    border: 1px solid #3a4450; border-radius: 5px; padding: 6px 8px;
+    font-family: inherit; font-size: 13px; resize: vertical;
+  }
+  table { border-collapse: collapse; width: 100%; font-size: 12px; margin-top: 4px; }
+  th, td { border: 1px solid #2c343d; padding: 3px 5px; text-align: center; }
+  th { color: #9aa7b4; font-weight: normal; background: #1c2229; }
+  td.lbl { text-align: left; color: #d8dee6; }
+  table input { width: 46px; text-align: center; padding: 3px; }
+  .hint { font-size: 11px; color: #7c8794; margin-top: 8px; line-height: 1.6; }
+  .hint code { background: #11161b; padding: 1px 4px; border-radius: 3px; color: #ffd27d; }
+
+  /* 観測データ（AIに渡す情報） */
+  .obswrap { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+  .obscol { flex: 1 1 220px; background: #11161b; border: 1px solid #2c343d; border-radius: 6px; padding: 8px 10px; }
+  .obscol.P { border-left: 3px solid #6fd3a0; }
+  .obscol.E { border-left: 3px solid #ff8f8f; }
+  .obsname { font-size: 12px; color: #aeb9c4; margin-bottom: 6px; }
+  .obsgrp { margin-bottom: 8px; }
+  .obsh { font-size: 10.5px; color: #7c8794; letter-spacing: .04em; border-bottom: 1px solid #2c343d; padding-bottom: 2px; margin-bottom: 3px; }
+  .orow { display: flex; justify-content: space-between; gap: 8px; font-size: 11.5px; color: #9aa7b4; padding: 1px 0; }
+  .orow b { color: #d8dee6; font-weight: normal; text-align: right; }
+  .orow.blur { color: #c0908f; }
+  .orow.blur b { color: #e2a6a4; font-style: italic; }
+  .orow.chosen { color: #ffd27d; }
+  .orow.chosen b { color: #ffd27d; font-weight: bold; }
+  #persTable input { width: 56px; }
+</style>
+</head>
+<body>
+  <h1>Boxing Sim — フレームエンジン</h1>
+  <p class="sub">フレーム単位の攻防＋確率型ユーティリティAI（性格: ag/df/range/pa/sa + <b>多段知覚 presenceLag/detailLag</b>）。HP/スタミナ/頭腹打ち分け/カウンター/<b>強ストレート(チップ崩し)・フェイント</b>。<b>段階3 多段知覚: 粗3F「攻撃来た」, 詳細5F「種類/target」。jab(4F)は detail 間に合わず賭け、straight(6F)は見てガード、強ストレート(10F)は見えるがジャブで割り込み可、フェイント(4F空振り)で defender を誤反応誘発。</b></p>
+
+  <div class="wrap">
+    <!-- STAGE -->
+    <div class="panel" id="stage">
+      <div class="controls">
+        <button class="primary" id="playBtn">▶ 再生</button>
+        <button id="backBtn">◀ コマ戻し</button>
+        <button id="fwdBtn">コマ送り ▶</button>
+        <button id="resetBtn">⟲ 最初へ</button>
+        <span class="frameno"><span id="frameNo">0</span><small> F</small></span>
+        <label style="font-size:12px;color:#9aa7b4;">速度
+          <select id="speed">
+            <option value="500">遅 (2fps)</option>
+            <option value="200" selected>標準 (5fps)</option>
+            <option value="100">速 (10fps)</option>
+            <option value="33">最速 (30fps)</option>
+          </select>
+        </label>
+      </div>
+
+      <div id="status"></div>
+      <div id="roundDisplay" style="font-size:13px; margin:6px 0; color:#aac8ee;"></div>
+
+      <h2>キャラ状態（HP）</h2>
+      <div class="chars">
+        <div class="char P" id="cardP"></div>
+        <div class="char E" id="cardE"></div>
+      </div>
+
+      <h2>間合い（1次元）</h2>
+      <div class="track" id="track"></div>
+      <div class="legend">範囲色: <i class="lp"></i>自分の攻撃が届く範囲 <i class="le"></i>敵の攻撃が届く範囲（発生中は濃く表示）</div>
+
+      <h2>観測データ（AIに渡す情報・完全版）</h2>
+      <div class="obswrap">
+        <div class="obscol P"><div class="obsname">Player の観測</div><div id="obsP"></div></div>
+        <div class="obscol E"><div class="obsname">敵 の観測</div><div id="obsE"></div></div>
+      </div>
+      <div class="hint">◯印=粗知覚（presenceLag F 遅延）／★印=詳細知覚（detailLag F 遅延）。粗で「攻撃来た」を察知してガード commitment、詳細で「何の攻撃か」を遅れて識別。短い startup の攻撃は detailLag が間に合わず賭けになる。フェイントは粗で検知されるが当たらないので defender が無駄に commit。</div>
+
+      <h2>AI意思決定（点数・選択確率）</h2>
+      <div class="obswrap">
+        <div class="obscol P"><div class="obsname">Player の評価</div><div id="scP"></div></div>
+        <div class="obscol E"><div class="obsname">敵 の評価</div><div id="scE"></div></div>
+      </div>
+      <div class="hint">確率型なので必ずしも最高点を選びません（選ばれた行動を ▶ で表示）。点数は再判断フレームのみ更新。</div>
+
+      <h2>イベントログ</h2>
+      <div id="log"></div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="panel" id="editor">
+      <h2>設定</h2>
+      <label class="fld">操作モード</label>
+      <div class="hint" style="margin-top:0; line-height:1.8;">
+        <label><input type="checkbox" id="aiP" checked> Player を AI で動かす</label>
+        <label><input type="checkbox" id="aiE" checked> 敵 を AI で動かす</label><br>
+        AIは確率型ユーティリティ（下の性格パラメータで挙動が変わる）。<br>
+        チェックを外した側は下の「行動列」で手動。設定後は「構築して最初へ」を押す。
+      </div>
+
+      <label class="fld">性格（AI・確率型ユーティリティ）</label>
+      <table id="persTable">
+        <thead><tr><th>パラメータ</th><th>Player</th><th>敵</th></tr></thead>
+        <tbody>
+          <tr><td class="lbl">攻撃性 (0-100)</td>
+            <td><input type="number" id="agP" min="0" max="100" value="60"></td>
+            <td><input type="number" id="agE" min="0" max="100" value="40"></td></tr>
+          <tr><td class="lbl">防御性 (0-100)</td>
+            <td><input type="number" id="dfP" min="0" max="100" value="40"></td>
+            <td><input type="number" id="dfE" min="0" max="100" value="60"></td></tr>
+          <tr><td class="lbl">好む間合い</td>
+            <td><input type="number" id="rangeP" min="0.5" max="4" step="0.1" value="2.5"></td>
+            <td><input type="number" id="rangeE" min="0.5" max="4" step="0.1" value="3.0"></td></tr>
+          <tr><td class="lbl">我慢強さ (0-100)</td>
+            <td><input type="number" id="paP" min="0" max="100" value="30"></td>
+            <td><input type="number" id="paE" min="0" max="100" value="40"></td></tr>
+          <tr><td class="lbl">スタミナ意識 (0-100)</td>
+            <td><input type="number" id="saP" min="0" max="100" value="50"></td>
+            <td><input type="number" id="saE" min="0" max="100" value="50"></td></tr>
+          <tr><td class="lbl">粗知覚 presenceLag (0-10F)</td>
+            <td><input type="number" id="plagP" min="0" max="10" step="1" value="3"></td>
+            <td><input type="number" id="plagE" min="0" max="10" step="1" value="3"></td></tr>
+          <tr><td class="lbl">詳細知覚 detailLag (0-10F)</td>
+            <td><input type="number" id="dlagP" min="0" max="10" step="1" value="5"></td>
+            <td><input type="number" id="dlagE" min="0" max="10" step="1" value="5"></td></tr>
+          <tr><td class="lbl">ガード継続選好 guardCommitment (0-100)</td>
+            <td><input type="number" id="gcP" min="0" max="100" step="1" value="50"></td>
+            <td><input type="number" id="gcE" min="0" max="100" step="1" value="50"></td></tr>
+          <tr><td class="lbl">予測信頼度 modelTrust (0-100%)</td>
+            <td><input type="number" id="mtP" min="0" max="100" step="1" value="30"></td>
+            <td><input type="number" id="mtE" min="0" max="100" step="1" value="30"></td></tr>
+          <tr><td class="lbl">ガード切替コスト guardSwapStartup (0-10F・両者共通)</td>
+            <td colspan="2" style="text-align:center;"><input type="number" id="gsw" min="0" max="10" step="1" value="3"></td></tr>
+        </tbody>
+      </table>
+      <div class="hint">既定はPlayer=やや攻撃型／敵=やや守備型。粗知覚=「攻撃来た」が何F遅れて見えるか、詳細知覚=「ジャブ/ストレート/頭/腹」がさらに何F遅れて確定するか（detailLag &gt;= presenceLag が前提）。値を変えたら「構築して最初へ」で反映。</div>
+
+      <label class="fld">ラウンドシステム（段階5 Step B: 境界処理 + インターバル）</label>
+      <div class="hint" style="margin-top:0; line-height:1.8;">
+        <label><input type="checkbox" id="roundEnabled" checked> ラウンド制を有効化（OFF で Step A 相当の no-op フォールバック）</label><br>
+        1Rのフレーム数 <input type="number" id="roundLength" min="60" max="2000" step="10" value="300">
+        ラウンド数 <input type="number" id="numRounds" min="1" max="12" step="1" value="3">
+        休憩F <input type="number" id="intervalLength" min="0" max="600" step="10" value="60">
+        休憩スタミナ回復/F <input type="number" id="regenRate" min="0" max="10" step="0.1" value="2.0">
+      </div>
+
+      <label class="fld">Player の行動列（手動時）</label>
+      <textarea id="seqP" rows="2">前進, 前進, ジャブ, 待機, ストレート</textarea>
+      <label class="fld">敵 の行動列（手動時）</label>
+      <textarea id="seqE" rows="2">待機, 待機, 後退, ジャブ</textarea>
+
+      <div style="margin-top:10px;">
+        <button class="primary" id="buildBtn">構築して最初へ</button>
+      </div>
+      <div class="hint">
+        使える行動: <code>待機</code> <code>前進</code> <code>後退</code> <code>上ガード前進</code> <code>下ガード前進</code> <code>上ガード後退</code> <code>下ガード後退</code> <code>ステップイン</code> <code>ステップバック</code> <code>ジャブ</code> <code>ボディジャブ</code> <code>ストレート</code> <code>ボディストレート</code> <code>強ストレート上</code> <code>強ストレート下</code> <code>フェイント上</code> <code>フェイント下</code> <code>上ガード</code> <code>下ガード</code><br>
+        頭/腹とガード上/下が一致したときのみブロック。強ストレートはガードでも 30% チップが入る代わりに startup=10F でジャブ割り込みリスク。フェイントは振り出しだけで当たらないが「攻撃来た」と相手が誤判断する。
+      </div>
+
+      <h2 style="margin-top:14px;">技データ（フレーム / リーチ / 速度）</h2>
+      <table id="moveTable">
+        <thead><tr></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div class="hint">移動は連続移動（保持している間ずっと動く）。向き: +1=前進(詰める)/-1=後退。速度=1Fの移動量。不可F=開始直後のキャンセル不可フレーム。停止硬=キャンセルせず止めた時の硬直F。リーチ・ダメージは攻撃のみ。</div>
+    </div>
+  </div>
+
+<script>
+"use strict";
+
+const X_MIN = -2, X_MAX = 8, TRACK_W = 42;
+// 段階5 Step B fix: ラウンド制で 3R×300F + 2×60F = 1020F が必要になるため、
+//   既定 800F のままだと最終ラウンドが終わる前に打ち切られて時間切れ判定が増える。
+//   roundEnabled=true のとき NUM_ROUNDS / ROUND_LENGTH / INTERVAL_LENGTH から動的計算する。
+//   roundEnabled=false のときは Step A 相当の従来値 800F を維持し、baseline MD5 一致を保つ。
+let MAX_FRAME = 800;      // 暴走防止 (computeMaxFrame で更新される)
+function computeMaxFrame() {
+  if (roundEnabled) {
+    // 段階5 Step C fix: 最終 R 終了後も endRound() で matchPhase=interval に入り、
+    //   INTERVAL_LENGTH F 経過してから startRound() で matchPhase=ended になる FSM 構造のため、
+    //   実必要長は NUM_ROUNDS * (ROUND_LENGTH + INTERVAL_LENGTH) + 余裕。
+    //   旧式 (NUM_ROUNDS-1)*INTERVAL_LENGTH ではラスト interval 分が足りず判定到達前に MAX_FRAME 打切で時間切れ扱いになっていた。
+    return NUM_ROUNDS * (ROUND_LENGTH + INTERVAL_LENGTH) + 50;
+  }
+  return 800;
+}
+const MANUAL_HOLD = 4;    // 手動モードで移動を保持するフレーム数（テスト用）
+const COUNTER_MULT = 1.5; // カウンター（相手の始動に当てた）ダメージ倍率
+// 段階5 Step B: 部分リセット用の初期 x（initSim と一致させる）。
+const INIT_X_P = 0.0, INIT_X_E = 4.0;
+
+// 段階5 Step B: ラウンドシステム配管。roundEnabled=true 既定でラウンド境界処理が動く。
+// UI で変更できるよう let。
+let ROUND_LENGTH = 300;          // 1ラウンドのフレーム数
+let NUM_ROUNDS = 3;              // ラウンド数
+let INTERVAL_LENGTH = 60;        // インターバル（休憩）のフレーム数
+let STAMINA_INTERVAL_REGEN = 2.0; // インターバル中のスタミナ回復/F
+let roundEnabled = true;         // Step B 既定。false で Step A 相当の no-op フォールバック
+
+// ---- 技/行動の定義 ----
+// kind:
+//   "idle"   待機
+//   "attack" 始動→発生→硬直（ロック / reach あり / target=head/body）
+//   "guard"  ガード（始動→発生(構え)→硬直 / ロック）※未使用、ガードは move+guard:true
+//   "move"   連続移動。toward:+1=前進(間合いを詰める)/-1=後退。speed=1Fあたり移動量。
+//            guard:true=移動中ずっとガード（target=head/body 必須）。
+//            lock=最初のキャンセル不可フレーム数。
+//            stopRec=キャンセルせず停止した時の硬直F。accepts="all" か、受付入力キーの配列。
+// 段階2: target ∈ {"head","body"} を attack と guard 系に付与。
+//   攻撃 target == ガード target → ブロック成功。ミスマッチ → ノーガード相当ダメージ。
+// 段階3 追加:
+//   - 強ストレート (startup=10): 高威力・低速。chipRatio=0.3 でガードしてもチップダメージ。長いブロック硬直。
+//                                  startup が長いのでジャブで割り込まれるリスク (この駆け引きが本旨)
+//   - フェイント (startup=4, active=0, recovery=0): 振り出しだけ。当たらない。後すぐ動ける。
+//                                                     粗知覚では「攻撃来た」に見えるので守備が誤反応
+//   - chipRatio フィールド: 通常 0 (ガードで完全防御)。強ストレートのみ 0.3。
+let MOVES = {
+  "待機":           { kind: "idle", staminaCost: 0 },
+  "前進":           { kind: "move", toward: +1, speed: 0.4, guard: false, lock: 1, stopRec: 0, staminaCost: 0.2, accepts: ["ジャブ","ボディジャブ","ストレート","ボディストレート","強ストレート上","強ストレート下","フェイント上","フェイント下","上ガード","下ガード"] },
+  "後退":           { kind: "move", toward: -1, speed: 0.4, guard: false, lock: 1, stopRec: 0, staminaCost: 0.2, accepts: ["ジャブ","ボディジャブ","ストレート","ボディストレート","強ストレート上","強ストレート下","フェイント上","フェイント下","上ガード","下ガード"] },
+  // guardSwapStartup: 別ガード方向へ切替えた時の切替コスト(F)。startAction で ch.stopRec に入る。
+  //   Step A は既定 0 で no-op。Step C で 3 に上げて FSM レベルの切替コストを発生させる。
+  "上ガード前進":   { kind: "move", toward: +1, speed: 0.2, guard: true,  target: "head", lock: 0, stopRec: 0, staminaCost: 0.3, accepts: "all", guardSwapStartup: 3 },
+  "下ガード前進":   { kind: "move", toward: +1, speed: 0.2, guard: true,  target: "body", lock: 0, stopRec: 0, staminaCost: 0.3, accepts: "all", guardSwapStartup: 3 },
+  "上ガード後退":   { kind: "move", toward: -1, speed: 0.2, guard: true,  target: "head", lock: 0, stopRec: 0, staminaCost: 0.3, accepts: "all", guardSwapStartup: 3 },
+  "下ガード後退":   { kind: "move", toward: -1, speed: 0.2, guard: true,  target: "body", lock: 0, stopRec: 0, staminaCost: 0.3, accepts: "all", guardSwapStartup: 3 },
+  "ステップイン":   { kind: "move", toward: +1, speed: 0.6, guard: false, lock: 0, stopRec: 1, staminaCost: 1.0, accepts: ["ジャブ","ボディジャブ","ストレート","ボディストレート","強ストレート上","強ストレート下","フェイント上","フェイント下","上ガード","下ガード"] },
+  "ステップバック": { kind: "move", toward: -1, speed: 0.6, guard: false, lock: 0, stopRec: 1, staminaCost: 1.0, accepts: ["ジャブ","ボディジャブ","ストレート","ボディストレート","強ストレート上","強ストレート下","フェイント上","フェイント下","上ガード","下ガード"] },
+  "ジャブ":         { kind: "attack", target: "head", startup: 4,  active: 2, recovery: 6,  reach: 3.0, damage: 5,  hitstun: 8,  blockstun: 6,  chipRatio: 0,   staminaCost: 6 },
+  "ボディジャブ":   { kind: "attack", target: "body", startup: 4,  active: 2, recovery: 6,  reach: 3.0, damage: 5,  hitstun: 8,  blockstun: 6,  chipRatio: 0,   staminaCost: 6 },
+  "ストレート":     { kind: "attack", target: "head", startup: 6,  active: 3, recovery: 12, reach: 3.5, damage: 12, hitstun: 14, blockstun: 12, chipRatio: 0,   staminaCost: 15 },
+  "ボディストレート": { kind: "attack", target: "body", startup: 6,  active: 3, recovery: 12, reach: 3.5, damage: 12, hitstun: 14, blockstun: 12, chipRatio: 0,   staminaCost: 15 },
+  "強ストレート上": { kind: "attack", target: "head", startup: 10, active: 3, recovery: 15, reach: 3.5, damage: 22, hitstun: 22, blockstun: 18, chipRatio: 0.3, staminaCost: 25 },
+  "強ストレート下": { kind: "attack", target: "body", startup: 10, active: 3, recovery: 15, reach: 3.5, damage: 22, hitstun: 22, blockstun: 18, chipRatio: 0.3, staminaCost: 25 },
+  "フェイント上":   { kind: "attack", target: "head", startup: 4,  active: 0, recovery: 0,  reach: 0,   damage: 0,  hitstun: 0,  blockstun: 0,  chipRatio: 0,   staminaCost: 3, isFeint: true },
+  "フェイント下":   { kind: "attack", target: "body", startup: 4,  active: 0, recovery: 0,  reach: 0,   damage: 0,  hitstun: 0,  blockstun: 0,  chipRatio: 0,   staminaCost: 3, isFeint: true },
+  "上ガード":       { kind: "move", toward: 0, speed: 0, guard: true, target: "head", lock: 0, stopRec: 0, staminaCost: 0, accepts: "all", guardSwapStartup: 3 },
+  "下ガード":       { kind: "move", toward: 0, speed: 0, guard: true, target: "body", lock: 0, stopRec: 0, staminaCost: 0, accepts: "all", guardSwapStartup: 3 },
+};
+const MOVE_ORDER = [
+  "待機","前進","後退",
+  "上ガード前進","下ガード前進","上ガード後退","下ガード後退",
+  "ステップイン","ステップバック",
+  "ジャブ","ボディジャブ","ストレート","ボディストレート",
+  "強ストレート上","強ストレート下",
+  "フェイント上","フェイント下",
+  "上ガード","下ガード"
+];
+
+// 種別ヘルパ
+const isAttack = k => k != null && MOVES[k] && MOVES[k].kind === "attack";
+const isMove   = k => k != null && MOVES[k] && MOVES[k].kind === "move";
+const isGuard  = k => k != null && MOVES[k] && MOVES[k].kind === "guard";
+const isIdle   = k => k == null || (MOVES[k] && MOVES[k].kind === "idle");
+
+// ---- シミュレーション ----
+let frames = [];   // 各フレームの状態スナップショット
+let cur = 0;       // 現在表示しているフレーム index
+let timer = null;
+
+function makeChar(name, x, dir, seq) {
+  return { name, x, advanceDir: dir, queue: seq.slice(), qi: 0, moveKey: null, phase: "idle", fip: 0, stopRec: 0,
+           plan: null, scores: null, decTimer: 0, hp: 100, atkLanded: false, atkWhiffed: false, stun: 0, stunType: null, stunTarget: null, stamina: 100,
+           // 段階4 Step A: 敵行動予測モデル。
+           //   predictedCounts: プライアを擬似観測として開始する forgetting count。stepSim 内で初期化。
+           //   predictedOpp: predictedCounts を正規化した確率分布。Step A は表示のみで scoreActions は参照しない。
+           predictedCounts: null, predictedOpp: null };
+}
+
+function parseSeq(text) {
+  return text.split(/[,、\s]+/).map(s => s.trim()).filter(s => s.length && MOVES[s]);
+}
+
+function initSim() {
+  const seqP = parseSeq(document.getElementById("seqP").value);
+  const seqE = parseSeq(document.getElementById("seqE").value);
+  const s = {
+    frame: 0,
+    P: makeChar("Player", INIT_X_P, +1, seqP),
+    E: makeChar("敵",     INIT_X_E, -1, seqE),
+    events: [],
+    ko: null,
+  };
+  // 段階5 Step A: ラウンド系フィールド配管。roundEnabled=false なので Step A では読まれるだけ。
+  s.round = 1;
+  s.roundFrame = 0;
+  s.matchPhase = "active";  // active / interval / ended
+  s.roundScores = [];        // 各ラウンドのスコア（Step C で埋まる）
+  s.roundStats = {
+    P: { clean: 0, chip: 0, blocks: 0, counters: 0 },
+    E: { clean: 0, chip: 0, blocks: 0, counters: 0 }
+  };
+  s.decision = null;         // 最終判定（Step C で埋まる）
+  s.ended = false;
+  // 段階4 Step A: 予測モデルの初期分布を frame 0 から表示するためにここで初期化する。
+  //   predictedCounts はプライアの深いコピー、predictedOpp は正規化値。
+  //   updatePrediction は decay → 観測加算 → 正規化なので、ここでの初期化は分布表示のみが目的。
+  for (const k of ["P", "E"]) {
+    const ch = s[k];
+    const prior = PERS[k] && PERS[k].modelPrior;
+    if (prior) {
+      ch.predictedCounts = JSON.parse(JSON.stringify(prior));
+      const prob = {};
+      for (const axis in ch.predictedCounts) {
+        let sum = 0;
+        for (const v in ch.predictedCounts[axis]) sum += ch.predictedCounts[axis][v];
+        prob[axis] = {};
+        if (sum > 0) {
+          for (const v in ch.predictedCounts[axis]) prob[axis][v] = ch.predictedCounts[axis][v] / sum;
+        } else {
+          const keys = Object.keys(ch.predictedCounts[axis]);
+          for (const v of keys) prob[axis][v] = keys.length ? 1 / keys.length : 0;
+        }
+      }
+      ch.predictedOpp = prob;
+    }
+  }
+  return s;
+}
+
+function clone(s) { return JSON.parse(JSON.stringify(s)); }
+
+// 指定した技の、長さ>0の最初のフェーズを返す
+const PHASES = ["startup", "active", "recovery"];
+function firstPhase(key) {
+  const m = MOVES[key];
+  for (const p of PHASES) if (m[p] > 0) return p;
+  return null;
+}
+function nextPhase(key, phase) {
+  const m = MOVES[key];
+  let i = PHASES.indexOf(phase) + 1;
+  for (; i < PHASES.length; i++) if (m[PHASES[i]] > 0) return PHASES[i];
+  return null;
+}
+
+// Step B: 現在のスタミナを反映した実効フェーズ長。startup のみ最大+20%延長(連続関数)。
+// active / recovery は素のまま(影響範囲を絞るため)。
+function effectivePhaseLen(ch) {
+  if (!ch.moveKey) return 0;
+  let len = MOVES[ch.moveKey][ch.phase] || 0;
+  if (ch.phase === "startup" && len > 0) {
+    len = Math.max(1, Math.round(len * (1.2 - 0.2 * ch.stamina / 100)));
+  }
+  return len;
+}
+
+// 操作モード（true = そのキャラをAIで動かす）
+let AI = { P: false, E: false };
+
+// AIの性格（0..1。range は距離、staminaAware は段階1で追加、知覚遅延は段階3で2段階に）。
+// build() でスライダーから読む。
+// presenceLag (F): 「相手が何か出してきた」が何F前の状態として観測されるか。粗い知覚。
+// detailLag (F): 「何の攻撃か / どの target か」が何F前として観測されるか。詳細知覚（>= presenceLag）。
+//   既定 3/5: 実物寄り。jab(startup=4)は detail 間に合わず賭け、straight(6)は見えてガード、強ストレート(10)は見て対応可。
+// guardCommitment ∈ [0,1]: ガード方向の継続選好度。
+//   現在の guardTarget と一致する guard 行動を (1 + 0.5*gc) で強化、
+//   不一致を (1 - 0.5*gc) で抑制。null（ガード中じゃない）の時は両方等倍。
+//   Step A の既定 0 では no-op（×1 / ×1）。
+// 段階4 Step A: 敵行動予測モデル。
+//   modelPrior: 観測前の擬似カウント（スカウト相当）。各軸の値を加重で初期化。
+//                 値が大きいほど初期確信が強い（updatePrediction の decay で徐々に試合中観測に置き換わる）。
+//   modelDecay: 旧観測の指数減衰係数（毎フレーム全カウント × decay）。0.99 で実効ウィンドウ ~100F。
+//   modelTrust: scoreActions が予測をどれだけ信用するか（0..1）。Step A は 0 固定で完全 no-op。
+let PERS = {
+  P: { ag: 0.60, df: 0.40, pa: 0.30, range: 2.5, staminaAware: 0.50, presenceLag: 3, detailLag: 5, guardCommitment: 0.5,
+       modelPrior: { attackTarget: { head: 50, body: 50 }, guardTarget: { head: 50, body: 50 }, state: { idle: 25, attack: 25, guard: 25, move: 25 }, attackKind: { jab: 40, str: 30, hvy: 15, feint: 15 } },
+       modelDecay: 0.99, modelTrust: 0.3 },   // やや攻撃型
+  E: { ag: 0.40, df: 0.60, pa: 0.40, range: 3.0, staminaAware: 0.50, presenceLag: 3, detailLag: 5, guardCommitment: 0.5,
+       modelPrior: { attackTarget: { head: 50, body: 50 }, guardTarget: { head: 50, body: 50 }, state: { idle: 25, attack: 25, guard: 25, move: 25 }, attackKind: { jab: 40, str: 30, hvy: 15, feint: 15 } },
+       modelDecay: 0.99, modelTrust: 0.3 },   // やや守備型
+};
+const DECIDE_EVERY = 3;   // 再判断の間隔フレーム（毎フレームの揺れを防ぐ）
+const SCORE_POW = 2;      // 確率は点数^SCORE_POW に比例
+
+// 各行動の点数を観測＋性格から算出（確率も付与）
+// 段階3 多段知覚版: 粗（presence: 攻撃来た）と詳細（detail: 種類・target）を区別して使う。
+//   - threatened（脅威） = 粗 isAttacking + 射程内 → ガード選好を上げる（target はまだ不明でも構える）
+//   - target 倍率 = 詳細 attackTarget/guardTarget が判明している場合のみ働く（不明なら head/body 等倍）
+//   - 射程内ガード選好 = inRange だけでベースのガード score を底上げ（実物の「構えっぱなし」）
+function scoreActions(o, p) {
+  const ag = p.ag, df = p.df, pa = p.pa, R = p.range;
+  const sa = p.staminaAware || 0;
+  const atkK = Math.max(0, 1 - sa * (1 - o.self.stamina / 100));
+  const dist = o.relative.distance;
+  const gap = dist - R;
+  const tooFar = gap > 0.3, tooClose = gap < -0.3;
+  const jabIn = !!o.relative.inMyReach["ジャブ"];
+  const stIn  = !!o.relative.inMyReach["ストレート"];
+  const heavyIn = !!o.relative.inMyReach["強ストレート上"];
+  // 段階3 粗知覚ベース
+  const inRange = o.relative.inOppReach;
+  const threatened = !!o.opponent.isAttacking && inRange;   // 「攻撃来てるっぽい」レベル
+  // 段階3 詳細知覚ベース
+  const oppState = o.opponent.state;
+  const punish = oppState === "硬直" || oppState === "のけぞり";
+  const guarding = oppState === "ガード";
+  const cl = v => Math.max(0, v);
+
+  // 攻撃 score（共通分）
+  const jabBase = jabIn ? cl((0.50 + (punish ? 1.0 : 0) - (guarding ? 0.4 : 0) - (threatened ? 0.3 : 0)) * (0.30 + ag) * atkK) : 0;
+  const stBase  = stIn  ? cl((0.30 + (punish ? 0.8 : 0) - (guarding ? 0.4 : 0) - (threatened ? 0.4 : 0)) * (0.30 + ag) * atkK) : 0;
+  // 強ストレート: 通常ストレートより消極的に。スタミナ意識が強く、threatened（カウンター食らうリスク）に敏感
+  const heavyBase = heavyIn ? cl((0.15 + (punish ? 1.5 : 0) - (guarding ? 0.2 : 0) - (threatened ? 0.7 : 0)) * (0.30 + ag) * atkK * atkK) : 0;
+  // フェイント: 射程内かつ「相手がガードしそう」「自分が攻撃ためらってる」とき。シンプルに in range で小さめ
+  const feintBase = jabIn ? cl((0.15 + 0.20 * ag) * (0.4 + 0.6 * atkK)) : 0;
+
+  // 段階4 Step B: 予測モデル統合（観測 > 予測）。
+  //   trust=0 では従来の hard 分岐と完全に等価（フォールバック保証）。
+  //   観測あり（oppGT/oppAtkT が非 null）の時は従来通り hard 値、観測なし時のみ予測でブレンド。
+  const trust = p.modelTrust || 0;
+  const pred = o.prediction || null;
+
+  // 段階2: 攻撃 target 倍率。詳細知覚で見えたガード方向の逆を狙う。
+  //   観測なし時のみ、予測の guardTarget 分布で従来「両方 ×1.0」を補強。
+  //   trust=0: 観測なし → 1.0/1.0（従来通り）。観測あり → 0.3/1.5 or 1.5/0.3（従来通り）。
+  const oppGT = o.opponent.guardTarget;
+  let atkMulHead, atkMulBody;
+  if (oppGT === "head")      { atkMulHead = 0.3; atkMulBody = 1.5; }
+  else if (oppGT === "body") { atkMulHead = 1.5; atkMulBody = 0.3; }
+  else if (trust > 0 && pred && pred.guardTarget) {
+    // 予測の head 確率を hard 数値 {0.3, 1.5} に補間: pred.head=1 → 0.3, pred.head=0 → 1.5, pred.head=0.5 → 0.9
+    const baseHead = 1.5 - 1.2 * (pred.guardTarget.head || 0);
+    const baseBody = 1.5 - 1.2 * (pred.guardTarget.body || 0);
+    atkMulHead = (1 - trust) * 1.0 + trust * baseHead;
+    atkMulBody = (1 - trust) * 1.0 + trust * baseBody;
+  } else {
+    atkMulHead = 1; atkMulBody = 1;
+  }
+
+  // 守備 target 倍率。詳細知覚で見えた相手攻撃に合わせる。
+  //   観測なし時のみ、予測の attackTarget 分布で従来 {1.2, 1.0} を補強。
+  //   trust=0: 観測なし → 1.2/1.0（従来通り）。観測あり → 2.0/0.5 or 0.5/2.0（従来通り）。
+  const oppAtkT = o.opponent.attackTarget;
+  let defMulHead, defMulBody;
+  if (oppAtkT === "head")      { defMulHead = 2.0; defMulBody = 0.5; }
+  else if (oppAtkT === "body") { defMulHead = 0.5; defMulBody = 2.0; }
+  else if (trust > 0 && pred && pred.attackTarget) {
+    // pred.head=1 → 2.0, pred.head=0 → 0.5, pred.head=0.5 → 1.25
+    const baseHead = 0.5 + 1.5 * (pred.attackTarget.head || 0);
+    const baseBody = 0.5 + 1.5 * (pred.attackTarget.body || 0);
+    defMulHead = (1 - trust) * 1.2 + trust * baseHead;
+    defMulBody = (1 - trust) * 1.0 + trust * baseBody;
+  } else {
+    defMulHead = 1.2; defMulBody = 1.0;
+  }
+
+  // 段階3 (α) Step B: 射程内ガード選好の構造修正。
+  //   guardRangeBase 引き上げ（射程内の「構えっぱなし」をベース引き上げ）と
+  //   guardThreatBoost 半減（threat 依存比 3.7× → 2.3× へ低下、lag で threat が立たない場面でも守備が消えない）。
+  //
+  // 段階4 Step B: threatened の soft 化。
+  //   観測で threat 立ってる時は従来通り 1.0、観測なしでも predicted state.attack が高ければ softly 警戒。
+  //   trust=0: 観測なしで softThreat=0 → guardThreatBoost=0（従来通り）。
+  //            観測ありで softThreat=1 → guardThreatBoost=0.45（従来通り）。
+  const guardRangeBase = inRange ? 0.35 : 0.10;
+  let softThreat;
+  if (threatened) {
+    softThreat = 1.0;
+  } else if (trust > 0 && inRange && pred && pred.state) {
+    softThreat = trust * (pred.state.attack || 0);
+  } else {
+    softThreat = 0;
+  }
+  const guardThreatBoost = softThreat * 0.45;
+  const guardScore = cl((guardRangeBase + guardThreatBoost) * (0.30 + df));
+  const guardFwdScore = tooFar ? cl(0.20 + 0.70 * df) : (inRange ? 0.18 : 0.04);
+  const guardBackScore = (threatened ? 0.60 * df : 0) + (tooClose ? 0.30 * df : 0.02) + (inRange ? 0.05 : 0);
+
+  // 段階3 frameAdvantage 倍率: 「いま有利なら攻める/不利なら守る」
+  //   adv = +N 自分が N F 先に動ける → 攻撃を強化
+  //   adv = -N 相手が先に動ける → 守備/回避を強化、攻撃を抑制
+  //   ±8F でフルに効く。範囲外は線形クリップ。
+  const adv = o.relative.frameAdvantage || 0;
+  const advN = Math.max(-8, Math.min(8, adv)) / 8;        // -1..+1
+  const atkAdvMul   = advN >= 0 ? (1 + 0.5 * advN) : (1 + 0.6 * advN);  // adv>0 で×1.5, adv<0 で×0.4
+  const guardAdvMul = advN <= 0 ? (1 - 0.7 * advN) : 1;                 // adv<0 で×1.7, adv>0 は等倍（攻める時にガード不要）
+  const evadeAdvMul = advN <= -0.3 ? (1 + 1.0 * (-advN)) : 1;           // 大きく不利ならステップバックを強化
+
+  const raw = {
+    "待機":             0.20 + 0.60 * pa,
+    "前進":             tooFar ? cl(0.50 + 0.40 * ag) : 0.05,
+    "後退":             tooClose ? cl(0.40 + 0.40 * df) : 0.03,
+    "上ガード前進":     guardFwdScore * defMulHead * guardAdvMul,
+    "下ガード前進":     guardFwdScore * defMulBody * guardAdvMul,
+    "上ガード後退":     guardBackScore * defMulHead * guardAdvMul,
+    "下ガード後退":     guardBackScore * defMulBody * guardAdvMul,
+    "ステップイン":     tooFar ? cl(0.30 + 0.90 * ag - 0.30 * df) : 0,
+    "ステップバック":   ((threatened ? 0.80 * df : 0) + (tooClose ? 0.30 * df : 0)) * evadeAdvMul,
+    "ジャブ":           jabBase * atkMulHead * atkAdvMul,
+    "ボディジャブ":     jabBase * atkMulBody * atkAdvMul,
+    "ストレート":       stBase * atkMulHead * atkAdvMul,
+    "ボディストレート": stBase * atkMulBody * atkAdvMul,
+    "強ストレート上":   heavyBase * atkMulHead * atkAdvMul,
+    "強ストレート下":   heavyBase * atkMulBody * atkAdvMul,
+    "フェイント上":     feintBase * (atkMulHead > 1 ? 0.6 : 1.2),   // フェイントは frameAdv 非依存（誘発用）
+    "フェイント下":     feintBase * (atkMulBody > 1 ? 0.6 : 1.2),
+    "上ガード":         guardScore * defMulHead * guardAdvMul,
+    "下ガード":         guardScore * defMulBody * guardAdvMul,
+  };
+
+  // 段階3 (α) Step A: guardCommitment 倍率。
+  //   self.guardTarget（現在ガードしている方向）に一致する guard 候補を強化、不一致を抑制。
+  //   guardTarget=null（ガード中じゃない）の時は両方 ×1 で no-op。
+  //   既定 guardCommitment=0 なら (1 + 0) と (1 - 0) で両方 ×1 = no-op。
+  const gc = p.guardCommitment || 0;
+  const selfGT = o.self.guardTarget;
+  if (selfGT !== null) {
+    const GUARD_KEYS = ["上ガード前進", "下ガード前進", "上ガード後退", "下ガード後退", "上ガード", "下ガード"];
+    for (const gk of GUARD_KEYS) {
+      const tgt = MOVES[gk].target;
+      const mul = (tgt === selfGT) ? (1 + 0.5 * gc) : (1 - 0.5 * gc);
+      raw[gk] = raw[gk] * mul;
+    }
+  }
+
+  const list = MOVE_ORDER.map(key => ({ key, score: +((raw[key] ?? 0)).toFixed(3) }));
+  let sum = 0;
+  for (const it of list) sum += Math.pow(it.score, SCORE_POW);
+  for (const it of list) it.prob = sum > 0 ? Math.pow(it.score, SCORE_POW) / sum : 0;
+  return list;
+}
+function sampleAction(list) {
+  let r = Math.random(), acc = 0;
+  for (const it of list) { acc += it.prob; if (r <= acc) return it.key; }
+  return "待機";
+}
+// 行動可能かつ再判断タイミングなら、点数化→確率選択して plan に格納
+function decideUtility(s, key) {
+  const ch = s[key];
+  if (!AI[key]) return;
+  if (canActNow(ch) && (ch.decTimer || 0) <= 0) {
+    const o = buildObs(s, null, key, key === "P" ? "E" : "P");
+    ch.scores = scoreActions(o, PERS[key]);
+    ch.plan = sampleAction(ch.scores);
+    ch.decTimer = DECIDE_EVERY;
+  }
+  if (ch.decTimer > 0) ch.decTimer--;
+}
+
+// 手動モードの意図（行動列から）。移動は MANUAL_HOLD フレーム保持して停止。
+function manualIntent(ch) {
+  while (ch.qi < ch.queue.length && !MOVES[ch.queue[ch.qi]]) ch.qi++;
+  if (isMove(ch.moveKey)) return ch.fip < MANUAL_HOLD ? ch.moveKey : "待機";
+  return ch.qi < ch.queue.length ? ch.queue[ch.qi] : "待機";
+}
+
+// 行動を開始/キャンセル移行する
+function startAction(s, key, k, ev) {
+  const ch = s[key];
+  // 段階3 (α) Step A: ガード方向切替コスト（FSMレベル）。
+  //   直前 moveKey が guard 系 (move + guard:true) で、新 k も guard 系で、target が違う場合に
+  //   MOVES[k].guardSwapStartup フレームの stopRec を入れる。Step A は既定 0 なので no-op。
+  const prevKey = ch.moveKey;
+  const prevIsGuard = isMove(prevKey) && MOVES[prevKey].guard;
+  const newIsGuard = isMove(k) && MOVES[k].guard;
+  if (prevIsGuard && newIsGuard && MOVES[prevKey].target !== MOVES[k].target) {
+    ch.stopRec = (MOVES[k].guardSwapStartup || 0);
+  }
+  ch.moveKey = k; ch.fip = 0;
+  ch.atkLanded = false;    // 新しい攻撃の当たり判定をリセット（1パンチ1回）
+  ch.atkWhiffed = false;   // whiff 検出も1回限り
+  ch.phase = (isAttack(k) || isGuard(k)) ? firstPhase(k) : "move";
+  if (!AI[key]) ch.qi++;   // 手動: 行動列を1つ消費
+  if (isAttack(k)) ch.stamina = Math.max(0, ch.stamina - (MOVES[k].staminaCost || 0));   // 攻撃のスタミナ消費(発動時に1回)
+  ev.push({ type: "start", who: ch.name, text: `${ch.name}: 「${k}」開始` });
+}
+
+// 移動を停止する（停止硬直があれば付与）
+function stopMove(ch, m) {
+  ch.moveKey = null; ch.phase = "idle"; ch.fip = 0;
+  if (m.stopRec > 0) ch.stopRec = m.stopRec;
+}
+
+// 1体ぶんの意思決定と適用（aiIntent は AI時のみ使用。同時性のため事前計算済みを渡す）
+function resolveBoxer(s, key, aiIntent, ev) {
+  const ch = s[key];
+  if (ch.stun > 0) { ch.stun--; if (ch.stun === 0) { ch.stunType = null; ch.stunTarget = null; } return; }  // のけぞり/ガード硬直中はロック
+  if (ch.stopRec > 0) { ch.stopRec--; return; }          // 停止硬直中はロック
+
+  const cur = ch.moveKey;
+  if (isAttack(cur) || isGuard(cur)) return;             // 攻撃/ガードはロック（受付なし）
+
+  const intent = AI[key] ? aiIntent : manualIntent(ch);
+
+  if (isMove(cur)) {
+    const m = MOVES[cur];
+    if (ch.fip < m.lock) return;                         // 開始直後のキャンセル不可フレーム
+    if (intent === cur) return;                          // 同じ移動を継続
+    const ok = (m.accepts === "all") || (Array.isArray(m.accepts) && m.accepts.includes(intent));
+    if (intent && intent !== "待機" && ok) {             // 受付入力 → キャンセルして移行
+      startAction(s, key, intent, ev);
+      return;
+    }
+    // それ以外（待機 or 非受付）→ 停止
+    stopMove(ch, m);
+    if (ch.stopRec === 0 && intent && intent !== "待機") startAction(s, key, intent, ev);
+    return;
+  }
+
+  // アイドル: 何でも受付
+  if (intent && intent !== "待機") startAction(s, key, intent, ev);
+}
+
+// フェーズ/保持フレームを進める
+function progress(ch) {
+  if (ch.moveKey === null) return;
+  if (isMove(ch.moveKey)) { ch.fip++; return; }          // 連続移動は保持カウントのみ
+  advancePhase(ch);                                      // 攻撃/ガード
+}
+
+function advancePhase(ch) {
+  if (ch.moveKey === null) return;
+  const len = effectivePhaseLen(ch);   // Step B: スタミナによる startup 延長を反映
+  ch.fip++;
+  if (ch.fip >= len) {
+    const nx = nextPhase(ch.moveKey, ch.phase);
+    if (nx) { ch.phase = nx; ch.fip = 0; }
+    else { ch.moveKey = null; ch.phase = "idle"; ch.fip = 0; }
+  }
+}
+
+// 状態を色グループに分類（カード背景の着色用）
+//   move=緑(待機・移動) / atk=青(始動・発生・硬直) / hit=赤(のけぞり) / guard=シアン(ガード)
+function stateGroup(ch) {
+  const lbl = stateLabel(ch);
+  if (lbl === "のけぞり") return "hit";
+  if (lbl === "ガード") return "guard";
+  if (lbl === "始動" || lbl === "発生" || lbl === "硬直") return "atk";
+  return "move"; // 待機・移動
+}
+
+function stateLabel(ch) {
+  if (ch.stun > 0) return ch.stunType === "hit" ? "のけぞり" : "ガード";  // 被弾/ガード硬直
+  if (ch.stopRec > 0) return "硬直";
+  if (isIdle(ch.moveKey)) return "待機";
+  if (isMove(ch.moveKey)) return MOVES[ch.moveKey].guard ? "ガード" : "移動";
+  if (isGuard(ch.moveKey)) return ch.phase === "recovery" ? "硬直" : "ガード";
+  // attack
+  return { startup: "始動", active: "発生", recovery: "硬直" }[ch.phase] || ch.phase;
+}
+
+// 段階2: 今このフレームに守っている部位（head/body）を返す。守ってなければ null。
+//   ガード硬直中は被弾時のガード対象を保持（stunTarget）。
+function getGuardTarget(ch) {
+  if (ch.stun > 0 && ch.stunType === "block") return ch.stunTarget || null;
+  if (isMove(ch.moveKey) && MOVES[ch.moveKey].guard) return MOVES[ch.moveKey].target || null;
+  if (isGuard(ch.moveKey)) return MOVES[ch.moveKey].target || null;
+  return null;
+}
+
+// 段階3 frameAdvantage: 「あと何フレーム動けないか」を返す（動ければ 0）。
+//   stun/stopRec → そのまま残り
+//   攻撃中 → 現フェーズ残り + その後の active+recovery
+//   移動中 → lock - fip（キャンセル可能になるまで）
+//   待機/即キャンセル可な移動 → 0
+function busyFrames(ch) {
+  if (ch.stun > 0) return ch.stun;
+  if (ch.stopRec > 0) return ch.stopRec;
+  if (isAttack(ch.moveKey) || isGuard(ch.moveKey)) {
+    let remaining = Math.max(0, (effectivePhaseLen(ch) - ch.fip));
+    const phases = ["startup", "active", "recovery"];
+    const i = phases.indexOf(ch.phase);
+    for (let j = i + 1; j < phases.length; j++) {
+      remaining += (MOVES[ch.moveKey][phases[j]] || 0);
+    }
+    return remaining;
+  }
+  if (isMove(ch.moveKey)) {
+    const lk = MOVES[ch.moveKey].lock || 0;
+    return Math.max(0, lk - ch.fip);
+  }
+  return 0;
+}
+
+// 段階5 Step B: ラウンド境界の部分リセット。
+//   持ち越し: hp, stamina, predictedCounts, predictedOpp, qi, queue, advanceDir, name
+//   リセット: moveKey/phase/fip/stun/stunType/stunTarget/stopRec/decTimer/plan/scores/atkLanded/atkWhiffed
+//   x は初期位置（INIT_X_P / INIT_X_E）に戻す = 「コーナーに戻る」
+function partialReset(ch, key) {
+  ch.moveKey = null;
+  ch.phase = "idle";
+  ch.fip = 0;
+  ch.stun = 0;
+  ch.stunType = null;
+  ch.stunTarget = null;
+  ch.stopRec = 0;
+  ch.decTimer = 0;
+  ch.plan = null;
+  ch.scores = null;
+  ch.atkLanded = false;
+  ch.atkWhiffed = false;
+  ch.x = (key === "P") ? INIT_X_P : INIT_X_E;
+}
+
+// 段階5 Step C: ラウンド採点。
+//   「有効打」= clean ダメージ + chip×0.3
+//   diff < 1   → 10-10（引き分け）
+//   diff < 10  → 10-9
+//   diff >= 10 → 10-8
+//   ダウン未実装なので 10-7 以下は発生しない。
+function scoreRound(roundStats) {
+  const pScore = roundStats.P.clean + 0.3 * roundStats.P.chip;
+  const eScore = roundStats.E.clean + 0.3 * roundStats.E.chip;
+  const diff = Math.abs(pScore - eScore);
+  let pPoint, ePoint;
+  if (diff < 1) {
+    pPoint = 10; ePoint = 10;
+  } else if (diff < 10) {
+    if (pScore > eScore) { pPoint = 10; ePoint = 9; }
+    else                  { pPoint = 9;  ePoint = 10; }
+  } else {
+    if (pScore > eScore) { pPoint = 10; ePoint = 8; }
+    else                  { pPoint = 8;  ePoint = 10; }
+  }
+  return { pScore, eScore, pPoint, ePoint };
+}
+
+// 段階5 Step C: 試合終了時の累計判定。
+//   全 roundScores の pPoint/ePoint を合算し、勝者を決定。
+//   KO 発生時は呼び出し側で破棄して KO 表示を優先する。
+function computeDecision(s) {
+  let pTotal = 0, eTotal = 0;
+  for (const r of s.roundScores) {
+    pTotal += r.pPoint || 0;
+    eTotal += r.ePoint || 0;
+  }
+  let winner;
+  if (pTotal > eTotal) winner = "P";
+  else if (eTotal > pTotal) winner = "E";
+  else winner = "draw";
+  return { winner, pTotal, eTotal };
+}
+
+// 段階5 Step B/C: ラウンド終了処理。
+//   現在の roundStats を scoreRound() で採点し roundScores に push。
+//   両キャラを部分リセット、roundStats を空に戻して matchPhase=interval へ。
+function endRound(s) {
+  const scoring = scoreRound(s.roundStats);
+  s.roundScores.push({
+    round: s.round,
+    pStats: { clean: s.roundStats.P.clean, chip: s.roundStats.P.chip, blocks: s.roundStats.P.blocks, counters: s.roundStats.P.counters },
+    eStats: { clean: s.roundStats.E.clean, chip: s.roundStats.E.chip, blocks: s.roundStats.E.blocks, counters: s.roundStats.E.counters },
+    pScore: +scoring.pScore.toFixed(2),
+    eScore: +scoring.eScore.toFixed(2),
+    pPoint: scoring.pPoint,
+    ePoint: scoring.ePoint,
+  });
+  s.matchPhase = "interval";
+  s.roundFrame = 0;
+  partialReset(s.P, "P");
+  partialReset(s.E, "E");
+  // 次R 用に roundStats を初期化
+  s.roundStats = {
+    P: { clean: 0, chip: 0, blocks: 0, counters: 0 },
+    E: { clean: 0, chip: 0, blocks: 0, counters: 0 }
+  };
+  s.events.push({ type: "round", who: "",
+    text: `R${s.round} 終了 — P ${scoring.pPoint}-${scoring.ePoint} E (clean P${s.roundScores[s.roundScores.length-1].pStats.clean}/E${s.roundScores[s.roundScores.length-1].eStats.clean}, chip P${s.roundScores[s.roundScores.length-1].pStats.chip}/E${s.roundScores[s.roundScores.length-1].eStats.chip}) — インターバル開始` });
+}
+
+// 段階5 Step B/C: 次ラウンド開始 or 試合終了。
+//   試合終了時は computeDecision() で累計判定を確定し s.decision に格納。
+function startRound(s) {
+  s.round++;
+  if (s.round > NUM_ROUNDS) {
+    s.matchPhase = "ended";
+    s.ended = true;
+    s.decision = computeDecision(s);
+    const d = s.decision;
+    const winnerLabel = d.winner === "draw" ? "ドロー" : (d.winner === "P" ? "Player 判定勝ち" : "敵 判定勝ち");
+    s.events.push({ type: "round", who: "",
+      text: `${NUM_ROUNDS}R 終了 — ${winnerLabel}（P ${d.pTotal} - ${d.eTotal} E）` });
+  } else {
+    s.matchPhase = "active";
+    s.roundFrame = 0;
+    s.events.push({ type: "round", who: "", text: `R${s.round} 開始` });
+  }
+}
+
+// 段階5 Step B: インターバル中の処理。
+//   スタミナのみ STAMINA_INTERVAL_REGEN/F で回復、AI 意思決定・predict 更新はスキップ。
+//   roundFrame が INTERVAL_LENGTH に達したら startRound へ。
+function stepInterval(s) {
+  for (const k of ["P", "E"]) {
+    s[k].stamina = Math.min(100, s[k].stamina + STAMINA_INTERVAL_REGEN);
+  }
+  s.roundFrame++;
+  if (s.roundFrame >= INTERVAL_LENGTH) {
+    startRound(s);
+  }
+}
+
+function stepSim(prev) {
+  const s = clone(prev);
+  s.frame = prev.frame + 1;
+  s.events = [];
+  if (prev.ko) return s;   // KO後はフリーズ（試合終了）
+  // 段階5 Step B: 試合終了後は freeze。
+  if (roundEnabled && s.matchPhase === "ended") return s;
+  // 段階5 Step B: インターバル中は AI / 接触 / phase 進行 / 予測更新を全部スキップ。
+  if (roundEnabled && s.matchPhase === "interval") {
+    stepInterval(s);
+    return s;
+  }
+
+  // 1) 意思決定（両者とも“このフレーム開始時の同じ局面”を見て同時に決める）
+  decideUtility(s, "P");
+  decideUtility(s, "E");
+  resolveBoxer(s, "P", AI.P ? s.P.plan : null, s.events);
+  resolveBoxer(s, "E", AI.E ? s.E.plan : null, s.events);
+
+  // 2) 移動（連続移動の状態にいる間、毎フレーム前後に動く）
+  for (const k of ["P", "E"]) {
+    const ch = s[k];
+    if (!isMove(ch.moveKey)) continue;
+    const m = MOVES[ch.moveKey];
+    const staK_spd = 0.85 + 0.15 * ch.stamina / 100;   // Step B: スタミナで移動速度に最大-15%
+    ch.x += m.toward * m.speed * staK_spd * ch.advanceDir;
+    ch.x = Math.max(X_MIN, Math.min(X_MAX, ch.x));
+  }
+
+  // 3) 接触判定とダメージ（発生フレーム中の攻撃 / 1パンチ1回）
+  //    相打ちを正しく扱うため、まず両者の命中を「検出」してから「効果適用」する。
+  const dist = Math.abs(s.E.x - s.P.x);
+  const hits = [];
+  for (const [k, ok] of [["P", "E"], ["E", "P"]]) {
+    const ch = s[k];
+    if (!isAttack(ch.moveKey) || ch.phase !== "active") continue;
+    if (ch.atkLanded) continue;                          // この攻撃は既に解決済み
+    if (dist > MOVES[ch.moveKey].reach) {                 // 届いていない = whiff
+      if (!ch.atkWhiffed) {
+        ch.atkWhiffed = true;
+        // 段階3: whiff 時の defender 状態を記録（意図的回避か偶然かを後で分析）
+        const opp = s[ok];
+        const oppMove = opp.moveKey || "idle";
+        const oppCat =
+          (oppMove === "ステップバック" || oppMove === "後退") ? "evade" :
+          (oppMove === "上ガード後退" || oppMove === "下ガード後退") ? "guardEvade" :
+          (oppMove === "上ガード" || oppMove === "下ガード") ? "guardHold" :
+          (oppMove === "上ガード前進" || oppMove === "下ガード前進") ? "guardAdvance" :
+          (isAttack(opp.moveKey)) ? "attacking" :
+          (opp.stun > 0) ? "stunned" :
+          (oppMove === "前進" || oppMove === "ステップイン") ? "advancing" :
+          "other";
+        s.events.push({ type: "whiff", who: ch.name,
+          text: `Whiff ${ch.name}「${ch.moveKey}」空振り [相手=${oppMove}/${oppCat}, dist=${dist.toFixed(2)}/reach=${MOVES[ch.moveKey].reach}]` });
+      }
+      continue;
+    }
+    hits.push([k, ok, ch.moveKey]);                      // 攻撃キーを検出時点で保持（相打ちで上書きされないように）
+  }
+  for (const [k, ok, atk] of hits) {
+    const ch = s[k], opp = s[ok];
+    ch.atkLanded = true;                                 // 1パンチ＝1回
+    const m = MOVES[atk];
+    const victimState = stateLabel(opp);                 // 当てた瞬間の相手の状態（消す前に判定）
+    // 段階2: target 照合でブロック判定。守備が無い or 部位ミスマッチ → フルダメージ。
+    const atkTarget = m.target || null;
+    const defGT = getGuardTarget(opp);
+    const blocked = (defGT !== null) && (atkTarget !== null) && (defGT === atkTarget);
+    const isCounter = victimState === "始動";            // 相手の攻撃始動をつぶした＝カウンター
+    // 被弾側は現在の動作を中断して硬直/のけぞりに入る
+    opp.moveKey = null; opp.phase = "idle"; opp.fip = 0; opp.stopRec = 0; opp.decTimer = 0;
+    if (blocked) {
+      opp.stun = m.blockstun || 0; opp.stunType = "block"; opp.stunTarget = defGT;
+      // 段階3: チップダメージ（強ストレートのみ chipRatio>0）
+      const chipR = m.chipRatio || 0;
+      if (chipR > 0) {
+        const staK_dmg = 0.8 + 0.2 * ch.stamina / 100;
+        const chipDmg = Math.round((m.damage || 0) * chipR * staK_dmg);
+        opp.hp = Math.max(0, opp.hp - chipDmg);
+        // 段階5 Step B: ラウンドスタッツ — chip ダメージ加算 + ブロック数
+        if (roundEnabled && s.roundStats && s.roundStats[k]) {
+          s.roundStats[k].chip += chipDmg;
+          s.roundStats[ok].blocks++;
+        }
+        s.events.push({ type: "block", who: ch.name,
+          text: `ガード崩し ${opp.name}が「${atk}」を防御（チップ-${chipDmg}, 硬直${opp.stun}F → HP ${opp.hp}）` });
+        if (opp.hp <= 0 && !s.ko) {
+          s.ko = { winner: ch.name, loser: opp.name };
+          s.events.push({ type: "ko", who: ch.name, text: `KO! ${ch.name} の勝ち（${opp.name} HP 0、チップで KO）` });
+        }
+      } else {
+        // 段階5 Step B: チップなしの純粋ブロック
+        if (roundEnabled && s.roundStats && s.roundStats[ok]) {
+          s.roundStats[ok].blocks++;
+        }
+        s.events.push({ type: "block", who: ch.name,
+          text: `ガード ${opp.name}が「${atk}」を防御（${defGT === "head" ? "上" : "下"}ガード一致, 硬直${opp.stun}F）` });
+      }
+    } else {
+      // カウンターはダメージのみ1.5倍。のけぞりは通常と同じ＝確定コンボにはしない。
+      // Step B: 攻撃側のスタミナで威力を最大-20%
+      const staK_dmg = 0.8 + 0.2 * ch.stamina / 100;
+      const dmg = Math.round((m.damage || 0) * (isCounter ? COUNTER_MULT : 1) * staK_dmg);
+      opp.hp = Math.max(0, opp.hp - dmg);
+      opp.stun = m.hitstun || 0; opp.stunType = "hit"; opp.stunTarget = null;
+      // 「ガードしていたが部位ミスマッチですり抜けた」場合だけログに明示
+      const slipped = (defGT !== null) && (defGT !== atkTarget);
+      const tag = isCounter ? "カウンター! " : (slipped ? "すり抜け " : "命中 ");
+      // 段階5 Step B: ラウンドスタッツ — clean ダメージ加算 + カウンター回数
+      if (roundEnabled && s.roundStats && s.roundStats[k]) {
+        s.roundStats[k].clean += dmg;
+        if (isCounter) s.roundStats[k].counters++;
+      }
+      s.events.push({ type: isCounter ? "counter" : "hit", who: ch.name,
+        text: `${tag}${ch.name}「${atk}」-${dmg} → ${opp.name} HP ${opp.hp}（のけぞり${opp.stun}F）` });
+      if (opp.hp <= 0 && !s.ko) {
+        s.ko = { winner: ch.name, loser: opp.name };
+        s.events.push({ type: "ko", who: ch.name, text: `KO! ${ch.name} の勝ち（${opp.name} HP 0）` });
+      }
+    }
+  }
+
+  // 4) スタミナ消費(連続移動 per-F)と回復(待機中のみ +1.0/F)。Step A: 値の更新のみ、効果は未実装。
+  for (const k of ["P", "E"]) {
+    const ch = s[k];
+    if (isMove(ch.moveKey)) {
+      const cost = MOVES[ch.moveKey].staminaCost || 0;
+      ch.stamina = Math.max(0, ch.stamina - cost);
+    } else if (ch.moveKey === null && ch.stun === 0 && ch.stopRec === 0) {
+      ch.stamina = Math.min(100, ch.stamina + 1.0);
+    }
+  }
+
+  // 5) フェーズ/保持を進める
+  progress(s.P);
+  progress(s.E);
+
+  // 6) 段階4 Step A: 敵行動予測モデルを 1F 分更新（両者ぶん）。
+  //    Step A では scoreActions が参照しないので no-op。表示と将来 Step B のための足場のみ。
+  updatePrediction(s, "P");
+  updatePrediction(s, "E");
+
+  // 7) 段階5 Step B: ラウンドフレームを進め、ROUND_LENGTH に達したら endRound()。
+  //    KO 発生フレームでは境界判定をスキップ（試合終了優先）。
+  s.roundFrame = (s.roundFrame || 0) + 1;
+  if (roundEnabled && !s.ko && s.matchPhase === "active" && s.roundFrame >= ROUND_LENGTH) {
+    endRound(s);
+  }
+
+  return s;
+}
+
+function isDone(s) {
+  if (s.ko) return true;            // KOで試合終了
+  if (AI.P || AI.E) return false;   // AIが居る間は止めずに動かし続ける
+  return s.P.moveKey === null && s.P.qi >= s.P.queue.length &&
+         s.E.moveKey === null && s.E.qi >= s.E.queue.length;
+}
+
+// ---- 描画 ----
+function render() {
+  const s = frames[cur];
+  document.getElementById("frameNo").textContent = s.frame;
+  // 段階5 Step C: #status を KO / 判定決着 / 試合中で出し分ける。
+  const statusEl = document.getElementById("status");
+  if (s.ko) {
+    statusEl.textContent = `KO! ${s.ko.winner} の勝ち`;
+  } else if (roundEnabled && s.matchPhase === "ended" && s.decision) {
+    const d = s.decision;
+    const winnerLabel = d.winner === "draw" ? "ドロー" : (d.winner === "P" ? "Player 判定勝ち" : "敵 判定勝ち");
+    statusEl.textContent = `${NUM_ROUNDS}R 終了 — ${winnerLabel}（P ${d.pTotal} - ${d.eTotal} E）`;
+  } else {
+    statusEl.textContent = "";
+  }
+  // 段階5 Step B: ラウンド表示。active/interval/ended で文言を切替。roundEnabled=false なら空。
+  const rd = document.getElementById("roundDisplay");
+  if (rd) {
+    if (!roundEnabled) {
+      rd.textContent = "";
+    } else if (s.matchPhase === "active") {
+      const remain = Math.max(0, ROUND_LENGTH - (s.roundFrame || 0));
+      rd.textContent = `R${s.round}/${NUM_ROUNDS} 残り ${remain}F`;
+    } else if (s.matchPhase === "interval") {
+      const remain = Math.max(0, INTERVAL_LENGTH - (s.roundFrame || 0));
+      rd.textContent = `R${s.round} 終了 / 休憩中 残り ${remain}F`;
+    } else if (s.matchPhase === "ended") {
+      // 段階5 Step C: 判定結果は #status 側で出すので、こちらは試合終了マーカーのみ。
+      rd.textContent = `${NUM_ROUNDS}R 終了`;
+    } else {
+      rd.textContent = "";
+    }
+  }
+
+  // track
+  function pos(x) {
+    let i = Math.round((x - X_MIN) / (X_MAX - X_MIN) * (TRACK_W - 1));
+    return Math.max(0, Math.min(TRACK_W - 1, i));
+  }
+  const cells = [];
+  for (let i = 0; i < TRACK_W; i++) cells.push({ ch: "·", bg: "", mk: "" });
+
+  // 攻撃リーチの帯を塗る（発生中=濃 live / 始動中=淡 tele）
+  for (const [k, zc] of [["P", "p"], ["E", "e"]]) {
+    const ch = s[k];
+    if (!isAttack(ch.moveKey)) continue;
+    const m = MOVES[ch.moveKey];
+    let cls = "";
+    if (ch.phase === "active") cls = "z-" + zc + "-live";
+    else if (ch.phase === "startup") cls = "z-" + zc + "-tele";
+    if (!cls) continue;
+    const front = ch.x + ch.advanceDir * m.reach;
+    let a = pos(ch.x), b = pos(front);
+    if (a > b) { const t = a; a = b; b = t; }
+    const live = cls.indexOf("live") >= 0;
+    for (let i = a; i <= b; i++) {
+      if (cells[i].bg === "" || live) cells[i].bg = cls;
+    }
+  }
+
+  // P / E マーカー
+  const pi = pos(s.P.x), ei = pos(s.E.x);
+  if (pi === ei) { cells[pi].ch = "X"; cells[pi].mk = "pmark"; }
+  else { cells[pi].ch = "P"; cells[pi].mk = "pmark"; cells[ei].ch = "E"; cells[ei].mk = "emark"; }
+
+  let trackHtml = "";
+  for (const c of cells) {
+    const cls = [c.bg, c.mk].filter(Boolean).join(" ");
+    trackHtml += cls ? `<span class="${cls}">${c.ch}</span>` : c.ch;
+  }
+  const dist = Math.abs(s.E.x - s.P.x).toFixed(1);
+  document.getElementById("track").innerHTML =
+    trackHtml + `\n間合い: ${dist}   P.x=${s.P.x.toFixed(1)}   E.x=${s.E.x.toFixed(1)}`;
+
+  // char cards（状態グループで背景色を切り替え）
+  const cardP = document.getElementById("cardP");
+  const cardE = document.getElementById("cardE");
+  cardP.className = "char P grp-" + stateGroup(s.P);
+  cardE.className = "char E grp-" + stateGroup(s.E);
+  cardP.innerHTML = charCard(s.P, "P");
+  cardE.innerHTML = charCard(s.E, "E");
+
+  // 観測データ（両者ぶん）
+  const prev = cur > 0 ? frames[cur - 1] : null;
+  document.getElementById("obsP").innerHTML = renderObs(buildObs(s, prev, "P", "E"));
+  document.getElementById("obsE").innerHTML = renderObs(buildObs(s, prev, "E", "P"));
+
+  // AI意思決定の点数
+  document.getElementById("scP").innerHTML = renderScores(s.P);
+  document.getElementById("scE").innerHTML = renderScores(s.E);
+
+  // log (全フレームのイベントを通して表示)
+  const log = document.getElementById("log");
+  let html = "";
+  for (let i = 0; i <= cur; i++) {
+    for (const e of frames[i].events) {
+      const cls = e.type || "start";
+      html += `<div class="ev"><span class="f">F${String(frames[i].frame).padStart(3,"0")}</span> <span class="${cls}">${e.text}</span></div>`;
+    }
+  }
+  log.innerHTML = html || '<div class="ev f">（イベントなし）</div>';
+  log.scrollTop = log.scrollHeight;
+}
+
+function actionLabel(ch) {
+  if (ch.stun > 0) return ch.stunType === "hit" ? "のけぞり" : "ガード硬直";  // 被弾中は行動側も明示
+  if (ch.stopRec > 0) return "停止硬直";
+  if (isIdle(ch.moveKey)) return "待機";
+  return ch.moveKey;
+}
+
+// ===== 観測データ（AIに渡す情報）=====
+// 攻撃/ガードは今のフェーズの残りF、停止硬直は残りF。連続移動・待機は null。
+function phaseRemain(ch) {
+  if (ch.stun > 0) return ch.stun;
+  if (ch.stopRec > 0) return ch.stopRec;
+  if (isIdle(ch.moveKey) || isMove(ch.moveKey)) return null;
+  const len = effectivePhaseLen(ch);   // Step B: スタミナ反映
+  return Math.max(0, len - ch.fip - 1);
+}
+// 今このフレームに行動を選べるか（アイドル or キャンセル可能な移動フレーム）
+function canActNow(ch) {
+  if (ch.stun > 0 || ch.stopRec > 0) return false;
+  if (ch.moveKey === null || isIdle(ch.moveKey)) return true;
+  if (isMove(ch.moveKey)) return ch.fip >= MOVES[ch.moveKey].lock;
+  return false; // 攻撃/ガードはロック
+}
+function maxAttackReach() {
+  let r = 0;
+  for (const k in MOVES) if (isAttack(k)) r = Math.max(r, MOVES[k].reach);
+  return r;
+}
+function actOf(ch) {
+  return isIdle(ch.moveKey) ? null : ch.moveKey;
+}
+// me視点の観測を生成。prev は1つ前のフレーム（接近判定用、無ければ null）。
+// 段階3 多段知覚:
+//   - 位置・HP・距離・closing はリアルタイム（目で見えてる）
+//   - 粗 (presenceLag F 前): isAttacking / isGuarding — 「相手が何かしてきた」レベル
+//   - 詳細 (detailLag F 前): action / attackTarget / guardTarget / state / phaseRemaining / stamina — 「何の技/どの target か」
+//   detailLag が startup より長い攻撃は「種類不明、来るのは分かる」状態のまま active 入り → 50/50 賭け
+function buildObs(s, prev, meK, oppK) {
+  const me = s[meK], opp = s[oppK];
+  const dist = Math.abs(opp.x - me.x);
+
+  let closing = null;
+  if (prev) {
+    const pd = Math.abs(prev[oppK].x - prev[meK].x);
+    if (dist < pd - 1e-9) closing = true;
+    else if (dist > pd + 1e-9) closing = false;
+  }
+
+  const inMyReach = {};
+  for (const k of MOVE_ORDER) if (isAttack(k)) inMyReach[k] = dist <= MOVES[k].reach;
+
+  // 過去フレームの opponent スナップショットを取得するヘルパ
+  const snapshot = (lag) => {
+    if (lag <= 0) return opp;
+    const histIdx = (s.frame - 1) - lag;
+    if (histIdx >= 0 && frames[histIdx] && frames[histIdx][oppK]) return frames[histIdx][oppK];
+    // 履歴不足時は試合開始時点
+    if (frames.length > 0 && frames[0] && frames[0][oppK]) return frames[0][oppK];
+    return opp;
+  };
+  const pLag = (PERS[meK] && PERS[meK].presenceLag) || 0;
+  const dLag = Math.max(pLag, (PERS[meK] && PERS[meK].detailLag) || 0);
+  const oppPresence = snapshot(pLag);
+  const oppDetail = snapshot(dLag);
+
+  const attackTargetOf = ch => {
+    if (!isAttack(ch.moveKey)) return null;
+    return MOVES[ch.moveKey].target || null;
+  };
+  const isAttackingOf = ch => isAttack(ch.moveKey) && (ch.phase === "startup" || ch.phase === "active");
+
+  // 段階3 frameAdvantage: 「自分があと何F動けないか」「相手は？」
+  //   注: 知覚遅延の対象外（フレーム感覚は内部的なボクシングセンスとして AI に明示）
+  const selfBusy = busyFrames(me);
+  const oppBusy  = busyFrames(opp);
+  const frameAdv = oppBusy - selfBusy;   // 正=自分が先に動ける（有利）
+
+  return {
+    self: {
+      state: stateLabel(me),
+      phaseRemaining: phaseRemain(me),
+      action: actOf(me),
+      canAct: canActNow(me),
+      hp: me.hp,
+      stamina: +me.stamina.toFixed(1),
+      x: +me.x.toFixed(2),
+      guardTarget: getGuardTarget(me),
+      attackTarget: attackTargetOf(me),
+      busyFrames: selfBusy,
+    },
+    opponent: {
+      // ▼ 粗（presenceLag）
+      isAttacking: isAttackingOf(oppPresence),
+      isGuarding: getGuardTarget(oppPresence) !== null,
+      // ▼ 詳細（detailLag）
+      state: stateLabel(oppDetail),
+      phaseRemaining: phaseRemain(oppDetail),
+      action: actOf(oppDetail),
+      stamina: +oppDetail.stamina.toFixed(1),
+      guardTarget: getGuardTarget(oppDetail),
+      attackTarget: attackTargetOf(oppDetail),
+      // ▼ リアルタイム
+      hp: opp.hp,
+      x: +opp.x.toFixed(2),
+      busyFrames: oppBusy,
+    },
+    relative: {
+      distance: +dist.toFixed(2),
+      closing,
+      inMyReach,
+      inOppReach: dist <= maxAttackReach(),
+      frameAdvantage: frameAdv,   // 段階3: 正=有利, 負=不利
+    },
+    meta: {
+      presenceLag: pLag,
+      detailLag: dLag,
+    },
+    // 段階4 Step A: 自分が持っている「敵の次予測」分布。Step A は表示のみで AI は参照しない。
+    prediction: me.predictedOpp || null,
+  };
+}
+// 段階4 Step A: 敵行動予測モデル。
+//   forgetting count（指数減衰カウント）で「相手の次の DECIDE 区間に何が来るか」の分布を保持。
+//   観測対象は detailLag 経由の oppDetail snapshot（既存 buildObs と一貫）。
+//   観測タイミング:
+//     - nextAttackTarget / nextAttackKind: oppDetail の moveKey が新規 attack（前フレーム非 attack）になった瞬間
+//     - nextGuardTarget: oppDetail の moveKey が新規 guard 系 move（前フレーム非 guard）になった瞬間
+//     - nextState: 毎フレーム連続的に観測（idle/attack/guard/move 4値）
+//   更新順序: decay → 観測加算 → 正規化（→ predictedOpp）。
+//   Step A は scoreActions が参照しないので no-op。表示と将来 Step B のための足場のみ。
+function predClassifyKind(moveKey) {
+  if (!moveKey) return null;
+  if (moveKey.startsWith("強ストレート")) return "hvy";
+  if (moveKey.startsWith("フェイント")) return "feint";
+  if (moveKey === "ストレート" || moveKey === "ボディストレート") return "str";
+  if (moveKey === "ジャブ" || moveKey === "ボディジャブ") return "jab";
+  return null;
+}
+function predClassifyState(ch) {
+  if (!ch || ch.stun > 0) return "idle";   // のけぞり/ガード硬直は idle 扱い（行動不能）
+  const k = ch.moveKey;
+  if (!k) return "idle";
+  const m = MOVES[k];
+  if (!m) return "idle";
+  if (m.kind === "attack") return "attack";
+  if (m.kind === "move" && m.guard) return "guard";
+  if (m.kind === "move") return "move";
+  return "idle";
+}
+function predGuardTargetOf(ch) {
+  if (!ch) return null;
+  const k = ch.moveKey;
+  if (!k) return null;
+  const m = MOVES[k];
+  if (m && m.kind === "move" && m.guard) return m.target || null;
+  return null;
+}
+function predAttackTargetOf(ch) {
+  if (!ch) return null;
+  const k = ch.moveKey;
+  if (!k) return null;
+  const m = MOVES[k];
+  if (m && m.kind === "attack") return m.target || null;
+  return null;
+}
+// stepSim 完了直後の s に対し、me=key（観測する側）の予測モデルを 1 フレーム分更新する。
+// 既存 frames 配列を履歴として参照（s 自身はまだ frames に push されていない）。
+function updatePrediction(s, key) {
+  // 段階5 Step B: インターバル中は観測も decay も停止（観測なし期間で予測がリセットされない）。
+  if (roundEnabled && s.matchPhase === "interval") return;
+  const me = s[key];
+  const oppKey = key === "P" ? "E" : "P";
+  const pers = PERS[key] || {};
+  const prior = pers.modelPrior;
+  if (!prior) return;
+  const decay = (typeof pers.modelDecay === "number") ? pers.modelDecay : 0.99;
+  // 初回: プライアの深いコピーで開始
+  if (!me.predictedCounts) {
+    me.predictedCounts = JSON.parse(JSON.stringify(prior));
+  }
+  const counts = me.predictedCounts;
+  // 1) 全カウントに decay 乗算
+  for (const axis in counts) {
+    for (const v in counts[axis]) {
+      counts[axis][v] = counts[axis][v] * decay;
+    }
+  }
+  // 2) 観測対象 snapshot を取る（detailLag 経由）。stepSim 内なので frames 配列を直接参照。
+  //    s.frame は現フレーム番号。frames[i] は frame=i のスナップショット。
+  //    detailLag F 前 = frames[s.frame - dLag]
+  const dLag = Math.max((pers.presenceLag || 0), (pers.detailLag || 0));
+  const idxNow = s.frame - dLag;
+  const idxPrev = idxNow - 1;
+  let oppDetailNow = null, oppDetailPrev = null;
+  if (idxNow >= 0 && frames[idxNow] && frames[idxNow][oppKey]) {
+    oppDetailNow = frames[idxNow][oppKey];
+  } else if (frames.length > 0 && frames[0] && frames[0][oppKey]) {
+    oppDetailNow = frames[0][oppKey];   // 履歴不足時は試合開始時点で代用
+  }
+  if (idxPrev >= 0 && frames[idxPrev] && frames[idxPrev][oppKey]) {
+    oppDetailPrev = frames[idxPrev][oppKey];
+  }
+  if (oppDetailNow) {
+    // 2a) state: 毎フレーム連続観測
+    const st = predClassifyState(oppDetailNow);
+    if (counts.state && (st in counts.state)) counts.state[st] += 1;
+    // 2b) attackTarget / attackKind: 新規 attack 開始の瞬間のみ
+    //     「前フレームの oppDetail が非 attack」かつ「今フレームの oppDetail が attack」
+    const nowIsAtk = predClassifyState(oppDetailNow) === "attack";
+    const prevIsAtk = oppDetailPrev ? predClassifyState(oppDetailPrev) === "attack" : false;
+    if (nowIsAtk && !prevIsAtk) {
+      const tgt = predAttackTargetOf(oppDetailNow);
+      if (tgt && counts.attackTarget && (tgt in counts.attackTarget)) counts.attackTarget[tgt] += 1;
+      const kind = predClassifyKind(oppDetailNow.moveKey);
+      if (kind && counts.attackKind && (kind in counts.attackKind)) counts.attackKind[kind] += 1;
+    }
+    // 2c) guardTarget: 新規 guard 系 move への切替の瞬間のみ
+    const nowIsGuard = predClassifyState(oppDetailNow) === "guard";
+    const prevIsGuard = oppDetailPrev ? predClassifyState(oppDetailPrev) === "guard" : false;
+    if (nowIsGuard && !prevIsGuard) {
+      const gt = predGuardTargetOf(oppDetailNow);
+      if (gt && counts.guardTarget && (gt in counts.guardTarget)) counts.guardTarget[gt] += 1;
+    }
+  }
+  // 3) 正規化して predictedOpp に格納
+  const prob = {};
+  for (const axis in counts) {
+    let sum = 0;
+    for (const v in counts[axis]) sum += counts[axis][v];
+    prob[axis] = {};
+    if (sum > 0) {
+      for (const v in counts[axis]) prob[axis][v] = counts[axis][v] / sum;
+    } else {
+      const keys = Object.keys(counts[axis]);
+      for (const v of keys) prob[axis][v] = keys.length ? 1 / keys.length : 0;
+    }
+  }
+  me.predictedOpp = prob;
+}
+
+// AIの行動評価（点数・確率）を表示。選ばれた行動を ▶ で強調。
+function renderScores(ch) {
+  if (!ch.scores) return '<div class="orow"><span>—</span><b>手動 / 未決定</b></div>';
+  const sorted = [...ch.scores].sort((a, b) => b.score - a.score);
+  let html = "";
+  for (const it of sorted) {
+    if (it.score <= 0 && it.prob <= 0) continue;
+    const chosen = ch.plan === it.key;
+    html += `<div class="orow${chosen ? " chosen" : ""}"><span>${chosen ? "▶ " : ""}${it.key}</span>` +
+      `<b>${it.score.toFixed(2)} / ${(it.prob * 100).toFixed(0)}%</b></div>`;
+  }
+  return html || '<div class="orow"><span>—</span><b>（候補なし）</b></div>';
+}
+function fmtBool(b) { return b === true ? "はい" : (b === false ? "いいえ" : "—"); }
+function fmtTarget(t) { return t === "head" ? "頭" : (t === "body" ? "腹" : "—"); }
+// 段階4 Step A: 予測分布を1行に整形（例: "head 67% / body 33%"）
+function fmtPredDist(d, order, labelMap) {
+  if (!d) return "—";
+  const keys = order ? order.filter(k => k in d) : Object.keys(d);
+  if (!keys.length) return "—";
+  return keys.map(k => `${(labelMap && labelMap[k]) || k} ${(d[k] * 100).toFixed(0)}%`).join(" / ");
+}
+function renderObs(o) {
+  const reach = Object.entries(o.relative.inMyReach)
+    .map(([k, v]) => `${k}:${v ? "○" : "×"}`).join("　");
+  const closeTxt = o.relative.closing === null ? "停止" : (o.relative.closing ? "接近" : "離脱");
+  return `
+    <div class="obsgrp"><div class="obsh">self（自分・完全に分かる）</div>
+      <div class="orow"><span>HP</span><b>${o.self.hp}</b></div>
+      <div class="orow"><span>スタミナ</span><b>${o.self.stamina}</b></div>
+      <div class="orow"><span>状態</span><b>${o.self.state}</b></div>
+      <div class="orow"><span>フェーズ残り</span><b>${o.self.phaseRemaining === null ? "—" : o.self.phaseRemaining + " F"}</b></div>
+      <div class="orow"><span>出している技</span><b>${o.self.action ?? "—"}</b></div>
+      <div class="orow"><span>攻撃 target</span><b>${fmtTarget(o.self.attackTarget)}</b></div>
+      <div class="orow"><span>ガード target</span><b>${fmtTarget(o.self.guardTarget)}</b></div>
+      <div class="orow"><span>行動可</span><b>${fmtBool(o.self.canAct)}</b></div>
+      <div class="orow"><span>位置 x</span><b>${o.self.x}</b></div>
+    </div>
+    <div class="obsgrp"><div class="obsh">opponent（相手・粗${o.meta.presenceLag}F / 詳${o.meta.detailLag}F 遅延）</div>
+      <div class="orow"><span>HP</span><b>${o.opponent.hp}</b></div>
+      <div class="orow"><span>位置 x</span><b>${o.opponent.x}</b></div>
+      <div class="orow"><span>攻撃中? ◯</span><b>${fmtBool(o.opponent.isAttacking)}</b></div>
+      <div class="orow"><span>ガード中? ◯</span><b>${fmtBool(o.opponent.isGuarding)}</b></div>
+      <div class="orow blur"><span>状態 ★</span><b>${o.opponent.state}</b></div>
+      <div class="orow blur"><span>出す技 ★</span><b>${o.opponent.action ?? "—"}</b></div>
+      <div class="orow blur"><span>攻撃 target ★</span><b>${fmtTarget(o.opponent.attackTarget)}</b></div>
+      <div class="orow blur"><span>ガード target ★</span><b>${fmtTarget(o.opponent.guardTarget)}</b></div>
+      <div class="orow blur"><span>フェーズ残り ★</span><b>${o.opponent.phaseRemaining === null ? "—" : o.opponent.phaseRemaining + " F"}</b></div>
+      <div class="orow blur"><span>スタミナ ★</span><b>${o.opponent.stamina}</b></div>
+    </div>
+    <div class="obsgrp"><div class="obsh">relative（関係）</div>
+      <div class="orow"><span>間合い</span><b>${o.relative.distance}</b></div>
+      <div class="orow"><span>接近中?</span><b>${closeTxt}</b></div>
+      <div class="orow"><span>自分の攻撃が届く</span><b>${reach}</b></div>
+      <div class="orow"><span>相手の射程内?</span><b>${fmtBool(o.relative.inOppReach)}</b></div>
+      <div class="orow"><span>frameAdvantage</span><b style="color:${o.relative.frameAdvantage > 0 ? "#6fd3a0" : (o.relative.frameAdvantage < 0 ? "#ff7d7d" : "#aeb9c4")}">${o.relative.frameAdvantage > 0 ? "+" : ""}${o.relative.frameAdvantage} F</b></div>
+      <div class="orow"><span>busy 自/相</span><b>${o.self.busyFrames} / ${o.opponent.busyFrames}</b></div>
+    </div>
+    <div class="obsgrp"><div class="obsh">敵の次予測（段階4 Step A: 表示のみ、AI 未参照）</div>
+      <div class="orow"><span>attackTarget</span><b>${fmtPredDist(o.prediction && o.prediction.attackTarget, ["head","body"], { head: "頭", body: "腹" })}</b></div>
+      <div class="orow"><span>guardTarget</span><b>${fmtPredDist(o.prediction && o.prediction.guardTarget, ["head","body"], { head: "頭", body: "腹" })}</b></div>
+      <div class="orow"><span>state</span><b>${fmtPredDist(o.prediction && o.prediction.state, ["idle","attack","guard","move"], { idle: "待", attack: "攻", guard: "防", move: "移" })}</b></div>
+      <div class="orow"><span>attackKind</span><b>${fmtPredDist(o.prediction && o.prediction.attackKind, ["jab","str","hvy","feint"])}</b></div>
+    </div>`;
+}
+
+function charCard(ch, sideKey) {
+  const lbl = stateLabel(ch);
+  const act = actionLabel(ch);
+  let progTxt = "—", pct = 0;
+  if (ch.stopRec > 0) {
+    progTxt = `停止硬直 残り ${ch.stopRec} F`;
+  } else if (isMove(ch.moveKey)) {
+    progTxt = `連続移動 ${ch.fip + 1} F`;       // 固定長なし
+    pct = 100;
+  } else if (isAttack(ch.moveKey) || isGuard(ch.moveKey)) {
+    const len = effectivePhaseLen(ch);   // Step B: スタミナ反映
+    const fip = ch.fip + 1;
+    progTxt = len ? `${fip} / ${len}` : "—";
+    pct = len ? Math.round(fip / len * 100) : 0;
+  }
+  const queueLeft = ch.queue.slice(ch.qi).join(" → ") || "（なし）";
+  const hpPct = Math.max(0, Math.min(100, ch.hp));
+  const hpColor = hpPct > 50 ? "#5fd38a" : (hpPct > 25 ? "#ffd27d" : "#ff7d7d");
+  const stPct = Math.max(0, Math.min(100, ch.stamina));
+  // 段階5 Step B/C: ラウンド情報表示。
+  //   現在ラウンドの暫定スタッツ + 既に確定した過去ラウンドのポイント + 試合終了時の累計。
+  let roundHtml = "";
+  if (roundEnabled && sideKey) {
+    const sNow = frames[cur];
+    if (sNow && sNow.roundStats && sNow.roundStats[sideKey]) {
+      const st = sNow.roundStats[sideKey];
+      roundHtml = `<div class="row" style="font-size:11px; color:#aac8ee;"><span>R${sNow.round} clean/chip/blk/cnt</span>` +
+        `<b>${st.clean}/${st.chip}/${st.blocks}/${st.counters}</b></div>`;
+      // 段階5 Step C: 確定ラウンドのスコア内訳
+      if (sNow.roundScores && sNow.roundScores.length > 0) {
+        let scoreLine = "";
+        for (const r of sNow.roundScores) {
+          const myPoint  = sideKey === "P" ? r.pPoint : r.ePoint;
+          const oppPoint = sideKey === "P" ? r.ePoint : r.pPoint;
+          scoreLine += `R${r.round}: ${myPoint}-${oppPoint}　`;
+        }
+        // 試合終了時は累計も
+        if (sNow.decision) {
+          const myTotal  = sideKey === "P" ? sNow.decision.pTotal : sNow.decision.eTotal;
+          const oppTotal = sideKey === "P" ? sNow.decision.eTotal : sNow.decision.pTotal;
+          scoreLine += `| 合計 ${myTotal}-${oppTotal}`;
+        }
+        roundHtml += `<div class="row" style="font-size:11px; color:#ffd27d;"><span>判定</span>` +
+          `<b>${scoreLine}</b></div>`;
+      }
+    }
+  }
+  return `
+    <div class="nm">${ch.name}</div>
+    <div class="hprow"><span>HP</span><b>${ch.hp}</b></div>
+    <div class="hpbar"><i style="width:${hpPct}%; background:${hpColor};"></i></div>
+    <div class="hprow"><span>STA</span><b>${stPct.toFixed(0)}</b></div>
+    <div class="hpbar"><i style="width:${stPct}%; background:#5aafff;"></i></div>
+    <div class="hd"><span class="act">${act}</span><span class="st st-${lbl}">${lbl}</span></div>
+    <div class="bar"><i style="width:${pct}%"></i></div>
+    <div class="row"><span>経過</span><b>${progTxt}</b></div>
+    <div class="row"><span>位置 x</span><b>${ch.x.toFixed(1)}</b></div>
+    <div class="row"><span>残り行動</span><b style="font-size:11px;">${queueLeft}</b></div>
+    ${roundHtml}
+  `;
+}
+
+// ---- コントロール ----
+function stepForward() {
+  if (cur < frames.length - 1) { cur++; }
+  else {
+    const last = frames[frames.length - 1];
+    // 段階5 Step B: 試合終了（ended）でも停止。
+    if (last.frame >= MAX_FRAME || last.ko || last.ended) { pause(); return; }
+    frames.push(stepSim(last));
+    cur++;
+  }
+  render();
+  if (isDone(frames[cur])) pause();
+}
+function stepBack() { if (cur > 0) { cur--; render(); } }
+
+function play() {
+  if (timer) return;
+  document.getElementById("playBtn").textContent = "⏸ 一時停止";
+  const ms = parseInt(document.getElementById("speed").value, 10);
+  timer = setInterval(stepForward, ms);
+}
+function pause() {
+  if (timer) { clearInterval(timer); timer = null; }
+  document.getElementById("playBtn").textContent = "▶ 再生";
+}
+function togglePlay() { timer ? pause() : play(); }
+
+function build() {
+  pause();
+  // 技データをテーブルから読み込む
+  readMoveTable();
+  // 操作モード（AI / 手動）を読み込む
+  AI.P = document.getElementById("aiP").checked;
+  AI.E = document.getElementById("aiE").checked;
+  // 性格パラメータを読み込む
+  const num = id => parseFloat(document.getElementById(id).value);
+  const lag = id => Math.max(0, Math.min(20, Math.round(num(id))));
+  // 段階4 Step A: 予測モデル既定値。UI 未追加なので内部既定（modelTrust=0 で no-op）。
+  //   build() で PERS を丸ごと差し替えると新フィールドが消える R6 教訓に対応して、既定値を明示。
+  const defaultModelPrior = () => ({
+    attackTarget: { head: 50, body: 50 },
+    guardTarget:  { head: 50, body: 50 },
+    state:        { idle: 25, attack: 25, guard: 25, move: 25 },
+    attackKind:   { jab: 40, str: 30, hvy: 15, feint: 15 },
+  });
+  PERS.P = { ag: num("agP") / 100, df: num("dfP") / 100, pa: num("paP") / 100, range: num("rangeP"), staminaAware: num("saP") / 100, presenceLag: lag("plagP"), detailLag: Math.max(lag("plagP"), lag("dlagP")), guardCommitment: num("gcP") / 100,
+             modelPrior: defaultModelPrior(), modelDecay: 0.99, modelTrust: num("mtP") / 100 };
+  PERS.E = { ag: num("agE") / 100, df: num("dfE") / 100, pa: num("paE") / 100, range: num("rangeE"), staminaAware: num("saE") / 100, presenceLag: lag("plagE"), detailLag: Math.max(lag("plagE"), lag("dlagE")), guardCommitment: num("gcE") / 100,
+             modelPrior: defaultModelPrior(), modelDecay: 0.99, modelTrust: num("mtE") / 100 };
+  // guardSwapStartup は MOVES グローバル設定（ガード6種一括）
+  const gsw = Math.max(0, Math.min(10, Math.round(num("gsw"))));
+  for (const gk of ["上ガード前進", "下ガード前進", "上ガード後退", "下ガード後退", "上ガード", "下ガード"]) {
+    MOVES[gk].guardSwapStartup = gsw;
+  }
+  // 段階5 Step A: ラウンドシステム配管。Step A は roundEnabled=false 既定で no-op。
+  // 値は読み取り、let 定数を上書きするだけで、stepSim 本体は roundFrame++ 以外変えていない。
+  const re = document.getElementById("roundEnabled");
+  roundEnabled = re ? !!re.checked : false;
+  const rLen = num("roundLength"); if (!isNaN(rLen) && rLen > 0) ROUND_LENGTH = Math.round(rLen);
+  const nR   = num("numRounds");   if (!isNaN(nR)   && nR   > 0) NUM_ROUNDS   = Math.round(nR);
+  const iLen = num("intervalLength"); if (!isNaN(iLen) && iLen >= 0) INTERVAL_LENGTH = Math.round(iLen);
+  const reg  = num("regenRate");   if (!isNaN(reg)  && reg  >= 0) STAMINA_INTERVAL_REGEN = reg;
+  // 段階5 Step B fix: ラウンド設定読込後に MAX_FRAME を再計算。
+  //   roundEnabled=true: 全Rを完走するための長さ + safety
+  //   roundEnabled=false: 800F に戻す（Identity Check 用フォールバック）
+  MAX_FRAME = computeMaxFrame();
+  frames = [initSim()];
+  cur = 0;
+  render();
+}
+
+// ---- 技テーブル ----
+const TBL_COLS = [
+  ["target","対象"],
+  ["startup","始動"], ["active","発生"], ["recovery","硬直"], ["reach","リーチ"], ["damage","ダメ"],
+  ["hitstun","のけ"], ["blockstun","ガ硬"],
+  ["speed","速度"], ["toward","向き"], ["lock","不可F"], ["stopRec","停止硬"],
+  ["staminaCost","スタ消"]
+];
+const KIND_LABEL = { idle:"待機", move:"移動", attack:"攻撃", guard:"ガード" };
+function buildMoveTable() {
+  const thead = document.querySelector("#moveTable thead");
+  thead.innerHTML = "<tr><th>行動</th><th>種別</th>" +
+    TBL_COLS.map(([, h]) => `<th>${h}</th>`).join("") + "</tr>";
+  const tb = document.querySelector("#moveTable tbody");
+  tb.innerHTML = "";
+  for (const key of MOVE_ORDER) {
+    const m = MOVES[key];
+    let cells = `<td class="lbl">${key}</td><td style="color:#7c8794">${KIND_LABEL[m.kind] || ""}</td>`;
+    for (const [f] of TBL_COLS) {
+      if (f in m) {
+        if (typeof m[f] === "string") {
+          // target などの文字列フィールドはリードオンリーで表示
+          const lbl = m[f] === "head" ? "頭" : (m[f] === "body" ? "腹" : m[f]);
+          cells += `<td style="color:#aeb9c4">${lbl}</td>`;
+        } else {
+          const step = (f === "reach" || f === "speed") ? 0.1 : 1;
+          cells += `<td><input type="number" step="${step}" data-key="${key}" data-f="${f}" value="${m[f]}"></td>`;
+        }
+      } else cells += `<td></td>`;
+    }
+    const tr = document.createElement("tr");
+    tr.innerHTML = cells;
+    tb.appendChild(tr);
+  }
+}
+function readMoveTable() {
+  document.querySelectorAll("#moveTable input").forEach(inp => {
+    const k = inp.dataset.key, f = inp.dataset.f;
+    const v = parseFloat(inp.value);
+    if (!isNaN(v)) MOVES[k][f] = v;
+  });
+}
+
+// ---- 起動 ----
+document.getElementById("playBtn").onclick = togglePlay;
+document.getElementById("fwdBtn").onclick = () => { pause(); stepForward(); };
+document.getElementById("backBtn").onclick = () => { pause(); stepBack(); };
+document.getElementById("resetBtn").onclick = () => { pause(); cur = 0; render(); };
+document.getElementById("buildBtn").onclick = build;
+document.getElementById("speed").onchange = () => { if (timer) { pause(); play(); } };
+
+buildMoveTable();
+build();
+</script>
+</body>
+</html>

@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BoxingSim 段階5 Step C 完成 + ラウンドシステム + 判定システム 総括 2026-05-27</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; padding: 18px 22px 60px;
+    background: #14181d; color: #d8dee6;
+    font-family: "Consolas", "SFMono-Regular", "Courier New", monospace;
+    font-size: 13px; line-height: 1.55;
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; color: #8fd3ff; }
+  .sub { color: #7c8794; margin: 0 0 14px; font-size: 12px; line-height: 1.7; }
+  .sub b { color: #d8dee6; font-weight: normal; }
+
+  .panel {
+    background: #1c2229; border: 1px solid #2c343d; border-radius: 8px;
+    padding: 12px 16px; margin-bottom: 14px;
+  }
+  .panel h2 {
+    font-size: 14px; margin: 0 0 10px; color: #8fd3ff; letter-spacing: .03em;
+    border-bottom: 1px solid #2c343d; padding-bottom: 6px;
+  }
+  .panel h3 { font-size: 12.5px; margin: 12px 0 6px; color: #aeb9c4; }
+  .panel h4 { font-size: 12px; margin: 10px 0 4px; color: #9aa7b4; font-weight: normal; }
+  .panel p { margin: 6px 0; }
+  .panel ul { margin: 6px 0 6px 18px; padding: 0; }
+  .panel ul li { padding: 1px 0; }
+  .panel ol { margin: 6px 0 6px 22px; padding: 0; }
+  .panel ol li { padding: 2px 0; }
+  code { color: #aeb9c4; background: #11161b; padding: 1px 4px; border-radius: 3px; font-size: 12px; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; margin: 6px 0; }
+  th, td { border: 1px solid #2c343d; padding: 5px 8px; text-align: center; vertical-align: top; }
+  th { color: #9aa7b4; font-weight: normal; background: #11161b; font-size: 11.5px; letter-spacing: .03em; }
+  td.lbl { text-align: left; color: #d8dee6; }
+  td.lblL { text-align: left; color: #d8dee6; }
+  td.num { color: #ffd27d; font-variant-numeric: tabular-nums; }
+  td.dim { color: #7c8794; text-align: left; }
+  td.hi { color: #5aafff; font-weight: bold; }
+  td.warn { color: #ff7d7d; font-weight: bold; }
+  td.ok { color: #6fd3a0; font-weight: bold; }
+  td.head { color: #8fd3ff; }
+  td.sweet { color: #5aafff; font-weight: bold; background: #11202b; }
+  td.amber { color: #ffb066; font-weight: bold; background: #2a1f13; }
+  td.improve { color: #6fd3a0; font-weight: bold; }
+  td.regress { color: #ff7d7d; }
+
+  .formula {
+    background: #11161b; border-left: 3px solid #5aafff;
+    padding: 8px 12px; margin: 6px 0; border-radius: 4px;
+    font-size: 12.5px; color: #d8e6ff;
+  }
+  .formula em { color: #ffd27d; font-style: normal; }
+  .formula code { color: #aeb9c4; }
+
+  .note { font-size: 11.5px; color: #7c8794; line-height: 1.7; margin-top: 6px; }
+  .note b { color: #aeb9c4; font-weight: normal; }
+
+  .meta {
+    background: #1c2229; border-left: 3px solid #ffd27d; padding: 8px 12px;
+    border-radius: 4px; margin-bottom: 14px; font-size: 11.5px; color: #d8dee6; line-height: 1.7;
+  }
+  .meta a { color: #8fd3ff; text-decoration: none; }
+  .meta a:hover { text-decoration: underline; }
+
+  .good-box {
+    background: #16221c; border: 2px solid #6fd3a0; border-radius: 6px;
+    padding: 10px 14px; margin: 10px 0;
+  }
+  .good-box h3 { color: #6fd3a0; margin: 0 0 6px; font-size: 13px; }
+  .good-box ul li { padding: 2px 0; font-size: 12px; }
+
+  .bad-box {
+    background: #22171a; border: 2px solid #ff7d7d; border-radius: 6px;
+    padding: 10px 14px; margin: 10px 0;
+  }
+  .bad-box h3 { color: #ff7d7d; margin: 0 0 6px; font-size: 13px; }
+  .bad-box ul li { padding: 2px 0; font-size: 12px; }
+
+  .warn-box {
+    background: #2a1f13; border: 2px solid #ffb066; border-radius: 6px;
+    padding: 10px 14px; margin: 10px 0;
+  }
+  .warn-box h3 { color: #ffb066; margin: 0 0 6px; font-size: 13px; }
+  .warn-box ul li { padding: 2px 0; font-size: 12px; }
+
+  .sweet-box {
+    background: #11202b; border: 2px solid #5aafff; border-radius: 6px;
+    padding: 10px 14px; margin: 10px 0;
+  }
+  .sweet-box h3 { color: #5aafff; margin: 0 0 6px; font-size: 13px; }
+  .sweet-box p { margin: 4px 0; font-size: 12px; }
+  .sweet-box ul li { padding: 2px 0; font-size: 12px; }
+
+  .change {
+    background: #11161b; border-left: 3px solid #5aafff; border-radius: 4px;
+    padding: 8px 12px; margin: 8px 0; font-size: 12px;
+  }
+  .change h4 { color: #8fd3ff; margin: 0 0 4px; font-size: 12.5px; }
+  .change p { margin: 4px 0; }
+  .change.fix {
+    border-left-color: #ffb066;
+  }
+  .change.fix h4 { color: #ffb066; }
+
+  .footer { color: #7c8794; font-size: 11.5px; margin-top: 22px; line-height: 1.8; border-top: 1px solid #2c343d; padding-top: 12px; }
+  .footer a { color: #8fd3ff; text-decoration: none; }
+  .footer a:hover { text-decoration: underline; }
+  .footer ul { margin: 4px 0 4px 18px; padding: 0; }
+  .footer ul li { padding: 1px 0; }
+
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 10.5px; margin-left: 4px; }
+  .pill.ok { background: #6fd3a0; color: #14181d; }
+  .pill.warn { background: #ffb066; color: #14181d; }
+  .pill.bad { background: #ff7d7d; color: #14181d; }
+  .pill.sweet { background: #5aafff; color: #14181d; }
+  .pill.next { background: #2c343d; color: #aeb9c4; }
+</style>
+</head>
+<body>
+  <h1>段階5 Step C 完成 + ラウンドシステム + 判定システム 総括</h1>
+  <p class="sub">
+    段階5（ラウンドシステム + 判定システム）の 3 段プラン (A/B/C) のうち
+    <b>Step C 完成</b>。本レポートは Step C 単独ではなく、
+    <b>段階5 全体（A + B + C）の完成レポート</b>として、
+    <b>判定システムの配管完成</b>と<b>設計目標（ガード戦略の代償を判定で精算する）の機械的達成度</b>を
+    観測値とともに総括する。
+    結論を先に述べると、<b>配管は完成、設計目標は部分達成</b>。
+    判定システムは「KO 寸前まで耐えた試合の最終判定」として動作するが、
+    本来狙った「守備一辺倒で判定負け」は <b>lag=2/4 以降ほぼ全試合が KO 決着</b>するため
+    機械的に成立していない。
+  </p>
+
+  <div class="meta">
+    <b>関連</b>:
+    <a href="2026-05-27-round-system-stepA.html">段階5 Step A 配管 + Identity Check</a> ／
+    <a href="2026-05-27-round-system-stepB.html">段階5 Step B ラウンド境界 + インターバル</a> ／
+    <a href="2026-05-27-defensive-ai-stepC-complete.html">段階3 (α) Step C 完成 総括（体裁参考）</a> ／
+    プラン: <code>~/.claude/plans/ai-gleaming-hollerith.md</code> ／
+    <a href="../TASKS.md">TASKS.md</a> ／ <a href="../LOG.md">LOG.md</a>
+  </div>
+
+  <!-- ===== 1. 背景 ===== -->
+  <div class="panel">
+    <h2>1. 背景</h2>
+    <p>
+      段階4 (α) Step B での観測で「ガード過多」が観察された。
+      ユーザーの設計洞察（2026-05-27）:
+      <b>「ガード過多の根本は『ガードを崩す機構が無いこと』」</b>。
+      対応の選択肢として A 判定システム / B 保留 / C ガード崩し攻撃 / D 実装済み が並列に提示され、
+      ユーザーは <b>A 判定システムを先に</b>整備する判断を下した。
+    </p>
+    <p>
+      段階5 = <b>ラウンドシステム（3R×600F + 60F インターバル） + 判定システム</b>。
+      設計上の狙いは「ガード戦略の代償を判定で精算する」「守備一辺倒で判定負け」を成立させること。
+      ガード崩し攻撃 (C) など他機構の強化は別段階に切り出されている。
+    </p>
+    <p>
+      段階5 内の 3 段プラン:
+    </p>
+    <ul>
+      <li><b>Step A</b>: 配管 + Identity Check（roundEnabled=false で Step B baseline と MD5 一致）</li>
+      <li><b>Step B</b>: ラウンド境界 + インターバル + UI 進行表示（時間切れ激減、スイートスポット維持）</li>
+      <li><b>Step C</b>: 採点・累計・判定 UI（本レポート）</li>
+    </ul>
+  </div>
+
+  <!-- ===== 2. Step C 実装内容 ===== -->
+  <div class="panel">
+    <h2>2. Step C 実装内容</h2>
+
+    <h3>2-1. <code>src/index.html</code> — 採点 / 累計 / 判定 UI</h3>
+    <table>
+      <thead>
+        <tr><th>項目</th><th>行</th><th>内容</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="head">新関数 <code>scoreRound</code></td>
+          <td class="num">l.802</td>
+          <td class="lblL">
+            <code>clean + 0.3 × chip</code> を score とし、差 &lt; 1 で 10-10、
+            差 &lt; 10 で 10-9、それ以上で 10-8 を付与
+          </td>
+        </tr>
+        <tr>
+          <td class="head">新関数 <code>computeDecision</code></td>
+          <td class="num">l.822</td>
+          <td class="lblL">累計ポイント比較で <code>winner = P / E / draw</code> を確定</td>
+        </tr>
+        <tr>
+          <td class="head"><code>endRound</code> 拡張</td>
+          <td class="num">l.836-859</td>
+          <td class="lblL">
+            <code>scoreRound</code> 呼出、<code>roundScores</code> に
+            <code>pPoint</code> / <code>ePoint</code> を格納
+          </td>
+        </tr>
+        <tr>
+          <td class="head"><code>startRound</code> 拡張</td>
+          <td class="num">l.861-881</td>
+          <td class="lblL">
+            <code>s.round &gt; NUM_ROUNDS</code> で <code>computeDecision</code> を確定
+          </td>
+        </tr>
+        <tr>
+          <td class="head"><code>#status</code> 表示</td>
+          <td class="num">l.1043-1056</td>
+          <td class="lblL">KO / 判定決着 / 試合中 で出し分け</td>
+        </tr>
+        <tr>
+          <td class="head"><code>charCard</code> 拡張</td>
+          <td class="num">l.1462-1485</td>
+          <td class="lblL">ラウンド毎ポイント + 累計表示</td>
+        </tr>
+        <tr>
+          <td class="head"><code>computeMaxFrame</code> 修正</td>
+          <td class="num">l.277-285</td>
+          <td class="lblL">
+            <code>NUM_ROUNDS × (ROUND_LENGTH + INTERVAL_LENGTH) + 50</code> に式変更。
+            最終 R 後にもインターバルが走るバグを修正。1070F → 1130F
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>2-2. <code>tools/verify.js</code> — 観測拡張</h3>
+    <div class="change">
+      <h4>runMatch 戻り値 / aggregate 統計</h4>
+      <p>l.307: <code>runMatch</code> 戻り値に <code>decision: s.decision || null</code> を追加</p>
+      <p>l.382-407, l.481-499: aggregate に判定統計 + ラウンド傾向集計を追加</p>
+      <p class="note">
+        判定 P/E/draw の内訳、各ラウンドの clean 平均、KO 中央フレームを
+        シナリオ毎に出力できるよう拡張。
+      </p>
+    </div>
+
+    <h3>2-3. Identity Fallback</h3>
+    <div class="change">
+      <h4>PASS — roundEnabled=false で Step B baseline と完全一致</h4>
+      <p>baseline MD5: <code>021cb52050c855823089c9b9cd360129</code></p>
+      <p class="note">
+        Step C の式追加が roundEnabled=false 経路に副作用を持っていないことを機械的に保証。
+      </p>
+    </div>
+  </div>
+
+  <!-- ===== 3. 観測: 非対称 lag 7段 ===== -->
+  <div class="panel">
+    <h2>3. 観測: 非対称 baseP / baseE × lag 7 段（MT=0.3, 50 戦/段）</h2>
+
+    <table>
+      <thead>
+        <tr>
+          <th>lag (p/d)</th><th>平均 F</th><th>KO 中央</th>
+          <th>KO P/E</th><th>判定 P/E/draw</th><th>時間切れ</th>
+          <th>block</th><th>clean</th><th>block/clean</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="head">0/0</td><td class="num">949.2</td><td class="num">816</td>
+          <td class="num">6/19</td>
+          <td class="amber">7/15/3</td>
+          <td class="ok">0</td>
+          <td class="num">1029</td><td class="num">503</td>
+          <td class="warn">2.05</td>
+        </tr>
+        <tr>
+          <td class="head">1/2</td><td class="num">638.4</td><td class="num">605</td>
+          <td class="num">22/27</td>
+          <td class="num">1/0/0</td>
+          <td class="ok">0</td>
+          <td class="num">581</td><td class="num">652</td>
+          <td class="num">0.89</td>
+        </tr>
+        <tr>
+          <td class="head">2/4</td><td class="num">491.0</td><td class="num">470</td>
+          <td class="num">25/25</td>
+          <td class="dim">0/0/0</td>
+          <td class="ok">0</td>
+          <td class="num">282</td><td class="num">681</td>
+          <td class="num">0.41</td>
+        </tr>
+        <tr>
+          <td class="sweet">3/5</td><td class="sweet">421.1</td><td class="sweet">434</td>
+          <td class="sweet">21/29</td>
+          <td class="dim">0/0/0</td>
+          <td class="sweet">0</td>
+          <td class="sweet">183</td><td class="sweet">713</td>
+          <td class="sweet">0.26</td>
+        </tr>
+        <tr>
+          <td class="head">4/6</td><td class="num">376.9</td><td class="num">400</td>
+          <td class="num">29/21</td>
+          <td class="dim">0/0/0</td>
+          <td class="ok">0</td>
+          <td class="num">112</td><td class="num">755</td>
+          <td class="warn">0.15</td>
+        </tr>
+        <tr>
+          <td class="head">5/8</td><td class="num">375.0</td><td class="num">396</td>
+          <td class="num">33/17</td>
+          <td class="dim">0/0/0</td>
+          <td class="ok">0</td>
+          <td class="num">70</td><td class="num">750</td>
+          <td class="warn">0.09</td>
+        </tr>
+        <tr>
+          <td class="head">7/10</td><td class="num">348.7</td><td class="num">370</td>
+          <td class="num">27/23</td>
+          <td class="dim">0/0/0</td>
+          <td class="ok">0</td>
+          <td class="num">51</td><td class="num">755</td>
+          <td class="warn">0.07</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="note">
+      <b>時間切れは全段で 0</b>。判定の発生は lag=0/0 と 1/2 にほぼ限定され、
+      lag=2/4 以降は全試合 KO で決着している。スイートスポット 3/5 は維持。
+    </p>
+  </div>
+
+  <!-- ===== 4. 観測: 性格パターン3ケース ===== -->
+  <div class="panel">
+    <h2>4. 観測: 性格パターン 3 ケース × lag=(3,5)(5,8)（MT=0.3, 50 戦/段）</h2>
+
+    <table>
+      <thead>
+        <tr>
+          <th>シナリオ</th><th>lag</th>
+          <th>平均 F</th><th>KO 中央</th>
+          <th>KO P/E</th><th>判定 P/E/draw</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="lblL">両攻撃型</td><td class="head">3/5</td>
+          <td class="num">307.7</td><td class="num">290</td>
+          <td class="num">23/27</td>
+          <td class="dim">0/0/0</td>
+        </tr>
+        <tr>
+          <td class="lblL">両攻撃型</td><td class="head">5/8</td>
+          <td class="num">323.9</td><td class="num">300</td>
+          <td class="num">23/27</td>
+          <td class="dim">0/0/0</td>
+        </tr>
+        <tr>
+          <td class="lblL"><b>両守備型</b></td><td class="head">3/5</td>
+          <td class="amber">753.4</td><td class="amber">766</td>
+          <td class="num">21/25</td>
+          <td class="amber">4/0/0</td>
+        </tr>
+        <tr>
+          <td class="lblL"><b>両守備型</b></td><td class="head">5/8</td>
+          <td class="num">609.1</td><td class="num">552</td>
+          <td class="num">20/30</td>
+          <td class="dim">0/0/0</td>
+        </tr>
+        <tr>
+          <td class="lblL">攻 vs 守</td><td class="head">3/5</td>
+          <td class="num">463.6</td><td class="num">448</td>
+          <td class="num">30/20</td>
+          <td class="dim">0/0/0</td>
+        </tr>
+        <tr>
+          <td class="lblL">攻 vs 守</td><td class="head">5/8</td>
+          <td class="num">425.1</td><td class="num">414</td>
+          <td class="num">39/11</td>
+          <td class="dim">0/0/0</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="note">
+      性格パターンでも判定発火は <b>両守備型 3/5 で 4/50 のみ</b>。
+      他は全試合 KO で決着している。
+      両守備型 3/5 は判定が発生する条件下では P が 4 件勝ち越し（E=0）であり、
+      設計目標「守備一辺倒で E が判定で負ける」は機械的に成立していない。
+    </p>
+  </div>
+
+  <!-- ===== 5. ラウンド傾向の観察 ===== -->
+  <div class="panel">
+    <h2>5. ラウンド傾向の観察（clean ヒット平均）</h2>
+
+    <table>
+      <thead>
+        <tr><th>シナリオ</th><th>R1 clean</th><th>R2 clean</th><th>R3 clean</th><th>傾向</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="lblL">非対称 0/0</td>
+          <td class="num">P20.1 / E25.8</td>
+          <td class="num">P15.4 / E23.2</td>
+          <td class="num">P16.3 / E18.9</td>
+          <td class="dim">逓減（R1 が最も活発）</td>
+        </tr>
+        <tr>
+          <td class="lblL">非対称 1/2</td>
+          <td class="num">P32.1 / E42.0</td>
+          <td class="num">P30.8 / E31.1</td>
+          <td class="num">P20 / E10</td>
+          <td class="dim">逓減</td>
+        </tr>
+        <tr>
+          <td class="lblL">両守備型 3/5</td>
+          <td class="num">P36.4 / E27.3</td>
+          <td class="num">P29.8 / E37.0</td>
+          <td class="num">P12.8 / E13.8</td>
+          <td class="dim">R2 で E 逆転傾向（ただし n=34）</td>
+        </tr>
+        <tr>
+          <td class="lblL">両攻撃型 3/5</td>
+          <td class="num">P73.2 / E68.3</td>
+          <td class="dim">(R2 未到達)</td>
+          <td class="dim">—</td>
+          <td class="dim">R1 で大半 KO</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="note">
+      後半 clean 増加（スタミナ回復効果）は明確には観測されない。
+      <b>「序盤決着」「中盤拮抗」「終盤に判定もつれ込み」（非対称 0/0）</b>の劇は観察される。
+      逓減傾向は単純に「生存試合数が R3 までに減るバイアス」ではなく、平均値ベースでも R1 が高い。
+    </p>
+  </div>
+
+  <!-- ===== 6. 5劇の再現性 ===== -->
+  <div class="panel">
+    <h2>6. 5 劇の再現性</h2>
+
+    <table>
+      <thead>
+        <tr><th>劇</th><th>観測指標</th><th>Step C 状況</th><th>判定</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="lblL">① 攻防成立</td>
+          <td class="dim">強スト contact rate balance</td>
+          <td class="lblL">balance 維持</td>
+          <td class="ok">再現</td>
+        </tr>
+        <tr>
+          <td class="lblL">② カウンター応酬</td>
+          <td class="dim">counter / clean 比</td>
+          <td class="lblL">lag=3/5 で 76%</td>
+          <td class="ok">強く再現</td>
+        </tr>
+        <tr>
+          <td class="lblL">③ スタ 0F 粘り</td>
+          <td class="dim">staZeroF 比率</td>
+          <td class="lblL">非対称 3/5 で 30-40%</td>
+          <td class="ok">再現</td>
+        </tr>
+        <tr>
+          <td class="lblL">④ ガード崩し chip</td>
+          <td class="dim">block 中の chip</td>
+          <td class="lblL">両守備型 3/5 chip=207</td>
+          <td class="ok">再現</td>
+        </tr>
+        <tr>
+          <td class="lblL">⑤ 逆転（判定経由）</td>
+          <td class="dim">判定 + draw 発生</td>
+          <td class="lblL">非対称 0/0 で R3 まで生存、draw=3</td>
+          <td class="amber">△ 限定的</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="note">
+      5 劇の再現性は維持。<b>⑤ の「判定経由の逆転」は配管が動作する条件下では発生するが、
+      lag=2/4 以降は判定そのものが発生しないため、劇としては薄い。</b>
+    </p>
+  </div>
+
+  <!-- ===== 7. 設計目標 vs 観測結果 ===== -->
+  <div class="panel">
+    <h2>7. 設計目標 vs 観測結果</h2>
+
+    <div class="warn-box">
+      <h3>プランの設計目標と観測の乖離（橙）</h3>
+      <p><b>プランの設計目標</b>:「ガード戦略の代償を判定で精算する」「守備一辺倒で判定負け」</p>
+      <h4>観測結果</h4>
+      <ul>
+        <li>
+          <b>判定到達率がほぼ 0%</b>。
+          lag=2/4 以降全試合 KO で決着している。
+          判定発火は lag=0/0 / 1/2 / 両守備型 3/5 に限定
+        </li>
+        <li>
+          <b>判定発生条件下で守備側が勝ち越し</b>。
+          非対称 0/0: 判定 P=7 / E=15、両守備型 3/5: P=4 / E=0（サンプル小）。
+          「守備一辺倒で判定負け」の設計目標と機械的に逆方向
+        </li>
+        <li>
+          <b>時間切れの完全消滅</b>（全シナリオ 0/50）。
+          ラウンド構造の副次効果として観測
+        </li>
+        <li>
+          <b>スイートスポット (3/5) 維持</b>。
+          KO 中央 434F、5 基準のうち 4/5 ◯
+        </li>
+      </ul>
+    </div>
+
+    <div class="sweet-box">
+      <h3>理念整合の解釈（青）</h3>
+      <p>
+        BoxingSim の理念は「面白さは結果として立ち上がる」。
+        この観点では、設計目標 vs 観測結果の乖離は<b>失敗ではなく観察結果</b>として扱える。
+      </p>
+      <p>
+        判定システムを「足した」だけでは <b>「ガード戦略の代償を判定で精算する」は不十分</b>、
+        という事実が機械的に判明した。
+        必要な追加機構は別段階で扱う:
+      </p>
+      <ul>
+        <li>「ガード崩し攻撃 (C)」（プランで保留中の枠）</li>
+        <li>「HP 残存率の係数化」（採点に HP を算入）</li>
+        <li>「block→chip 換算ロジック再設計」</li>
+        <li>「chip 係数 0.3 の引き上げ」</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ===== 8. リスク判定（R1-R6 + C1-C2） ===== -->
+  <div class="panel">
+    <h2>8. リスク判定（R1-R6 + Step C 固有 C1-C2）</h2>
+
+    <table>
+      <thead>
+        <tr><th>ID</th><th>内容</th><th>判定</th><th>詳細</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="head">R1-R4</td>
+          <td class="lblL">既存リスク（Step A/B 由来）</td>
+          <td class="ok">✅ 未発火</td>
+          <td class="lblL">Step B で未発火確認、Step C で再発火なし</td>
+        </tr>
+        <tr>
+          <td class="head">R5</td>
+          <td class="lblL">判定が直感に合わない</td>
+          <td class="amber">⚠ 発火している可能性</td>
+          <td class="lblL">
+            非対称 0/0 で守備寄り E が判定で勝ち越し（P=7, E=15）。
+            chip 係数 0.3 が弱い or 10-8 閾値が緩い可能性
+          </td>
+        </tr>
+        <tr>
+          <td class="head">R6</td>
+          <td class="lblL">Identity Check 破綻</td>
+          <td class="ok">✅ PASS</td>
+          <td class="lblL">roundEnabled=false で MD5 完全一致（既報）</td>
+        </tr>
+        <tr>
+          <td class="head">C1</td>
+          <td class="lblL">判定がほとんど発火しない</td>
+          <td class="amber">⚠ 新規</td>
+          <td class="lblL">
+            lag=2/4 以降判定 0/50。判定システムが意味を持つ条件が狭い
+          </td>
+        </tr>
+        <tr>
+          <td class="head">C2</td>
+          <td class="lblL">chip 係数 0.3 が弱い</td>
+          <td class="amber">⚠ 新規</td>
+          <td class="lblL">
+            両守備型 3/5 でも chip=207 だが判定 4 件と少ない。
+            chip が累計 score に十分に効いていない
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ===== 9. 段階5 全体総括 ===== -->
+  <div class="panel">
+    <h2>9. 段階5 全体総括（Step A → B → C）</h2>
+
+    <table>
+      <thead>
+        <tr><th>Step</th><th>達成</th><th>内容</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="head">A</td>
+          <td class="ok">✅ 完成</td>
+          <td class="lblL">配管 + Identity Check（MD5 完全一致）</td>
+        </tr>
+        <tr>
+          <td class="head">B</td>
+          <td class="ok">✅ 完成</td>
+          <td class="lblL">
+            ラウンド境界 + インターバル + UI。時間切れ激減（29 → 2）、
+            スイートスポット維持、MAX_FRAME 動的化
+          </td>
+        </tr>
+        <tr>
+          <td class="head">C</td>
+          <td class="amber">✅ 配管完成 / ⚠ 設計目標部分達成</td>
+          <td class="lblL">
+            採点・累計・判定 UI 動作確認、ただし「守備一辺倒で判定負け」は機械的に弱い
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="good-box">
+      <h3>配管完成と判定する（緑）</h3>
+      <ul>
+        <li>採点・累計・判定 UI が機械的に動作（draw 3 区分含む）</li>
+        <li>Identity Fallback 維持</li>
+        <li>時間切れ完全消滅、スイートスポット維持</li>
+        <li>5 劇のうち①②③④は完全再現、⑤は限定的に再現</li>
+      </ul>
+    </div>
+
+    <div class="warn-box">
+      <h3>設計目標未達と判定する（橙）</h3>
+      <ul>
+        <li><b>「守備一辺倒で判定負け」は機械的に成立していない</b></li>
+        <li>判定システムが「飾り」状態（lag=2/4 以降 0% 到達）</li>
+        <li>「判定到達率が低すぎる」「到達した試合では守備側が勝ち越す」の二重不整合</li>
+      </ul>
+    </div>
+
+    <p>
+      <b>含意</b>: 段階5 で「ラウンド + 判定」の機構は組まれた。
+      だが「ガード崩しの代償化」を実現するには、これだけでは不十分。
+      次の機構（採点係数調整 or ガード崩し攻撃強化）が必要、と機械的に確定した。
+    </p>
+  </div>
+
+  <!-- ===== 10. 次の方向の候補 ===== -->
+  <div class="panel">
+    <h2>10. 次の方向の候補（ユーザー判断材料）</h2>
+
+    <table>
+      <thead>
+        <tr><th>順位</th><th>候補</th><th>狙い</th><th>影響範囲</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="sweet">第 1 候補</td>
+          <td class="lblL"><b>ガード崩し他機構の強化</b></td>
+          <td class="lblL">
+            chip 係数 0.3 → 0.5-1.0 引き上げ、または block→chip 換算ロジック再設計。
+            「守備偏重で点取られる」構造的圧力を強化し、設計目標「守備一辺倒で判定負け」に近づける
+          </td>
+          <td class="num">採点式 + 採点 UI</td>
+        </tr>
+        <tr>
+          <td class="hi">第 2 候補</td>
+          <td class="lblL"><b>段階4 Step C</b></td>
+          <td class="lblL">
+            観測モデルの進化（α 段階繰越、保留中）。
+            知覚精度を AI 性格パラメータに従属させる
+          </td>
+          <td class="num">AI 内部のみ</td>
+        </tr>
+        <tr>
+          <td class="num">第 3 候補</td>
+          <td class="lblL"><b>lag 再決定（α 段階繰越）</b></td>
+          <td class="lblL">
+            MT=0.3 でも block/clean=0.26 と低い。
+            MT=0.5 で再測候補として残っている
+          </td>
+          <td class="num">MT 既定値のみ</td>
+        </tr>
+        <tr>
+          <td class="num">第 4 候補</td>
+          <td class="lblL"><b>判定発火条件の拡張</b></td>
+          <td class="lblL">
+            HP 残存率を採点に算入。「KO 寸前まで耐えた」を score に反映し、
+            判定システムの意味範囲を広げる
+          </td>
+          <td class="num">採点式</td>
+        </tr>
+        <tr>
+          <td class="num">第 5 候補</td>
+          <td class="lblL"><b>R5 詳細調査</b></td>
+          <td class="lblL">
+            10-9 / 10-8 / 10-10 の内訳を verify.js に出力し、
+            判定挙動を可視化。R5 発火の判定材料を増やす
+          </td>
+          <td class="num">verify.js のみ</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="sweet-box">
+      <h3>推奨</h3>
+      <p>
+        段階5 の設計目標（「ガード戦略の代償を判定で精算する」）に最も近づくのは
+        <b>第 1 候補（ガード崩し他機構の強化）</b>。
+        chip 係数の調整は最小コストで配管を活かしたまま設計目標達成に寄与できる。
+        段階5 の Step C 完成を節目に、次段階の方向選択をユーザーに委ねる。
+      </p>
+    </div>
+  </div>
+
+  <div class="footer">
+    <b>参照ファイル</b>
+    <ul>
+      <li>
+        <code>src/index.html</code> —
+        <code>scoreRound</code> (l.802) ／ <code>computeDecision</code> (l.822) ／
+        <code>endRound</code> 拡張 (l.836-859) ／ <code>startRound</code> 拡張 (l.861-881) ／
+        <code>#status</code> 表示 (l.1043-1056) ／ <code>charCard</code> (l.1462-1485) ／
+        <code>computeMaxFrame</code> (l.277-285)
+      </li>
+      <li>
+        <code>tools/verify.js</code> —
+        runMatch 戻り値拡張 (l.307) ／ aggregate 判定統計 + ラウンド傾向 (l.382-407, l.481-499)
+      </li>
+      <li>プラン: <code>~/.claude/plans/ai-gleaming-hollerith.md</code></li>
+      <li><a href="2026-05-27-round-system-stepA.html">reports/2026-05-27-round-system-stepA.html</a>（Step A 配管 + Identity Check）</li>
+      <li><a href="2026-05-27-round-system-stepB.html">reports/2026-05-27-round-system-stepB.html</a>（Step B ラウンド境界 + インターバル）</li>
+      <li><a href="2026-05-27-defensive-ai-stepC-complete.html">reports/2026-05-27-defensive-ai-stepC-complete.html</a>（段階3 (α) 完成総括、本レポートの体裁参考）</li>
+      <li><a href="../TASKS.md">TASKS.md</a> ／ <a href="../LOG.md">LOG.md</a></li>
+    </ul>
+  </div>
+
+</body>
+</html>

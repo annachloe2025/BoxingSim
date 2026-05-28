@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ボクサーFSM：4グループ構成図</title>
+<style>
+  :root{
+    --bg:#1e242b; --panel:#283039; --line:#3a444f; --txt:#e6edf3; --sub:#9aa7b2;
+    --base:#9aa7b2; --self:#6fd3a0; --ext:#ff8f8f; --force:#c39be8;
+  }
+  *{box-sizing:border-box}
+  body{ margin:0; background:var(--bg); color:var(--txt);
+        font-family:"Segoe UI",system-ui,sans-serif; padding:16px; }
+  h1{ font-size:18px; margin:0 0 4px }
+  .sub{ font-size:12px; color:var(--sub); margin:0 0 12px }
+  .toolbar{ display:flex; gap:8px; align-items:center; margin-bottom:8px }
+  .toolbar button{ background:#2f3843; color:var(--txt); border:1px solid var(--line);
+    border-radius:6px; padding:4px 12px; font-size:14px; cursor:pointer; }
+  .toolbar button:hover{ background:#3a4654 }
+  .toolbar .hint{ font-size:11px; color:var(--sub); margin-left:6px }
+  .diagram{ background:#ffffff; border:1px solid var(--line); border-radius:8px;
+    height:74vh; overflow:hidden; position:relative; cursor:grab; }
+  .diagram.grabbing{ cursor:grabbing }
+  .mermaid{ text-align:center; transform-origin:0 0 }
+  .legend{ display:flex; flex-wrap:wrap; gap:14px; margin:12px 0; font-size:12px; color:var(--sub) }
+  .legend span{ display:inline-flex; align-items:center; gap:5px }
+  .sw{ width:13px; height:13px; border-radius:3px; display:inline-block }
+  .note{ font-size:12px; color:var(--sub); line-height:1.7; margin-top:10px }
+</style>
+</head>
+<body>
+  <h1>ボクサーFSM：4グループ構成図</h1>
+  <p class="sub">①ベース状態 ／ ②自発行動 ／ ③被弾リアクション ／ ④強制状態 の4つで構成。被攻撃・ラウンド終了は“どこからでも飛ぶ割り込み”としてグループ単位の矢印でまとめています。</p>
+
+  <div class="toolbar">
+    <button id="zoomIn">＋ 拡大</button>
+    <button id="zoomOut">－ 縮小</button>
+    <button id="zoomReset">リセット</button>
+    <span class="hint">ホイールで拡大縮小／ドラッグで移動</span>
+  </div>
+
+  <div class="diagram" id="diagram">
+    <pre class="mermaid">
+stateDiagram-v2
+    direction LR
+
+    [*] --> Base
+
+    state "① ベース状態" as Base {
+        state "待機・構え" as Idle
+        [*] --> Idle
+    }
+
+    state "② 自発行動" as Voluntary {
+        state "前進" as StepF
+        state "後退" as StepB
+        state "ガード" as Guard
+        state "攻撃：始動" as AtkS
+        state "攻撃：発生" as AtkA
+        state "攻撃：硬直" as AtkR
+        AtkS --> AtkA : 始動F経過
+        AtkA --> AtkR : 発生F経過
+    }
+
+    state "③ 被弾リアクション" as Reaction {
+        state "ガード硬直" as GuardStun
+        state "のけぞり（通常）" as Hit
+        state "のけぞり（カウンター）" as Counter
+        state "ダウン" as Down
+        state "立ち上がり" as GetUp
+        Hit --> Down : ダメージ超過
+        Counter --> Down : ダメージ超過
+        Down --> GetUp : ダウンカウント
+    }
+
+    state "④ 強制状態" as Forced {
+        state "インターバル / コーナー" as Interval
+    }
+
+    Idle --> Voluntary : 自発入力（移動/攻撃/ガード）
+    Voluntary --> Idle : 行動完了（フレーム経過）
+
+    Idle --> Reaction : 被攻撃
+    Voluntary --> Reaction : 被攻撃（文脈で結果が決まる）
+    Reaction --> Idle : 復帰（のけぞり/立ち上がり完了）
+    GuardStun --> Guard : ガード硬直F経過
+
+    Voluntary --> Forced : ラウンド終了
+    Reaction --> Forced : ラウンド終了
+    Idle --> Forced : ラウンド終了
+    Forced --> Idle : ラウンド再開
+
+    Down --> [*] : テンカウント（KO）
+    </pre>
+  </div>
+
+  <div class="legend">
+    <span><span class="sw" style="background:var(--base)"></span>① ベース状態</span>
+    <span><span class="sw" style="background:var(--self)"></span>② 自発行動（自分の意思）</span>
+    <span><span class="sw" style="background:var(--ext)"></span>③ 被弾リアクション（相手起因）</span>
+    <span><span class="sw" style="background:var(--force)"></span>④ 強制状態（審判・ルール）</span>
+  </div>
+
+  <p class="note">
+    ・「被攻撃」と「ラウンド終了」は本来どの状態からでも起きますが、矢印が増えて見にくくなるのでグループ単位の割り込みとして1本にまとめています。<br>
+    ・「被攻撃」を受けた結果（防御＝ガード硬直／通常のけぞり／カウンター）は、受けた瞬間の自分の状態で決まります（詳細は分類HTMLを参照）。<br>
+    ・「ガード硬直」は防御成功の結果なので③に置きつつ、戻り先は②のガードです。
+  </p>
+
+  <script type="module">
+    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+    mermaid.initialize({
+      startOnLoad:false,
+      theme:"default",
+      themeVariables:{ fontSize:"16px", fontFamily:"Segoe UI,system-ui,sans-serif" }
+    });
+
+    const host = document.querySelector(".mermaid");
+    await mermaid.run({ nodes:[host] });
+
+    const svg = host.querySelector("svg");
+    if (svg){
+      // 文字色（HTMLラベル）を黒に。インライン!importantで内部スタイルに必ず勝つ。
+      svg.querySelectorAll("foreignObject *").forEach(n=>{
+        n.style.setProperty("color", "#e23b3b", "important");
+        n.style.setProperty("font-weight", "700", "important");
+      });
+      svg.querySelectorAll("text, tspan").forEach(n=>{
+        n.style.setProperty("fill", "#e23b3b", "important");
+      });
+      // 各状態ノードの背景＝薄いシアン
+      svg.querySelectorAll(".statediagram-state rect, g.node rect, rect.label-container, .node .basic").forEach(n=>{
+        n.style.setProperty("fill", "#e3f7f7", "important");
+        n.style.setProperty("stroke", "#2b6c72", "important");
+      });
+      // グループ（コンポジット）の枠＝薄い背景＋色付き枠
+      const clusters = svg.querySelectorAll("g.cluster rect, .cluster rect");
+      const colors = ["#9aa7b2","#6fd3a0","#ff8f8f","#c39be8"]; // ①②③④の順を想定
+      clusters.forEach((n,i)=>{
+        n.style.setProperty("fill", "#ffffff", "important");
+        n.style.setProperty("stroke", colors[i % colors.length], "important");
+        n.style.setProperty("stroke-width", "2.5px", "important");
+      });
+    }
+
+    // ===== パン／ズーム =====
+    const box = document.getElementById("diagram");
+    if (svg){ svg.style.maxWidth="none"; svg.removeAttribute("width"); svg.removeAttribute("height"); }
+    let scale=1, tx=0, ty=0;
+    const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+    const apply=()=>{ host.style.transform=`translate(${tx}px,${ty}px) scale(${scale})`; };
+    box.addEventListener("wheel",(e)=>{
+      e.preventDefault();
+      const r=box.getBoundingClientRect(), mx=e.clientX-r.left, my=e.clientY-r.top;
+      const f=e.deltaY<0?1.12:1/1.12, ns=clamp(scale*f,0.2,10);
+      tx=mx-(mx-tx)*(ns/scale); ty=my-(my-ty)*(ns/scale); scale=ns; apply();
+    },{passive:false});
+    let drag=false,lx=0,ly=0;
+    box.addEventListener("mousedown",(e)=>{drag=true;lx=e.clientX;ly=e.clientY;box.classList.add("grabbing");});
+    window.addEventListener("mousemove",(e)=>{ if(!drag)return; tx+=e.clientX-lx; ty+=e.clientY-ly; lx=e.clientX; ly=e.clientY; apply(); });
+    window.addEventListener("mouseup",()=>{drag=false;box.classList.remove("grabbing");});
+    const bz=(f)=>{ const r=box.getBoundingClientRect(), mx=r.width/2, my=r.height/2, ns=clamp(scale*f,0.2,10);
+      tx=mx-(mx-tx)*(ns/scale); ty=my-(my-ty)*(ns/scale); scale=ns; apply(); };
+    document.getElementById("zoomIn").onclick=()=>bz(1.25);
+    document.getElementById("zoomOut").onclick=()=>bz(1/1.25);
+    document.getElementById("zoomReset").onclick=()=>{scale=1;tx=0;ty=0;apply();};
+    apply();
+  </script>
+</body>
+</html>

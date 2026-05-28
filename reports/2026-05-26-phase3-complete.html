@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>段階3 完成版レポート: 多段知覚 + 強ストレート + フェイント</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; padding: 18px 22px 60px;
+    background: #14181d; color: #d8dee6;
+    font-family: "Consolas", "SFMono-Regular", "Courier New", monospace;
+    font-size: 13px; line-height: 1.55;
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; color: #8fd3ff; }
+  .sub { color: #7c8794; margin: 0 0 14px; font-size: 12px; line-height: 1.7; }
+  .sub b { color: #d8dee6; font-weight: normal; }
+
+  .panel {
+    background: #1c2229; border: 1px solid #2c343d; border-radius: 8px;
+    padding: 12px 16px; margin-bottom: 14px;
+  }
+  .panel h2 {
+    font-size: 14px; margin: 0 0 10px; color: #8fd3ff; letter-spacing: .03em;
+    border-bottom: 1px solid #2c343d; padding-bottom: 6px;
+  }
+  .panel h3 { font-size: 12.5px; margin: 12px 0 6px; color: #aeb9c4; }
+  .panel p { margin: 6px 0; }
+  .panel ul { margin: 6px 0 6px 18px; padding: 0; }
+  .panel ul li { padding: 1px 0; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; margin: 6px 0; }
+  th, td { border: 1px solid #2c343d; padding: 5px 8px; text-align: center; }
+  th { color: #9aa7b4; font-weight: normal; background: #11161b; font-size: 11.5px; letter-spacing: .03em; }
+  td.lbl { text-align: left; color: #d8dee6; }
+  td.num { color: #ffd27d; font-variant-numeric: tabular-nums; }
+  td.neg { color: #ff9d6d; }
+  td.pos { color: #6fd3a0; }
+  td.dim { color: #7c8794; }
+  td.hi { color: #5aafff; font-weight: bold; }
+  td.warn { color: #ff7d7d; font-weight: bold; }
+  td.ok { color: #6fd3a0; font-weight: bold; }
+  td.head { color: #8fd3ff; }
+  td.body { color: #ffce4d; }
+
+  .formula {
+    background: #11161b; border-left: 3px solid #5aafff;
+    padding: 8px 12px; margin: 6px 0; border-radius: 4px;
+    font-size: 12.5px; color: #d8e6ff;
+  }
+  .formula em { color: #ffd27d; font-style: normal; }
+  .formula code { color: #aeb9c4; }
+
+  .note { font-size: 11.5px; color: #7c8794; line-height: 1.7; margin-top: 6px; }
+  .note b { color: #aeb9c4; font-weight: normal; }
+
+  .timeline {
+    background: #11161b; border: 1px solid #2c343d; border-radius: 6px;
+    padding: 8px 12px; margin: 8px 0; overflow-x: auto;
+  }
+  .timeline pre { margin: 0; font-size: 11.5px; color: #aeb9c4; line-height: 1.55; }
+  .timeline pre b { color: #ffd27d; }
+  .timeline pre i { color: #6fd3a0; font-style: normal; }
+  .timeline pre s { color: #ff7d7d; text-decoration: none; }
+  .timeline pre u { color: #5aafff; text-decoration: none; font-weight: bold; }
+  .timeline .hd { color: #aeb9c4; font-size: 12px; margin-bottom: 4px; }
+
+  .meta {
+    background: #1c2229; border-left: 3px solid #ffd27d; padding: 8px 12px;
+    border-radius: 4px; margin-bottom: 14px; font-size: 11.5px; color: #d8dee6; line-height: 1.7;
+  }
+  .meta a { color: #8fd3ff; text-decoration: none; }
+  .meta a:hover { text-decoration: underline; }
+
+  .cards { display: grid; grid-template-columns: 1fr; gap: 10px; }
+  @media (min-width: 900px) { .cards { grid-template-columns: 1fr 1fr; } }
+  .card {
+    background: #11161b; border: 1px solid #2c343d; border-radius: 6px;
+    padding: 10px 12px;
+  }
+  .card.h { border-left: 3px solid #5aafff; }
+  .card.s { border-left: 3px solid #ffd27d; }
+  .card.heavy { border-left: 3px solid #ff7d7d; }
+  .card.feint { border-left: 3px solid #b48aff; }
+  .card h3 { margin: 0 0 6px; font-size: 13px; color: #e8edf3; }
+  .card p { margin: 4px 0; font-size: 11.5px; }
+  .card .meta-row { font-size: 11px; color: #7c8794; }
+  .card .meta-row b { color: #aeb9c4; font-weight: normal; }
+
+  /* before/after */
+  .compare { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin: 6px 0; }
+  .compare .col {
+    background: #11161b; border: 1px solid #2c343d; border-radius: 6px;
+    padding: 10px 12px; font-size: 11.5px;
+  }
+  .compare .col h4 { margin: 0 0 6px; font-size: 12px; color: #aeb9c4; font-weight: normal; }
+  .compare .col.bad { border-left: 3px solid #ff7d7d; }
+  .compare .col.mid { border-left: 3px solid #ffce4d; }
+  .compare .col.good { border-left: 3px solid #6fd3a0; }
+  .compare .col p { margin: 4px 0; }
+
+  /* スライダー */
+  .slider {
+    background: #11161b; border: 1px solid #2c343d; border-radius: 6px;
+    padding: 10px 14px; margin: 8px 0;
+  }
+  .slider .ctl { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+  .slider label { color: #aeb9c4; font-size: 12px; min-width: 90px; }
+  .slider input[type=range] { width: 200px; accent-color: #5aafff; }
+  .slider .v { color: #5aafff; font-weight: bold; font-size: 14px; min-width: 30px; text-align: right; }
+  .slider .live {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 6px; margin-top: 8px;
+  }
+  .slider .live .lc {
+    background: #1c2229; border: 1px solid #2c343d; border-radius: 4px;
+    padding: 6px 10px; font-size: 11.5px;
+  }
+  .slider .live .lc .ttl { color: #7c8794; font-size: 11px; }
+  .slider .live .lc .vv { color: #d8dee6; font-size: 12.5px; margin-top: 2px; }
+  .slider .live .lc .verdict { font-size: 11px; margin-top: 2px; }
+  .slider .live .lc .verdict.block { color: #6fd3a0; }
+  .slider .live .lc .verdict.guess { color: #ffce4d; }
+  .slider .live .lc .verdict.cant { color: #ff7d7d; }
+
+  .footer { color: #7c8794; font-size: 11.5px; margin-top: 22px; line-height: 1.8; border-top: 1px solid #2c343d; padding-top: 12px; }
+  .footer a { color: #8fd3ff; text-decoration: none; }
+  .footer a:hover { text-decoration: underline; }
+
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 10.5px; margin-left: 4px; }
+  .pill.new { background: #1f6feb; color: #fff; }
+  .pill.fix { background: #6fd3a0; color: #14181d; }
+  .pill.kept { background: #2c343d; color: #aeb9c4; }
+</style>
+</head>
+<body>
+  <h1>段階3 完成版レポート: 多段知覚 + 強ストレート + フェイント</h1>
+  <p class="sub">
+    駆け引きを生む3段階ロードマップの<b>第3段階の到達点</b>。前回のレポート
+    （<a href="perception_lag_report.html">perception_lag_report.html</a> = 単一 lag で守備が壊れた）
+    から、ユーザーの設計提案を受けて4つの仕組みを同時に投入した結果、<b>時間切れ激減 / カウンター頻発 / フェイント運用 / 強ストレートでガード崩し</b>
+    がすべて立ち上がった。これで段階3 の「読み合いが結果として発生する」を達成。
+  </p>
+
+  <div class="meta">
+    <b>関連</b>: <a href="head_body_spec.html">段階2 頭/腹</a> ／ <a href="stamina_spec.html">段階1 スタミナ</a> ／
+    <a href="perception_lag_report.html">段階3 中間レポート（単一lag版・前回）</a> ／
+    <a href="fsm_gap_inventory.html">FSM 棚卸し</a> ／ <a href="LOG.md">LOG.md</a>
+  </div>
+
+  <!-- ===== 1. 今回入った 4 つの仕組み ===== -->
+  <div class="panel">
+    <h2>1. 今回入った 4 つの仕組み</h2>
+    <div class="cards">
+      <div class="card h">
+        <h3>① 多段知覚（presenceLag / detailLag）<span class="pill new">新</span></h3>
+        <p>知覚を 2 段階に分解。性格6軸目→7軸目に格上げ。</p>
+        <p class="meta-row"><b>presenceLag (既定 3F)</b>: 「相手が何か出してきた」が分かるまで（粗）</p>
+        <p class="meta-row"><b>detailLag (既定 5F)</b>: 「何の攻撃か / 頭か腹か」が分かるまで（詳細）</p>
+        <p class="meta-row">★ 印フィールド → 詳細遅延、◯ 印（isAttacking/isGuarding）→ 粗遅延、それ以外（位置・HP）→ リアルタイム</p>
+      </div>
+      <div class="card heavy">
+        <h3>② 強ストレート（startup=10, chipRatio=0.3）<span class="pill new">新</span></h3>
+        <p>高威力 22 ・低速 startup=10F・ガードでも 30% チップが入る。長いブロック硬直 18F。</p>
+        <p class="meta-row">スタミナ -25（ジャブの 4 倍）。リスク: startup が長いのでジャブ割り込みで潰される</p>
+        <p class="meta-row">「ガードを崩す効果」= チップダメージ。守備しても効く＝決して安全じゃない</p>
+      </div>
+      <div class="card feint">
+        <h3>③ フェイント上 / 下（startup=4, active=0, recovery=0）<span class="pill new">新</span></h3>
+        <p>振り出しだけ。当たらない。後すぐ動ける。スタミナ -3 と軽い。</p>
+        <p class="meta-row">粗知覚では「攻撃来た」に見えるが、実際は当たらない → defender がガード commitment を無駄遣い</p>
+        <p class="meta-row">フェイント上を打つと → defender は上ガードに commit → 次の本命攻撃が通る、というつなぎ</p>
+      </div>
+      <div class="card s">
+        <h3>④ 射程内ガード選好（inRange）<span class="pill fix">修正</span></h3>
+        <p>前回レポートの主要な問題＝「threatened フラグに頼りすぎ」を修正。</p>
+        <p class="meta-row">射程内なら threatened 無しでもガード score を底上げ（実物の「構えっぱなし」を表現）</p>
+        <p class="meta-row">guardScore = inRange ? 0.30 : 0.05 をベース、threatened なら +0.80</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 2. 体感シミュレータ ===== -->
+  <div class="panel">
+    <h2>2. 体感: 「攻撃 startup × 知覚 detailLag」のマトリクス</h2>
+    <p>defender が detail で「攻撃の type/target」を識別できるかどうか。スライダーを動かして観察できます。</p>
+
+    <div class="slider">
+      <div class="ctl">
+        <label>presenceLag</label>
+        <input type="range" id="plSlider" min="0" max="10" step="1" value="3">
+        <span class="v" id="plVal">3</span>
+        <label style="margin-left:14px;">detailLag</label>
+        <input type="range" id="dlSlider" min="0" max="10" step="1" value="5">
+        <span class="v" id="dlVal">5</span>
+      </div>
+      <div class="live">
+        <div class="lc">
+          <div class="ttl">ジャブ (startup=4F)</div>
+          <div class="vv" id="vJab">—</div>
+          <div class="verdict" id="vrdJab">—</div>
+        </div>
+        <div class="lc">
+          <div class="ttl">ストレート (startup=6F)</div>
+          <div class="vv" id="vSt">—</div>
+          <div class="verdict" id="vrdSt">—</div>
+        </div>
+        <div class="lc">
+          <div class="ttl">強ストレート (startup=10F)</div>
+          <div class="vv" id="vHv">—</div>
+          <div class="verdict" id="vrdHv">—</div>
+        </div>
+        <div class="lc">
+          <div class="ttl">フェイント (startup=4F)</div>
+          <div class="vv" id="vFn">—</div>
+          <div class="verdict" id="vrdFn">—</div>
+        </div>
+      </div>
+      <p class="note">
+        粗知覚は presenceLag F 後に「攻撃来た」を察知 → defender が上下どちらかにガード commit。
+        その後、detailLag F 後に「種類/target」が判明 → 必要なら正しい方に切替。<br>
+        detailLag &lt; startup なら見てガード成立。detailLag &gt;= startup なら賭けになる。
+      </p>
+    </div>
+  </div>
+
+  <!-- ===== 3. 観測結果 50戦 ===== -->
+  <div class="panel">
+    <h2>3. 観測結果（非対称50戦、sa=0.5 固定）</h2>
+    <p>性格: P=やや攻撃型(ag=0.6, df=0.4) / E=やや守備型(ag=0.4, df=0.6)、同じ知覚遅延を両者に適用。</p>
+
+    <table>
+      <thead><tr><th>遅延</th><th>P勝</th><th>E勝</th><th>時間切れ</th><th>平均F</th><th>clean</th><th>block</th><th>(chip)</th><th>slip</th><th>counter</th></tr></thead>
+      <tbody>
+        <tr><td class="lbl">(p0/d0) 完全情報</td><td class="num">1</td><td class="num">0</td><td class="warn">49</td><td class="num">798</td><td class="num">314</td><td class="hi">1212</td><td class="num">182</td><td class="num">64</td><td class="num">62</td></tr>
+        <tr><td class="lbl">(p2/d4) 軽い遅延</td><td class="num">20</td><td class="num">18</td><td class="num">12</td><td class="num">613</td><td class="num">743</td><td class="num">588</td><td class="num">153</td><td class="num">133</td><td class="num">495</td></tr>
+        <tr style="background:#11161b;"><td class="lbl ok">(p3/d5) 既定</td><td class="ok">29</td><td class="ok">21</td><td class="ok">0</td><td class="num">464</td><td class="num">771</td><td class="num">305</td><td class="num">100</td><td class="num">132</td><td class="num">550</td></tr>
+        <tr><td class="lbl">(p5/d8) 強め</td><td class="num">33</td><td class="num">17</td><td class="num">0</td><td class="num">403</td><td class="num">875</td><td class="num">124</td><td class="num">46</td><td class="num">71</td><td class="num">631</td></tr>
+      </tbody>
+    </table>
+
+    <h3>攻撃の選択分布（(p3/d5) 既定値・50戦合計）</h3>
+    <table>
+      <thead><tr><th>キャラ</th><th>jab 頭/腹</th><th>str 頭/腹</th><th>heavy 頭/腹</th><th>feint 頭/腹</th><th>合計</th><th>body率</th></tr></thead>
+      <tbody>
+        <tr><td class="lbl">P (攻撃型)</td><td class="num">249 / 239</td><td class="num">112 / 123</td><td class="num">112 / 92</td><td class="num">86 / 82</td><td class="num">1095</td><td class="num">49%</td></tr>
+        <tr><td class="lbl">E (守備型)</td><td class="num">204 / 213</td><td class="num">108 / 128</td><td class="num">93 / 106</td><td class="num">55 / 43</td><td class="num">950</td><td class="num">52%</td></tr>
+      </tbody>
+    </table>
+    <p class="note">
+      ・攻撃型 P はフェイント 168/950（1試合あたり ~3.4回）と多用。攻撃チャンス作りに使ってる<br>
+      ・守備型 E はフェイント 98/950 と控えめ。性格通りの差<br>
+      ・強ストレートは両者とも 4 回/試合くらい。リスクとリターンが拮抗してる証拠
+    </p>
+  </div>
+
+  <!-- ===== 4. なぜ良くなったか ===== -->
+  <div class="panel">
+    <h2>4. 4 つの仕組みがどう絡み合っているか</h2>
+
+    <h3>劇① ジャブの賭け（startup=4 vs detailLag=5）</h3>
+    <div class="timeline">
+      <div class="hd">P がジャブを振り出す</div>
+<pre>
+F=N    P startAction「ジャブ」, attackTarget=head
+F=N+3  E の粗知覚: <u>「攻撃来た」</u> → ガード score 上昇、上下どちらかに <s>賭けで commit</s>
+F=N+4  P active 入り → defender 上ガード(賭けで当たり) → ブロック / <s>下ガード(賭け外れ) → slip</s>
+F=N+5  E の詳細知覚がやっと追いつく（が既に判定済み）
+
+→ ジャブは <u>必ず賭けになる（50% blocked, 50% slip）</u>
+</pre>
+    </div>
+
+    <h3>劇② ストレートは見てガード（startup=6 vs detailLag=5）</h3>
+    <div class="timeline">
+      <div class="hd">P がストレートを振り出す</div>
+<pre>
+F=N    P startAction「ストレート」, attackTarget=head
+F=N+3  E の粗知覚: 「攻撃来た」→ とりあえず構える
+F=N+5  E の <u>詳細知覚: 「ストレート, 頭狙い」</u> → 上ガードに確定切替
+F=N+6  P active 入り → defender 上ガード(正解) → <i>ブロック</i>
+
+→ ストレートは <u>見てガードできる</u>。攻撃側は守備の隙(non-guard 状態)を狙う必要
+</pre>
+    </div>
+
+    <h3>劇③ 強ストレート vs ジャブ割り込み（startup=10 vs counter）</h3>
+    <div class="timeline">
+      <div class="hd">P が強ストレートを振り出す、E が見てジャブで割り込む</div>
+<pre>
+F=N    P startAction「強ストレート上」(startup=10)
+F=N+3  E 粗知覚「攻撃来た」
+F=N+5  E 詳細知覚「強ストレート」→ ジャブ割り込み試みる
+F=N+5  E startAction「ジャブ」(startup=4)
+F=N+9  E のジャブ active → P まだ強ストレートの startup → <b>カウンター!（×1.5 ダメージ）</b>
+F=N+10 P の強ストレート active(があったはず)... 既に E のカウンターで中断
+
+→ 強ストレートは <u>「見えて割り込まれる」リスクあり</u>。決め打ちで打つには博打感
+</pre>
+    </div>
+
+    <h3>劇④ フェイント誘発</h3>
+    <div class="timeline">
+      <div class="hd">P がフェイント上 → E が誤反応 → P が本命を振る</div>
+<pre>
+F=N    P startAction「フェイント上」(startup=4, active=0)
+F=N+3  E 粗知覚「攻撃来た」→ 上下どちらかに <s>賭けで上ガード commit</s>
+F=N+4  P のフェイント終了 → P idle に戻る → P 即座に <b>下ストレート</b> startAction
+F=N+5  E 詳細知覚「フェイント上(?)」← 古い情報。E はまだ上ガードのまま
+F=N+8  E の decTimer が回るが、まだ詳細知覚は「フェイント上」のまま見え
+F=N+10 P の下ストレート active → E 上ガード → <b>slip ですり抜け</b>
+
+→ フェイントは <u>defender の commitment を無駄遣いさせる道具</u>として機能
+</pre>
+    </div>
+
+    <h3>劇⑤ 強ストレートのチップ崩し</h3>
+    <div class="timeline">
+      <div class="hd">P 強ストレート → E が見えて正しくガード → でもチップで効く</div>
+<pre>
+F=N+10 P 強ストレート active → E 正しく上ガード(detail で見えた) → ブロック成立
+       でも chipRatio=0.3 → ダメージ 22×0.3 = <b>6 ダメージは通る</b>
+       E はブロック硬直 18F
+       「<i>ガードしてるのに減る</i>」プレッシャーを E に与え続けられる
+
+→ 強ストレートは <u>「決定打ではないが、削れる」</u> 役割。フェイント・ジャブと組み合わせて押す
+</pre>
+    </div>
+  </div>
+
+  <!-- ===== 5. 比較: 各段階の到達点 ===== -->
+  <div class="panel">
+    <h2>5. 段階別の到達点を見比べる</h2>
+    <div class="compare">
+      <div class="col bad">
+        <h4>段階2 完成時</h4>
+        <p><b>時間切れ 50/50</b></p>
+        <p>守備が完全情報＋無遅延で常に追従</p>
+        <p>block=1881 / slip=106 / clean=447</p>
+        <p>「守備一辺倒の塩試合」</p>
+      </div>
+      <div class="col mid">
+        <h4>段階3 中間（単一lag=7F）</h4>
+        <p>時間切れ 0/50 / KO 50/50</p>
+        <p>守備が threatened 認知できず<b>姿勢を取らない</b></p>
+        <p>block=8 / slip=14 / clean=1092</p>
+        <p>「攻撃一辺倒、守備機能崩壊」</p>
+      </div>
+      <div class="col good">
+        <h4>段階3 完成（多段+チップ+フェイント+inRange）</h4>
+        <p><b>P29/E21/時間切れ0</b></p>
+        <p>攻守バランス、フェイント・強ストレート全部使われる</p>
+        <p>block=305 / slip=132 / clean=771 / <b>counter=550</b></p>
+        <p>「<i>読み合いと混戦が両立した試合</i>」</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 6. 解決した問題 / 残る問題 ===== -->
+  <div class="panel">
+    <h2>6. 解決した問題 / 残る問題</h2>
+
+    <h3>✓ 解決した問題</h3>
+    <ul>
+      <li><b>守備一辺倒</b>（段階2完成時）→ 多段知覚 + チップ崩し + inRange ガード選好で解消</li>
+      <li><b>守備崩壊（threatened 依存）</b>（段階3中間）→ 粗知覚で「来てる」だけは早く察知でき、ガード姿勢は取れる</li>
+      <li><b>読み合いが起きない</b> → ジャブの賭け / ストレートの読み / 強ストレートの割り込みリスク / フェイント誘発、4 種の駆け引きが共存</li>
+      <li><b>フェイントの位置付け</b> → 「待ち状態を誘発する道具」として機能（前回メモ feedback-feint-needs-bait-target.md の予言通り、多段知覚が待ち状態を生み、フェイントが活きた）</li>
+    </ul>
+
+    <h3>△ 残る検討事項</h3>
+    <ul>
+      <li><b>カウンター頻発(550/50戦)が多すぎ?</b> — 両者の攻撃がよくぶつかる。1試合あたり 11 件のカウンター。ちょっと「殴り合い」寄り</li>
+      <li><b>body率 ~50% は変わらず</b> — 攻撃側の target 選好が「相手 guardTarget の逆」だけなので、相手 guardTarget=null（idle）に見える時間が多い場合 50/50 になる</li>
+      <li><b>強ストレートの選択頻度</b> — 4 回/試合 程度。リスクとリターンが拮抗してるとも、足りないとも解釈できる</li>
+      <li><b>フェイント連鎖</b> — フェイント → 本命攻撃 → ... の連鎖がどれくらい AI に「読み」として組まれてるかは不明。現状は確率的に発生してるだけ</li>
+      <li><b>個性軸の追加</b> — 性格6軸目 perceptionLag→7軸目 detailLag。<b>反応の鋭さ</b>が完全に「鏡写し」になる構造で、非対称設定（P=速い反応, E=鈍い反応 等）は未検証</li>
+      <li><b>「ガード崩し」の意味の再検討</b> — 今は chip damage で実装。「ブロック硬直が長すぎて次の攻撃が確定」型の崩しに変える選択肢もあり</li>
+    </ul>
+  </div>
+
+  <!-- ===== 7. 次にいきそうな方向 ===== -->
+  <div class="panel">
+    <h2>7. 次の方向（候補）</h2>
+    <table>
+      <thead><tr><th>方向</th><th>意図</th><th>難易度</th></tr></thead>
+      <tbody>
+        <tr><td class="lbl">非対称知覚遅延の検証</td><td class="dim">速い反応 vs 遅い反応キャラ。技量差として機能するか</td><td class="num">小</td></tr>
+        <tr><td class="lbl">カウンター頻度の調整</td><td class="dim">両者が「待つ」局面が少ない。ag/df 性格の重みを見直すか、待機 score を上げる</td><td class="num">小</td></tr>
+        <tr><td class="lbl">フェイント連鎖の AI 化</td><td class="dim">フェイント直後の本命攻撃を選びやすくする評価式</td><td class="num">中</td></tr>
+        <tr><td class="lbl">大技を増やす</td><td class="dim">フック・アッパー等。「角度」軸を追加すると 2 次元化と直結</td><td class="num">大</td></tr>
+        <tr><td class="lbl">スタミナ・展開連動の知覚遅延</td><td class="dim">疲労時に lag が伸びる。終盤に決まりやすくなる</td><td class="num">中</td></tr>
+        <tr><td class="lbl">ダウン / 立ち上がり / TKO</td><td class="dim">試合の「終わり方」を増やす。HP 0 = 一発 KO 以外の決着</td><td class="num">中</td></tr>
+        <tr><td class="lbl">コーナー機構 + バックステップ回数制限</td><td class="dim">記憶 project-head-body-stepback-corner-loop の予想線。空間活用</td><td class="num">中</td></tr>
+        <tr><td class="lbl">ラウンド制 / 判定</td><td class="dim">時間切れ試合の決着付け。これが入ると「ジャブで削って判定」戦略が立ち上がる</td><td class="num">中</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="footer">
+    関連: <a href="head_body_spec.html">段階2 仕様</a> ／ <a href="stamina_spec.html">段階1 仕様</a> ／
+    <a href="perception_lag_report.html">段階3 中間レポート</a> ／
+    <a href="fsm_gap_inventory.html">FSM 棚卸し</a> ／ <a href="docs/MEMORY.md">方法論メモ</a>
+  </div>
+
+<script>
+  // 体感シミュレータ: 各攻撃が detailLag に対して「見えてガードできる」か
+  const pl = document.getElementById('plSlider');
+  const dl = document.getElementById('dlSlider');
+  const $ = id => document.getElementById(id);
+
+  function describe(startup) {
+    const detailLag = parseInt(dl.value, 10);
+    const presenceLag = parseInt(pl.value, 10);
+    const detailMargin = startup - detailLag;
+    const presenceMargin = startup - presenceLag;
+    if (presenceMargin <= 0) {
+      return { txt: `粗知覚も間に合わない(マージン ${presenceMargin}F)`, cls: 'cant', verdict: '反応不能（盲打ち状態）' };
+    }
+    if (detailMargin >= 1) {
+      return { txt: `詳細マージン ${detailMargin}F、粗マージン ${presenceMargin}F`, cls: 'block', verdict: '見えてガードできる' };
+    }
+    return { txt: `詳細マージン ${detailMargin}F（種類不明）、粗マージン ${presenceMargin}F`, cls: 'guess', verdict: '上下を「賭け」でガード' };
+  }
+  function describeFeint() {
+    const presenceLag = parseInt(pl.value, 10);
+    const detailLag = parseInt(dl.value, 10);
+    if (presenceLag >= 4) {
+      return { txt: '粗知覚も間に合わない', cls: 'block', verdict: '無視できる（誘発失敗）' };
+    }
+    if (detailLag >= 4) {
+      return { txt: '粗で誘発し、フェイント完了後しばらく detail に出ない', cls: 'cant', verdict: '誘発成功（defender 誤反応）' };
+    }
+    return { txt: '詳細で即見抜く', cls: 'block', verdict: '誘発失敗（見抜かれる）' };
+  }
+  function update() {
+    $('plVal').textContent = pl.value;
+    $('dlVal').textContent = dl.value;
+    const moves = [
+      { id: 'Jab', startup: 4 },
+      { id: 'St',  startup: 6 },
+      { id: 'Hv',  startup: 10 },
+    ];
+    for (const m of moves) {
+      const r = describe(m.startup);
+      $('v' + m.id).textContent = r.txt;
+      const vd = $('vrd' + m.id);
+      vd.textContent = r.verdict;
+      vd.className = 'verdict ' + r.cls;
+    }
+    const f = describeFeint();
+    $('vFn').textContent = f.txt;
+    const vf = $('vrdFn'); vf.textContent = f.verdict; vf.className = 'verdict ' + f.cls;
+  }
+  pl.oninput = update;
+  dl.oninput = update;
+  update();
+</script>
+</body>
+</html>

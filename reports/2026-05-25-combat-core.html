@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>戦闘の核: HP・ダメージ・ガード統合・カウンター</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; padding: 18px 22px 60px;
+    background: #14181d; color: #d8dee6;
+    font-family: "Consolas", "SFMono-Regular", "Courier New", monospace;
+    font-size: 13px; line-height: 1.55;
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; color: #8fd3ff; }
+  .sub { color: #7c8794; margin: 0 0 14px; font-size: 12px; line-height: 1.7; }
+  .sub b { color: #d8dee6; font-weight: normal; }
+
+  .panel {
+    background: #1c2229; border: 1px solid #2c343d; border-radius: 8px;
+    padding: 12px 16px; margin-bottom: 14px;
+  }
+  .panel h2 {
+    font-size: 14px; margin: 0 0 10px; color: #8fd3ff; letter-spacing: .03em;
+    border-bottom: 1px solid #2c343d; padding-bottom: 6px;
+  }
+  .panel h3 { font-size: 12.5px; margin: 12px 0 6px; color: #aeb9c4; }
+  .panel p { margin: 6px 0; }
+  .panel ul { margin: 6px 0 6px 18px; padding: 0; }
+  .panel ul li { padding: 1px 0; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; margin: 6px 0; }
+  th, td { border: 1px solid #2c343d; padding: 5px 8px; text-align: center; }
+  th { color: #9aa7b4; font-weight: normal; background: #11161b; font-size: 11.5px; letter-spacing: .03em; }
+  td.lbl { text-align: left; color: #d8dee6; }
+  td.num { color: #ffd27d; font-variant-numeric: tabular-nums; }
+  td.dim { color: #7c8794; }
+  td.warn { color: #ff7d7d; }
+  td.ok { color: #6fd3a0; }
+  td.hi { color: #5aafff; }
+
+  code {
+    background: #11161b; padding: 1px 6px; border-radius: 3px;
+    color: #aeb9c4; font-size: 12px;
+  }
+  .formula {
+    background: #11161b; border-left: 3px solid #5aafff;
+    padding: 8px 12px; margin: 6px 0; border-radius: 4px;
+    font-size: 12.5px; color: #d8e6ff;
+  }
+  .note { font-size: 11.5px; color: #7c8794; line-height: 1.7; margin-top: 6px; }
+  .note b { color: #aeb9c4; font-weight: normal; }
+
+  .cards { display: grid; grid-template-columns: 1fr; gap: 10px; }
+  @media (min-width: 900px) { .cards { grid-template-columns: 1fr 1fr; } }
+  .card {
+    background: #11161b; border: 1px solid #2c343d; border-radius: 6px;
+    padding: 10px 12px;
+  }
+  .card.b { border-left: 3px solid #5aafff; }
+  .card.r { border-left: 3px solid #ff7d7d; }
+  .card.o { border-left: 3px solid #ffce4d; }
+  .card.g { border-left: 3px solid #6fd3a0; }
+  .card h3 { margin: 0 0 6px; font-size: 13px; color: #e8edf3; }
+  .card p { margin: 4px 0; font-size: 11.5px; }
+</style>
+</head>
+<body>
+  <h1>戦闘の核: HP・ダメージ・ガード統合・カウンター</h1>
+  <p class="sub">
+    日付: <b>2026-05-25 (終盤)</b> ／ 場所: <b>BoxingSim / index.html</b><br>
+    当初の「被弾は扱わない」方針を初めて拡張し、HP / ダメージ / ガード成立 / KO を導入。続けてガード形式の統合・のけぞり・ガード硬直・2パス方式での相打ち維持・カウンター分類まで一気に組んだ記録。
+    Node 検証も同日に複数回。
+  </p>
+
+  <div class="panel">
+    <h2>1. HP・ダメージ・勝敗の導入</h2>
+    <p>動機: <b>最適化のゴールを測れるようにする</b> ため。観察フェーズから一歩踏み込む。</p>
+    <table>
+      <thead><tr><th>項目</th><th>値・仕様</th></tr></thead>
+      <tbody>
+        <tr><td class="lbl">HP</td><td class="num">100</td></tr>
+        <tr><td class="lbl">ジャブ</td><td class="warn">-5</td></tr>
+        <tr><td class="lbl">ストレート</td><td class="warn">-12</td></tr>
+        <tr><td class="lbl">多重ヒット防止</td><td class="dim"><code>atkLanded</code> フラグで1パンチ1回</td></tr>
+        <tr><td class="lbl">ガード成立</td><td class="ok">ダメージ 0</td></tr>
+        <tr><td class="lbl">勝敗</td><td class="hi">HP 0 で KO → 試合終了・勝者表示</td></tr>
+        <tr><td class="lbl">UI</td><td class="dim">HP バー表示</td></tr>
+        <tr><td class="lbl">観測</td><td class="dim">HP を追加</td></tr>
+      </tbody>
+    </table>
+    <p>Node で <b>多重ヒットなし・正しい減算・KO 終了</b> を検証（攻撃型 P 勝ち、E HP 0、約 <code>470F</code>）。</p>
+  </div>
+
+  <div class="panel">
+    <h2>2. ガード統合と のけぞり / ガード硬直</h2>
+    <p>独立「ガード」を廃止し、<b>その場ガード</b>（速度 0・常時防御・始動 0・解除自由）に統合。ガード前進 / 後退と同じ性質に揃えた。</p>
+    <div class="cards">
+      <div class="card r">
+        <h3>のけぞり</h3>
+        <p>被弾＝<code>stunType="hit"</code>。<b>相手の動作を中断＋ロック</b>。</p>
+        <p>持続: 戻り+2（ジャブ <b>8</b> / ストレート <b>14</b>）</p>
+      </div>
+      <div class="card o">
+        <h3>ガード硬直</h3>
+        <p>ガード時＝<code>stunType="block"</code>。</p>
+        <p>持続: 戻り（ジャブ <b>6</b> / ストレート <b>12</b>）</p>
+      </div>
+    </div>
+    <p>硬直値は <b>「技の戻り基準」</b> で設定。技編集表から調整可能。</p>
+    <p class="note">有利フレームをジャブ始動 (3) 未満の最大 +2 に抑え、<b>ジャブの確定ループを防止</b>（検証で連鎖最大 1 を確認）。</p>
+  </div>
+
+  <div class="panel">
+    <h2>3. 2パス方式 — 相打ちの取りこぼし対策</h2>
+    <p>命中検出と効果適用を分離した2パス処理。</p>
+    <ol>
+      <li><b>パス1</b>: 両者の命中を先に検出（攻撃キーを保持）</li>
+      <li><b>パス2</b>: 検出済みの攻撃に効果を適用</li>
+    </ol>
+    <p>これで先評価側の効果適用に巻き込まれて後評価側の命中が消える <b>相打ち取りこぼしバグ</b> を修正。
+    のけぞり中は punish 対象として AI が差し込みを評価する。</p>
+    <p class="note">Node で <b>流れのうねり・KO・ループ無し</b> を確認。</p>
+  </div>
+
+  <div class="panel">
+    <h2>4. カウンター導入 — ダメージのみ・確定コンボ無し</h2>
+    <p>被弾時の <b>相手状態</b> でカウンター分類を決める。</p>
+    <table>
+      <thead><tr><th>被弾時の相手状態</th><th>分類</th><th>倍率</th></tr></thead>
+      <tbody>
+        <tr><td class="lbl">始動</td><td class="hi">カウンター（クリーン）</td><td class="num">×1.5</td></tr>
+        <tr><td class="lbl">発生</td><td class="dim">相打ち</td><td class="num">等倍（両者）</td></tr>
+        <tr><td class="lbl">硬直</td><td class="dim">パニッシュ</td><td class="num">等倍</td></tr>
+        <tr><td class="lbl">その他</td><td class="dim">通常</td><td class="num">等倍</td></tr>
+      </tbody>
+    </table>
+    <p>方針: <b>通常の攻防では連続確定攻撃を作らない</b>。有利フレームは全種 +2 まで。
+    カウンターも威力だけで、のけぞりは通常と同じ。連続技は将来の「グロッキー状態（何でも入る窓）」専用とする（リアルボクシング準拠）。</p>
+    <p>ジャブ startup <code>3 → 4</code>: カウンター窓を広げる＆+2 でも防御が間に合うようにする。</p>
+    <h3>Node 直接検証</h3>
+    <table>
+      <thead><tr><th>状況</th><th>ダメージ</th></tr></thead>
+      <tbody>
+        <tr><td class="lbl">始動つぶし</td><td class="hi">8 (= 5×1.5)</td></tr>
+        <tr><td class="lbl">待機</td><td class="num">5</td></tr>
+        <tr><td class="lbl">硬直（パニッシュ）</td><td class="num">5</td></tr>
+        <tr><td class="lbl">相打ち</td><td class="num">両 5</td></tr>
+        <tr><td class="lbl">連鎖最大</td><td class="ok">1（コンボ無し）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <h2>5. この日の最終到達点</h2>
+    <p>HP・ダメージ・ガード・のけぞり・カウンターまで揃い、<b>勝敗が機械的に決着する戦闘系</b> が完成。
+    最適化のゴール（KO まで何F、誰が勝ったか）が測れるようになり、以後の改善（スタミナ / 頭腹打ち分け / 知覚遅延）はこの計測軸で評価される。</p>
+    <p class="note">未実装の候補として記録された次の手: ダウン / 立ち上がり、削り（チップ）ダメージ、スタミナ。
+    翌 2026-05-26 にスタミナが選ばれる。</p>
+  </div>
+</body>
+</html>

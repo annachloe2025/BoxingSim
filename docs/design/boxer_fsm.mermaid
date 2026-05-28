@@ -1,0 +1,47 @@
+---
+title: ボクサー1人のステートマシン（初版たたき台）
+---
+stateDiagram-v2
+    direction LR
+    [*] --> Idle
+
+    state "待機・構え" as Idle
+    state "前進" as StepF
+    state "後退" as StepB
+    state "攻撃：始動" as AtkS
+    state "攻撃：発生" as AtkA
+    state "攻撃：硬直" as AtkR
+    state "ガード" as Guard
+    state "ガード硬直" as GuardStun
+    state "被弾：のけぞり" as Hit
+    state "ダウン" as Down
+    state "立ち上がり" as GetUp
+
+    Idle --> AtkS : 攻撃入力
+    Idle --> StepF : 前進入力
+    Idle --> StepB : 後退入力
+    Idle --> Guard : ガード入力
+
+    StepF --> Idle : 移動完了
+    StepB --> Idle : 移動完了
+
+    AtkS --> AtkA : 始動F経過
+    AtkA --> AtkR : 発生F経過
+    AtkR --> Idle : 硬直F経過
+
+    Guard --> Idle : ガード解除
+    Guard --> GuardStun : 攻撃を防御
+    GuardStun --> Guard : ガード硬直F経過
+
+    Idle --> Hit : 被弾
+    StepF --> Hit : 被弾
+    StepB --> Hit : 被弾
+    AtkS --> Hit : 被弾（カウンター）
+    AtkA --> Hit : 被弾（相打ち）
+    AtkR --> Hit : 被弾
+
+    Hit --> Idle : のけぞりF経過
+    Hit --> Down : 規定ダメージ超過
+    Down --> GetUp : ダウンカウント
+    GetUp --> Idle : 立ち上がり完了
+    Down --> [*] : テンカウント（KO）

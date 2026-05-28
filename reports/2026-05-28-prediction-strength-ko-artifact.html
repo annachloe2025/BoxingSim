@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>予測強度と KO 実体の検証 — 段階5 結論の再評価</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; padding: 18px 22px 60px;
+    background: #14181d; color: #d8dee6;
+    font-family: "Consolas", "SFMono-Regular", "Courier New", monospace;
+    font-size: 13px; line-height: 1.55;
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; color: #8fd3ff; }
+  .sub { color: #7c8794; margin: 0 0 14px; font-size: 12px; line-height: 1.7; }
+  .sub b { color: #d8dee6; font-weight: normal; }
+
+  .panel {
+    background: #1c2229; border: 1px solid #2c343d; border-radius: 8px;
+    padding: 12px 16px; margin-bottom: 14px;
+  }
+  .panel h2 {
+    font-size: 14px; margin: 0 0 10px; color: #8fd3ff; letter-spacing: .03em;
+    border-bottom: 1px solid #2c343d; padding-bottom: 6px;
+  }
+  .panel h3 { font-size: 12.5px; margin: 12px 0 6px; color: #aeb9c4; }
+  .panel p { margin: 6px 0; }
+  .panel ul { margin: 6px 0 6px 18px; padding: 0; }
+  .panel ul li { padding: 1px 0; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; margin: 6px 0; }
+  th, td { border: 1px solid #2c343d; padding: 5px 8px; text-align: center; }
+  th { color: #9aa7b4; font-weight: normal; background: #11161b; font-size: 11.5px; letter-spacing: .03em; }
+  td.lbl { text-align: left; color: #d8dee6; }
+  td.num { color: #ffd27d; font-variant-numeric: tabular-nums; }
+  td.neg { color: #ff9d6d; }
+  td.pos { color: #6fd3a0; }
+  td.dim { color: #7c8794; }
+  td.hi { color: #5aafff; font-weight: bold; }
+  td.warn { color: #ff7d7d; font-weight: bold; }
+
+  .formula {
+    background: #11161b; border-left: 3px solid #5aafff;
+    padding: 8px 12px; margin: 6px 0; border-radius: 4px;
+    font-size: 12.5px; color: #d8e6ff;
+  }
+  .formula em { color: #ffd27d; font-style: normal; }
+  .formula code { color: #aeb9c4; }
+
+  .note { font-size: 11.5px; color: #7c8794; line-height: 1.7; margin-top: 6px; }
+  .note b { color: #aeb9c4; font-weight: normal; }
+
+  /* 結論パネル色分け */
+  .verdict { border-left: 3px solid #2c343d; padding: 10px 14px; border-radius: 4px; margin: 8px 0; }
+  .verdict.info  { background: #11202b; border-left-color: #5aafff; }
+  .verdict.good  { background: #112318; border-left-color: #6fd3a0; }
+  .verdict.warn  { background: #241d11; border-left-color: #ffae4d; }
+  .verdict.bad   { background: #2a1414; border-left-color: #ff7d7d; }
+  .verdict h3 { margin: 0 0 6px; font-size: 13px; }
+  .verdict.info h3 { color: #8fd3ff; }
+  .verdict.good h3 { color: #6fd3a0; }
+  .verdict.warn h3 { color: #ffce4d; }
+  .verdict.bad  h3 { color: #ff9d6d; }
+  .verdict p { margin: 5px 0; font-size: 12px; }
+
+  .overturn {
+    background: linear-gradient(90deg, #20191d 0%, #14181d 100%);
+    border: 1px solid #4a2c34; border-left: 3px solid #ff7d7d;
+    padding: 12px 16px; border-radius: 6px; margin-bottom: 14px;
+  }
+  .overturn b { color: #ffb0b0; }
+  .overturn .ideal { color: #6fd3a0; }
+
+  .meta {
+    background: #1c2229; border-left: 3px solid #ffd27d; padding: 8px 12px;
+    border-radius: 4px; margin-bottom: 14px; font-size: 11.5px; color: #d8dee6; line-height: 1.7;
+  }
+  .meta a { color: #8fd3ff; text-decoration: none; }
+  .meta a:hover { text-decoration: underline; }
+
+  .quote {
+    background: #11161b; border-left: 3px solid #7c8794; padding: 6px 12px;
+    margin: 8px 0; border-radius: 4px; color: #aeb9c4; font-size: 12px;
+  }
+
+  .footer { color: #7c8794; font-size: 11.5px; margin-top: 22px; line-height: 1.8; border-top: 1px solid #2c343d; padding-top: 12px; }
+  .footer a { color: #8fd3ff; text-decoration: none; }
+  .footer a:hover { text-decoration: underline; }
+
+  .legend-row { display: flex; gap: 14px; font-size: 11.5px; color: #7c8794; flex-wrap: wrap; margin-top: 6px; }
+  .legend-row span b { color: #d8dee6; }
+</style>
+</head>
+<body>
+  <h1>予測強度と KO 実体の検証 — 段階5 結論の再評価</h1>
+  <p class="sub">
+    段階5（ラウンド + 判定）配管完成後、Step C 検証で出した結論「<b>判定到達率ほぼ 0%・chip 0.3 が弱い → 次はガード崩し攻撃が必要</b>」を、<br>
+    ユーザーの2つの疑問を起点に <b>verify.js で実測し直した</b>。結果、前回結論の前提が <b>データで覆った</b>。
+  </p>
+
+  <div class="meta">
+    <b>関連</b>:
+    <a href="2026-05-27-round-system-stepC-complete.html">段階5 Step C 完成 + 総括</a> ／
+    <a href="2026-05-27-next-candidates-comparison.html">次候補比較レポート（前回・5候補）</a> ／
+    <a href="../LOG.md">LOG.md</a> ／ <a href="../TASKS.md">TASKS.md</a>
+  </div>
+
+  <!-- ===== 冒頭: 何を覆したか ===== -->
+  <div class="overturn">
+    <b>この検証が覆したもの。</b>
+    前回 Step C 検証は「KO が増えた／判定に行かない／chip 0.3 が弱いから次はガード崩し攻撃」と結論づけた。
+    本検証は同じ verify.js で2点を測り直し、(1)「KO 増加」の大半は <b>ラウンド構造による見かけ</b>（時間切れが KO に化けただけ）であり、
+    (2) 判定到達率は <b>予測強度 modelTrust を上げれば単調に上がる</b>レバーであることを示した。
+    <span class="ideal">理念整合</span>: 「ガード崩しが面白そうだから入れる」と逆算するのではなく、
+    機械的観察で前提（KO 実体・予測の効き）を検証し直し、前回の早計を訂正した。
+  </div>
+
+  <!-- ===== 背景: 2つの疑問 ===== -->
+  <div class="panel">
+    <h2>1. 背景 — ユーザーの2つの疑問</h2>
+    <p>段階5 配管が完成し、Step C 検証で「判定は飾り、chip が弱い、次はガード崩し」と結論づけた。これに対しユーザーが2点を疑った。</p>
+
+    <h3 style="color:#ffce4d;">Q1 — 「KO が増えた」は実体か、見かけか</h3>
+    <p>
+      旧構成は <b>800F 単発</b>。新構成は <b>3R × 300F</b> でラウンド境界ごとに AI・距離・フレーム状態がリセットされる。
+      総フレームが伸び、境界で停滞がリセットされるなら、<b>同じ膠着が「時間切れ」ではなく「KO」に届くだけ</b>ではないか。
+      round 構造が新しい殴り合いを生んだのか、それとも決着しきれない試合を KO に化けさせているだけなのか。
+    </p>
+
+    <h3 style="color:#ffce4d;">Q2 — 判定が増えないのは「予測 OFF」で測ったからではないか</h3>
+    <p>
+      判定システムの本来の動機は「<b>予測（推論）を戦闘で使うと守備が強まり、判定勝負が増える</b>」だった。
+      ところが事実として —
+    </p>
+    <ul>
+      <li>verify.js の予測強度 <code>modelTrust</code>（以下 MT）の<b>既定は MT=0（予測 OFF）</b>。</li>
+      <li>Step C 検証は <b>MT=0.3</b> でしか測っていない（当初プラン 0.5 から、守備過多を理由に下げた控えめ値）。</li>
+    </ul>
+    <p>推論を強くすれば判定到達率は上がるのか。それを MT スイープで確かめる、というのが Q2。</p>
+    <p class="note"><b>判定到達率の定義</b>: (判定 P 勝 + 判定 E 勝 + ドロー) / 50 × 100%。KO・時間切れ以外で決着した割合。</p>
+  </div>
+
+  <!-- ===== 衛生 ===== -->
+  <div class="panel">
+    <h2>2. 検証の衛生（canonical 不可侵）</h2>
+    <ul>
+      <li>round-off アブレーション用に一時コピー <code>tools/_verify_tmp_roundoff.js</code> を作成 → 使用 → <b>削除済み</b>。</li>
+      <li>canonical <code>tools/verify.js</code> は <b>MD5 不変・無編集</b>を確認。</li>
+      <li><code>src/index.html</code> も <b>無変更</b>。</li>
+    </ul>
+    <p class="note">実装・検証ハーネスのどちらにも手を入れず、引数・環境変数で挙動を振っての観測。前回 Step C と同じ土俵で測り直している。</p>
+  </div>
+
+  <!-- ===== 実験A ===== -->
+  <div class="panel">
+    <h2>3. 実験A — 予測強度スイープ（roundEnabled=true / 3R、MT=0→0.9）</h2>
+    <p>各シナリオ 50 戦。MT を 0 / 0.3 / 0.5 / 0.7 / 0.9 と振り、<b>判定到達率（%）</b>を測る。シナリオ名の数字は <code>presenceLag/detailLag</code>。</p>
+
+    <table>
+      <thead>
+        <tr><th>シナリオ</th><th>MT0</th><th>MT0.3</th><th>MT0.5</th><th>MT0.7</th><th>MT0.9</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="lbl">非対称 0/0</td><td class="num">44</td><td class="num">50</td><td class="num">52</td><td class="num">52</td><td class="pos">64</td></tr>
+        <tr><td class="lbl">両守備 3/5</td><td class="num">4</td><td class="num">8</td><td class="num">10</td><td class="num">22</td><td class="pos">28</td></tr>
+        <tr><td class="lbl">両守備 5/8</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">6</td><td class="num">6</td></tr>
+        <tr><td class="lbl">非対称 5/8</td><td class="dim">0</td><td class="dim">0</td><td class="dim">0</td><td class="dim">0</td><td class="dim">0</td></tr>
+        <tr><td class="lbl">非対称 7/10</td><td class="dim">0</td><td class="dim">0</td><td class="dim">0</td><td class="dim">0</td><td class="dim">0</td></tr>
+        <tr><td class="lbl">攻 vs 守 5/8</td><td class="dim">0</td><td class="dim">0</td><td class="dim">0</td><td class="dim">0</td><td class="dim">0</td></tr>
+      </tbody>
+    </table>
+    <p class="note">数値は判定到達率（%）。<span style="color:#6fd3a0;">緑</span>=MT0.9 での最大値。<span style="color:#7c8794;">灰</span>=全 MT で 0%。</p>
+
+    <h3>解釈 — MT に対する判定到達率の2つの帯</h3>
+    <ul>
+      <li><b>単調増加する帯</b>: 両守備型と低 lag 非対称。最顕著は <b>両守備 3/5（4 → 28%）</b>と<b>非対称 0/0（44 → 64%）</b>。
+        両守備 3/5 は MT0.7 以上で跳ねる（10 → 22 → 28）。守備寄りで観測が見える局面では、予測を強めると先回りガードが増え、決着がつかず判定に持ち越される。</li>
+      <li><b>効かない帯</b>: 高 lag（5/8・7/10）と攻撃絡み。MT0.9 でも判定率ほぼ 0%。観測が空白すぎて予測が拠り所を失い、機能しない（後述 Q2 結論の注意点）。</li>
+    </ul>
+
+    <h3>傍証 — KO 中央フレームも MT 上昇で伸びる</h3>
+    <p>判定に届かなかった試合でも、MT を上げると決着までのフレームが延びる（=守備寄与で試合が長期化）。</p>
+    <table>
+      <thead><tr><th>シナリオ</th><th>MT0</th><th>MT0.3</th><th>MT0.5</th><th>MT0.7</th><th>MT0.9</th></tr></thead>
+      <tbody>
+        <tr><td class="lbl">両守備 3/5 KO中央F</td><td class="num">742</td><td class="num">766</td><td class="num">766</td><td class="num">758</td><td class="num">764</td></tr>
+        <tr><td class="lbl">非対称 0/0 KO中央F</td><td class="num">855</td><td class="num">816</td><td class="num">870</td><td class="num">896</td><td class="num">827</td></tr>
+      </tbody>
+    </table>
+    <p class="note">試合長期化は判定到達の単調増加と同じ向き。予測が守備に効いて決着が遅れている傍証。</p>
+  </div>
+
+  <!-- ===== 実験B ===== -->
+  <div class="panel">
+    <h2>4. 実験B — roundEnabled false(旧800F単発) vs true(3R)、同一 MT</h2>
+    <p>「KO 増加が実体か見かけか」を直接見るため、ラウンド構造のオン／オフだけを切り替えて同一シナリオ・同一 MT で比較する。</p>
+
+    <table>
+      <thead>
+        <tr><th>シナリオ / MT</th><th>mode</th><th>KO率</th><th>判定</th><th>時間切れ</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="lbl">非対称 2/4 · MT0</td><td class="dim">off</td><td class="num">47/50</td><td class="num">0</td><td class="num">3</td></tr>
+        <tr><td class="lbl">非対称 2/4 · MT0</td><td class="hi">on</td><td class="num">50/50</td><td class="num">0</td><td class="num">0</td></tr>
+        <tr><td class="lbl">非対称 3/5 · MT0</td><td class="dim">off</td><td class="num">50/50</td><td class="num">0</td><td class="num">0</td></tr>
+        <tr><td class="lbl">非対称 3/5 · MT0</td><td class="hi">on</td><td class="num">50/50</td><td class="num">0</td><td class="num">0</td></tr>
+        <tr><td class="lbl">両守備 3/5 · MT0</td><td class="dim">off</td><td class="num">32/50</td><td class="num">0</td><td class="warn">18</td></tr>
+        <tr><td class="lbl">両守備 3/5 · MT0</td><td class="hi">on</td><td class="num">48/50</td><td class="num">2</td><td class="num">0</td></tr>
+        <tr><td class="lbl">両守備 3/5 · MT0.3</td><td class="dim">off</td><td class="num">21/50</td><td class="num">0</td><td class="warn">29</td></tr>
+        <tr><td class="lbl">両守備 3/5 · MT0.3</td><td class="hi">on</td><td class="num">46/50</td><td class="num">4</td><td class="num">0</td></tr>
+      </tbody>
+    </table>
+    <p class="legend-row">
+      <span><b>off</b>: roundEnabled=false（旧 800F 単発）</span>
+      <span><b>on</b>: roundEnabled=true（3R × 300F）</span>
+    </p>
+
+    <h3>解釈 — 時間切れ → KO への変換</h3>
+    <ul>
+      <li>既に決着していた帯（<b>非対称 3/5</b>）は off / on とも <b>50/50 KO で不変</b>。round 構造は何も足していない。</li>
+      <li>膠着帯（<b>両守備 3/5</b>）では off の時間切れが on でほぼ全て KO 側へ移る:
+        MT0 で <b>時間切れ 18 → 0・KO 32 → 48</b>、MT0.3 で <b>時間切れ 29 → 0・KO 21 → 46</b>。
+        判定はわずか（0 → 2、0 → 4）。</li>
+      <li>つまり on で増えた KO の正体は、<b>off では時間切れだった試合の救済（KO への化け）</b>。新しい殴り合いが立ち上がったわけではない。</li>
+    </ul>
+  </div>
+
+  <!-- ===== Q1 結論 ===== -->
+  <div class="panel">
+    <h2>5. Q1 結論 — KO 増加は「ほぼ見かけ（混在寄り）」</h2>
+    <div class="verdict warn">
+      <h3>⚠ KO 増加の大半はラウンド構造の副作用</h3>
+      <p>
+        旧 800F 単発で時間切れだった膠着試合が、3R 化でほぼ全て KO 側へ変換（救済）された。
+        両守備 3/5 · MT0.3 では off の <b>時間切れ 29</b> が、on で <b>KO 21 → 46・判定わずか 4</b> に化けている。
+      </p>
+      <p>
+        既に決着していた高 lag／攻撃寄りシナリオ（非対称 3/5・5/8）は <b>両モードとも 50/50 KO で不変</b>。
+        増えた KO 分は「総フレーム増 + ラウンド境界での停滞・距離リセット」で説明でき、
+        round 構造が新たな殴り合いを生んだのではなく、<b>決着しきれない膠着を時間切れではなく KO に化けさせている</b>。
+      </p>
+      <p>
+        したがって前回の「KO が増えた → ガード崩しが必要」という結論は、<b>この見かけ KO 率に引きずられた早計</b>だった。
+      </p>
+    </div>
+  </div>
+
+  <!-- ===== Q2 結論 ===== -->
+  <div class="panel">
+    <h2>6. Q2 結論 — 予測強度を上げると判定到達率は上がる（条件付き・単調）</h2>
+    <div class="verdict good">
+      <h3>○ ユーザー仮説「推論を強くすると守備が強まり判定勝負が増える」は支持</h3>
+      <p>
+        両守備型と低 lag 非対称で、MT に対し判定到達率が<b>単調に増加</b>した。
+        最顕著は <b>両守備 3/5（4 → 28%、MT0.7 以上で跳ねる）</b>と<b>非対称 0/0（44 → 64%）</b>。
+        KO 中央フレームも MT 上昇で伸び、予測が守備に効いて試合が長期化する傍証と一致する。
+      </p>
+    </div>
+    <div class="verdict warn">
+      <h3>⚠ ただし高 lag 帯・攻撃絡みは別の構造問題</h3>
+      <p>
+        高 lag 帯（<b>5/8・7/10</b>）と攻撃絡みのシナリオは <b>MT0.9 でも判定率ほぼ 0%</b>。
+        予測が観測空白で機能していない（拠り所となる観測がそもそも入ってこない）。
+        これは予測強度では解けない<b>別軸の構造問題</b>として浮上した。
+      </p>
+    </div>
+  </div>
+
+  <!-- ===== 候補リストへの含意 ===== -->
+  <div class="panel">
+    <h2>7. 候補リストへの含意（中立整理 / 方向はユーザー判断）</h2>
+    <p>前回 <a href="2026-05-27-next-candidates-comparison.html">次候補比較レポート</a>で並べた5候補の優先度が、本検証でどう動く向きにあるかを中立に整理する。</p>
+
+    <table>
+      <thead><tr><th>候補</th><th>本検証を受けた向き</th><th>理由</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="lbl">ガード崩し攻撃 C</td>
+          <td class="neg">優先度 下がる方向</td>
+          <td class="lbl" style="font-size:11.5px;">前提（ガードが強すぎる）が見かけ KO に引きずられていた</td>
+        </tr>
+        <tr>
+          <td class="lbl">採点係数調整（chip 引き上げ）</td>
+          <td class="neg">優先度 下がる方向</td>
+          <td class="lbl" style="font-size:11.5px;">前提（chip 0.3 が弱い）が見かけ KO に引きずられていた</td>
+        </tr>
+        <tr>
+          <td class="lbl">段階4 Step C（modelPrior / MT 既定・UI）</td>
+          <td class="pos">優先度 上がる方向</td>
+          <td class="lbl" style="font-size:11.5px;">予測強度 MT が判定到達のレバーと判明</td>
+        </tr>
+        <tr>
+          <td class="lbl">lag 再決定</td>
+          <td class="pos">優先度 上がる方向</td>
+          <td class="lbl" style="font-size:11.5px;">lag 帯が「予測が効く／効かない」を分ける軸と判明</td>
+        </tr>
+        <tr>
+          <td class="lbl">HP 残存率を判定に算入</td>
+          <td class="dim">中立（本検証の射程外）</td>
+          <td class="lbl" style="font-size:11.5px;">本検証では直接測っていない</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="verdict info">
+      <h3>新たに浮上した構造問題（別軸）</h3>
+      <p>
+        高 lag 帯（5/8・7/10）では観測が空白で予測が効かず、判定にも届かない。
+        これは「ガード崩し」でも「予測強度」でもなく、<b>観測空白そのものをどう扱うか</b>という別軸の課題として残った。
+      </p>
+    </div>
+
+    <div class="verdict info">
+      <h3>方向の決定はユーザーに委ねる</h3>
+      <p>
+        上の「向き」は機械的観察が示す傾向であって推奨ではない。
+        本レポートは選択軸を提示するにとどめ、<b>次の方向の決定はユーザーに委ねる</b>。強い推奨は出さない。
+      </p>
+    </div>
+  </div>
+
+  <div class="footer">
+    一次資料: <code>tools/verify.js</code>（MD5 不変・無編集 / 一時コピーは作成後削除済み）。<br>
+    関連: <a href="2026-05-27-round-system-stepC-complete.html">段階5 Step C 完成 + 総括</a> ／
+    <a href="2026-05-27-next-candidates-comparison.html">次候補比較レポート</a> ／
+    <a href="../LOG.md">LOG.md</a> ／ <a href="../README.html">Dashboard</a>
+  </div>
+</body>
+</html>

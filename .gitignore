@@ -1,0 +1,9 @@
+# 一時・検証ファイル（公開しない）
+archive/
+
+# ローカル専用設定（公開しない）
+.claude/settings.local.json
+
+# OS / エディタ
+Thumbs.db
+.DS_Store

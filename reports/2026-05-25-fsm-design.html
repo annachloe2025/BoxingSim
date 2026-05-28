@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FSM 設計とドキュメント化</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; padding: 18px 22px 60px;
+    background: #14181d; color: #d8dee6;
+    font-family: "Consolas", "SFMono-Regular", "Courier New", monospace;
+    font-size: 13px; line-height: 1.55;
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; color: #8fd3ff; }
+  .sub { color: #7c8794; margin: 0 0 14px; font-size: 12px; line-height: 1.7; }
+  .sub b { color: #d8dee6; font-weight: normal; }
+
+  .panel {
+    background: #1c2229; border: 1px solid #2c343d; border-radius: 8px;
+    padding: 12px 16px; margin-bottom: 14px;
+  }
+  .panel h2 {
+    font-size: 14px; margin: 0 0 10px; color: #8fd3ff; letter-spacing: .03em;
+    border-bottom: 1px solid #2c343d; padding-bottom: 6px;
+  }
+  .panel h3 { font-size: 12.5px; margin: 12px 0 6px; color: #aeb9c4; }
+  .panel p { margin: 6px 0; }
+  .panel ul { margin: 6px 0 6px 18px; padding: 0; }
+  .panel ul li { padding: 1px 0; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; margin: 6px 0; }
+  th, td { border: 1px solid #2c343d; padding: 5px 8px; text-align: center; }
+  th { color: #9aa7b4; font-weight: normal; background: #11161b; font-size: 11.5px; letter-spacing: .03em; }
+  td.lbl { text-align: left; color: #d8dee6; }
+  td.num { color: #ffd27d; font-variant-numeric: tabular-nums; }
+  td.dim { color: #7c8794; }
+  td.warn { color: #ff7d7d; }
+
+  code {
+    background: #11161b; padding: 1px 6px; border-radius: 3px;
+    color: #aeb9c4; font-size: 12px;
+  }
+  .note { font-size: 11.5px; color: #7c8794; line-height: 1.7; margin-top: 6px; }
+  .note b { color: #aeb9c4; font-weight: normal; }
+
+  .cards { display: grid; grid-template-columns: 1fr; gap: 10px; }
+  @media (min-width: 900px) { .cards { grid-template-columns: 1fr 1fr; } }
+  .card {
+    background: #11161b; border: 1px solid #2c343d; border-radius: 6px;
+    padding: 10px 12px;
+  }
+  .card.b { border-left: 3px solid #5aafff; }
+  .card.g { border-left: 3px solid #6fd3a0; }
+  .card.o { border-left: 3px solid #ffce4d; }
+  .card.r { border-left: 3px solid #ff7d7d; }
+  .card h3 { margin: 0 0 6px; font-size: 13px; color: #e8edf3; }
+  .card p { margin: 4px 0; font-size: 11.5px; }
+</style>
+</head>
+<body>
+  <h1>FSM 設計とドキュメント化</h1>
+  <p class="sub">
+    日付: <b>2026-05-25 (前半)</b> ／ 場所: <b>BoxingSim / boxer_fsm.html ほか</b><br>
+    路線をステートマシンの「カチッと」した設計に切り替えた日。状態11個＋遷移23本を、mermaid俯瞰・遷移マトリクス・状態カードの3表現で並べ、整合を取った。
+    分類軸として「遷移きっかけ4分類」「4グループ構成」も別 HTML にまとめた。
+  </p>
+
+  <div class="panel">
+    <h2>1. 路線変更: 「カチッと」した FSM へ</h2>
+    <p>フェーズ1の最小エンジンに対し、1人のボクサーの状態遷移を <b>形式的に定義</b> していく方向へ切替。
+    まず1人ぶんを完全に固めてから2人の絡みに展開する設計順序。</p>
+  </div>
+
+  <div class="panel">
+    <h2>2. boxer_fsm（初版たたき台）</h2>
+    <ul>
+      <li><code>boxer_fsm.mermaid</code> として <b>状態11個＋遷移</b> を定義</li>
+      <li><code>boxer_fsm.html</code> でブラウザに mermaid 描画</li>
+      <li>文字色が mermaid 内部スタイルに負ける問題 → <b>描画後に JS でインライン <code>!important</code></b> 指定する方式で解決</li>
+      <li>拡大・縮小・移動を実装（ホイール / ドラッグ / ボタン）</li>
+    </ul>
+  </div>
+
+  <div class="panel">
+    <h2>3. 3通り併記による視認性向上</h2>
+    <p>同じ FSM を3つの粒度で並べ、目的別に読めるようにした。</p>
+    <table>
+      <thead><tr><th>表現</th><th>役割</th></tr></thead>
+      <tbody>
+        <tr><td class="lbl">(1) mermaid 図</td><td class="dim">俯瞰。全体の遷移網を見る</td></tr>
+        <tr><td class="lbl">(2) 遷移マトリクス表</td><td class="dim">状態 × きっかけ の一覧</td></tr>
+        <tr><td class="lbl">(3) 状態カード</td><td class="dim">1状態ずつの詳細定義</td></tr>
+      </tbody>
+    </table>
+    <p>3者の <b>遷移定義（全23本）が一致することを確認</b> 済み。</p>
+  </div>
+
+  <div class="panel">
+    <h2>4. 未決定として記録した3点</h2>
+    <ul>
+      <li><b>※1 移動キャンセルの可否</b></li>
+      <li><b>※2 硬直キャンセルの可否</b></li>
+      <li><b>※3 ガードの型</b>（押し続け / 時間）<b>と被弾系の保持フレーム</b></li>
+    </ul>
+    <p class="note">この3点はその後の連続移動モデル化・ガード統合・のけぞり実装で順次解消されていく。</p>
+  </div>
+
+  <div class="panel">
+    <h2>5. boxer_states_taxonomy.html — 遷移きっかけの4分類</h2>
+    <p>純 HTML / CSS で作成。Claude 側の意見4点も併記。</p>
+    <div class="cards">
+      <div class="card b">
+        <h3>① 自発</h3>
+        <p>本人が選んで遷移する。アイドルからの攻撃選択・ガード構えなど。</p>
+      </div>
+      <div class="card g">
+        <h3>② 自動（時間）</h3>
+        <p>フレーム経過で勝手に進む。始動→発生→硬直→アイドルの自然進行。</p>
+      </div>
+      <div class="card o">
+        <h3>③ 外発（相手）</h3>
+        <p>相手側の事象で遷移する。被攻撃・ガード成立など。</p>
+      </div>
+      <div class="card r">
+        <h3>④ 強制（審判 / ルール）</h3>
+        <p>ルール側で遷移を強制する。ダウン・試合終了など。</p>
+      </div>
+    </div>
+    <p class="note">補足: <b>「被攻撃」は1イベント＋文脈</b>（受けた瞬間の自分の状態）で結果が分岐するという考え方を提示。
+    これが後の「カウンター分類（始動 / 発生 / 硬直）」の下敷きになる。</p>
+  </div>
+
+  <div class="panel">
+    <h2>6. boxer_fsm_groups.html — 4グループ構成</h2>
+    <p>状態を機能で4つに括り、mermaid 図に再配置。</p>
+    <table>
+      <thead><tr><th>グループ</th><th>含む状態</th></tr></thead>
+      <tbody>
+        <tr><td class="lbl">① ベース</td><td class="dim">アイドル / 移動 など</td></tr>
+        <tr><td class="lbl">② 自発行動</td><td class="dim">攻撃の始動・発生・硬直、ガード姿勢</td></tr>
+        <tr><td class="lbl">③ 被弾リアクション</td><td class="dim">のけぞり、ガード硬直など</td></tr>
+        <tr><td class="lbl">④ 強制</td><td class="dim">ダウン・KO・試合終了</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <h2>7. この日の到達点</h2>
+    <p>1人ぶんの FSM を <b>3表現で整合確認</b> し、<b>遷移きっかけ4分類 / 4グループ構成</b> という分析軸も用意した。
+    これで2人の絡み（観測・AI・接触効果）の議論に進める準備が整った。</p>
+    <p class="note">この日の後半で AI 観測スキーマの設計・連続移動モデル・ユーティリティAI が連続して入る（別レポート）。</p>
+  </div>
+</body>
+</html>

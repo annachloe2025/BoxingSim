@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FSM 棚卸し — 実物のボクシング × 今の実装</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; padding: 18px 22px 60px;
+    background: #14181d; color: #d8dee6;
+    font-family: "Consolas", "SFMono-Regular", "Courier New", monospace;
+    font-size: 13px; line-height: 1.55;
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; color: #8fd3ff; }
+  .sub { color: #7c8794; margin: 0 0 14px; font-size: 12px; line-height: 1.7; }
+  .sub b { color: #d8dee6; font-weight: normal; }
+
+  .axes {
+    background: #1c2229; border: 1px solid #2c343d; border-radius: 8px;
+    padding: 10px 14px; margin-bottom: 14px;
+  }
+  .axes h2 { font-size: 12px; margin: 0 0 6px; color: #9aa7b4; letter-spacing: .04em; }
+  .axes ol { margin: 0; padding-left: 22px; }
+  .axes li { padding: 2px 0; color: #aeb9c4; }
+  .axes em { color: #ffd27d; font-style: normal; }
+
+  .filter { margin: 10px 0 8px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .filter button {
+    background: #283039; color: #d8dee6; border: 1px solid #3a4450;
+    border-radius: 5px; padding: 4px 10px; font-family: inherit; font-size: 12px; cursor: pointer;
+  }
+  .filter button:hover { background: #323c47; }
+  .filter button.on { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: #7c8794; margin-bottom: 14px; }
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11px; line-height: 1.6; }
+  .pill.none  { background: #3a1c20; color: #ff8c8c; border: 1px solid #5a262c; }
+  .pill.part  { background: #3a3018; color: #ffd27d; border: 1px solid #5a4824; }
+  .pill.done  { background: #1c3a26; color: #6fd3a0; border: 1px solid #28583a; }
+
+  .totals { color: #7c8794; font-size: 11.5px; margin-left: auto; }
+
+  .layer {
+    background: #1c2229; border: 1px solid #2c343d; border-radius: 8px;
+    padding: 12px 14px; margin-bottom: 14px;
+  }
+  .layer h2 { font-size: 14px; margin: 0 0 10px; color: #8fd3ff; letter-spacing: .03em; }
+  .layer h2 small { color: #7c8794; font-weight: normal; font-size: 11px; margin-left: 8px; }
+
+  .items { display: grid; grid-template-columns: 1fr; gap: 10px; }
+  @media (min-width: 980px) { .items { grid-template-columns: 1fr 1fr; } }
+
+  .item {
+    background: #11161b; border: 1px solid #2c343d; border-radius: 6px;
+    padding: 10px 12px;
+  }
+  .item .hd { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; flex-wrap: wrap; }
+  .item .id { color: #ffd27d; font-weight: bold; }
+  .item .tt { color: #e8edf3; font-size: 13.5px; }
+  .item .fld { margin: 5px 0; display: flex; gap: 10px; }
+  .item .fld > b { flex: 0 0 6.5em; color: #7c8794; font-weight: normal; font-size: 11px; padding-top: 1px; }
+  .item .v-real { color: #d8dee6; }
+  .item .v-now  { color: #aeb9c4; }
+  .item .v-mech { color: #9ad3ff; }
+
+  .footer { color: #7c8794; font-size: 11.5px; margin-top: 22px; line-height: 1.8; border-top: 1px solid #2c343d; padding-top: 12px; }
+  .footer a { color: #8fd3ff; text-decoration: none; }
+  .footer a:hover { text-decoration: underline; }
+  .footer .warn { color: #ffce4d; }
+</style>
+</head>
+<body>
+  <h1>FSM 棚卸し — 実物のボクシング × 今の実装</h1>
+  <p class="sub">
+    「面白さ」を目標にして逆算するのではなく、<b>実物のボクシングに存在する仕組みのうち、今の FSM が再現できていないもの</b>を機械的に列挙する。<br>
+    各項目は <b>実物の現象 / 今のFSM / 機械的な定義の方針</b> の3点で見る。順序を決めるのは下の3軸。
+  </p>
+
+  <div class="axes">
+    <h2>順序を決める軸（重要度ランキングではない）</h2>
+    <ol>
+      <li><em>実物として無視できる程度が小さいか</em>（無いと"ボクシングと呼べない"度合い）</li>
+      <li><em>機械的に明確に定義できるか</em>（曖昧な裁量を要するものは定義精度が上がってから）</li>
+      <li><em>既存 FSM に矛盾なく組み込めるか</em>（既存の状態・遷移を壊さないか）</li>
+    </ol>
+  </div>
+
+  <div class="filter">
+    <span style="color:#9aa7b4;">表示:</span>
+    <button class="on" data-f="all">すべて</button>
+    <button data-f="none">未実装のみ</button>
+    <button data-f="part">部分のみ</button>
+    <span class="totals" id="totals"></span>
+  </div>
+
+  <div class="legend">
+    凡例:
+    <span><span class="pill none">未</span> 未実装</span>
+    <span><span class="pill part">部分</span> 部分的に実装</span>
+    <span><span class="pill done">済</span> 実装済み</span>
+  </div>
+
+  <!-- A. 身体・物理 -->
+  <section class="layer">
+    <h2>A. 身体・物理 <small>4項目: 未4 / 部分0</small></h2>
+    <div class="items">
+      <article class="item" data-status="none">
+        <div class="hd"><span class="id">A1</span><span class="tt">スタミナ（筋持久力）</span><span class="pill none">未</span></div>
+        <div class="fld"><b>実物</b><span class="v-real">動作・ガード・被弾で消耗、休むと回復。後半に動作速度・威力・反応が落ちる。</span></div>
+        <div class="fld"><b>今のFSM</b><span class="v-now">無い（無限スタミナ）。</span></div>
+        <div class="fld"><b>機械的定義</b><span class="v-mech">各行動にコスト・回復率・閾値を持たせる。閾値以下で speed / damage / startup に係数。</span></div>
+      </article>
+      <article class="item" data-status="none">
+        <div class="hd"><span class="id">A2</span><span class="tt">効いた状態（ぐらつき）</span><span class="pill none">未</span></div>
+        <div class="fld"><b>実物</b><span class="v-real">HPの量だけでなく、被弾の蓄積で動作が乱れる。視界・足元・反応の崩れ。</span></div>
+        <div class="fld"><b>今のFSM</b><span class="v-now">のけぞりは固定Fのみ。HP は線形。「効き」概念なし。</span></div>
+        <div class="fld"><b>機械的定義</b><span class="v-mech">「効きゲージ」を別に持ち、累積で動作速度・反応遅延・精度に係数を掛ける。</span></div>
+      </article>
+      <article class="item" data-status="none">
+        <div class="hd"><span class="id">A3</span><span class="tt">ダウン・カウント・立ち上がり</span><span class="pill none">未</span></div>
+        <div class="fld"><b>実物</b><span class="v-real">膝/床がついたらカウント。10カウントで KO。立ち上がってもダメージは残る。3ダウン制等。</span></div>
+        <div class="fld"><b>今のFSM</b><span class="v-now">HP0で即KO。手前の「倒れ」状態が無い。</span></div>
+        <div class="fld"><b>機械的定義</b><span class="v-mech">効き閾値でダウン状態へ。カウントF中は移動・防御不能。立ち上がり成功率は累積依存。</span></div>
+      </article>
+      <article class="item" data-status="none">
+        <div class="hd"><span class="id">A4</span><span class="tt">TKO / KO の区別</span><span class="pill none">未</span></div>
+        <div class="fld"><b>実物</b><span class="v-real">反応がなく続行不能=KO。ダメージで続行困難とレフェリーが判断=TKO。</span></div>
+        <div class="fld"><b>今のFSM</b><span class="v-now">KOのみ（HP0）。</span></div>
+        <div class="fld"><b>機械的定義</b><span class="v-mech">ダウン回数・効き継続フレームで TKO 条件を定義可能。</span></div>
+      </article>
+    </div>
+  </section>
+
+  <!-- B. 行動・技 -->
+  <section class="layer">
+    <h2>B. 行動・技 <small>4項目: 未2 / 部分2</small></h2>
+    <div class="items">
+      <article class="item" data-status="part">
+        <div class="hd"><span class="id">B1</span><span class="tt">パンチ種別の網羅</span><span class="pill part">部分</span></div>
+        <div class="fld"><b>実物</b><span class="v-real">ジャブ／ストレート／フック／アッパー／ボディ。各々リーチ・角度・効果部位が違う。</span></div>
+        <div class="fld"><b>今のFSM</b><span class="v-now">ジャブ・ストレートのみ。</span></div>
+        <div class="fld"><b>機械的定義</b><span class="v-mech">既存 MOVES の枠でパラメータ違いの新エントリを追加可能。</span></div>
+      </article>
+      <article class="item" data-status="part">
+        <div class="hd"><span class="id">B2</span><span class="tt">防御の細分化</span><span class="pill part">部分</span></div>
+        <div class="fld"><b>実物</b><span class="v-real">ガード（腕で受ける）／パリ（手で払う）／スリップ（頭振り）／ダック（しゃがみ）。攻撃の型ごとに有効な防御が違う。</span></div>
+        <div class="fld"><b>今のFSM</b><span class="v-now">ガードのみ。</span></div>
+        <div class="fld"><b>機械的定義</b><span class="v-mech">各防御に「有効入力F」「有効な攻撃種別」を持たせ、kind=defense として並列に追加。</span></div>
+      </article>
+      <article class="item" data-status="none">
+        <div class="hd"><span class="id">B3</span><span class="tt">クリンチ</span><span class="pill none">未</span></div>
+        <div class="fld"><b>実物</b><span class="v-real">接近距離0で互いの腕を絡め動きを止める。レフェリーが分ける。</span></div>
+        <div class="fld"><b>今のFSM</b><span class="v-now">無い。距離0でも素通り可能。</span></div>
+        <div class="fld"><b>機械的定義</b><span class="v-mech">距離 &lt; 閾値で両者ロック状態、Nフレーム後にレフェリー分離（自動で間合いを開ける）。</span></div>
+      </article>
+      <article class="item" data-status="none">
+        <div class="hd"><span class="id">B4</span><span class="tt">フェイント</span><span class="pill none">未</span></div>
+        <div class="fld"><b>実物</b><span class="v-real">攻撃の振りだけを見せ、相手のガード・後退を誘発する。実際には打たない。</span></div>
+        <div class="fld"><b>今のFSM</b><span class="v-now">無い。始動に入ると最後まで進む。</span></div>
+        <div class="fld"><b>機械的定義</b><span class="v-mech">「始動Fだけ持ち、即キャンセル可能な攻撃モドキ」を新 kind として定義可能。</span></div>
+      </article>
+    </div>
+  </section>
+
+  <!-- C. 知覚・反応 -->
+  <section class="layer">
+    <h2>C. 知覚・反応 <small>3項目: 未3 / 部分0</small></h2>
+    <div class="items">
+      <article class="item" data-status="none">
+        <div class="hd"><span class="id">C1</span><span class="tt">反応遅延（神経伝達）</span><span class="pill none">未</span></div>
+        <div class="fld"><b>実物</b><span class="v-real">視覚→神経→筋発火に約200ms。1F=1/30s なら 〜6F の遅延が物理的に存在。</span></div>
+        <div class="fld"><b>今のFSM</b><span class="v-now">0F。buildObs はその場の真値を返す。AI は瞬時にガードできる。</span></div>
+        <div class="fld"><b>機械的定義</b><span class="v-mech">observation を Nフレーム前のスナップショットから生成すれば実装可能。N は性格・技量で個体差にできる。</span></div>
+      </article>
+      <article class="item" data-status="none">
+        <div class="hd"><span class="id">C2</span><span class="tt">観測の不完全さ</span><span class="pill none">未</span></div>
+        <div class="fld"><b>実物</b><span class="v-real">相手の出す技・残りフェーズは正確には見えない。経験で予測する。</span></div>
+        <div class="fld"><b>今のFSM</b><span class="v-now">opponent.action / phaseRemaining が完全に見えている（★印で布石済み）。</span></div>
+        <div class="fld"><b>機械的定義</b><span class="v-mech">action を伏せる or 粗い分類だけ返す。phaseRemaining に誤差を加える。</span></div>
+      </article>
+      <article class="item" data-status="none">
+        <div class="hd"><span class="id">C3</span><span class="tt">注意の偏り</span><span class="pill none">未</span></div>
+        <div class="fld"><b>実物</b><span class="v-real">上下・左右を同時に完璧には警戒できない。フェイントが効く前提。</span></div>
+        <div class="fld"><b>今のFSM</b><span class="v-now">単一射程でしか判断していない（注意の概念なし）。</span></div>
+        <div class="fld"><b>機械的定義</b><span class="v-mech">「身構え方向」属性を持たせ、注意外からの攻撃には反応遅延を増す。</span></div>
+      </article>
+    </div>
+  </section>
+
+  <!-- D. 位置・空間 -->
+  <section class="layer">
+    <h2>D. 位置・空間 <small>3項目: 未1 / 部分2</small></h2>
+    <div class="items">
+      <article class="item" data-status="part">
+        <div class="hd"><span class="id">D1</span><span class="tt">リング境界・コーナー</span><span class="pill part">部分</span></div>
+        <div class="fld"><b>実物</b><span class="v-real">逃げ場が無くなる。追い詰める／追い詰められるという特殊状況。</span></div>
+        <div class="fld"><b>今のFSM</b><span class="v-now">X_MIN/MAX で頭打ちするだけ。コーナー概念なし。</span></div>
+        <div class="fld"><b>機械的定義</b><span class="v-mech">端から距離Nを「コーナー」と定義し、後退不能・攻撃側の有利F扱いに。</span></div>
+      </article>
+      <article class="item" data-status="none">
+        <div class="hd"><span class="id">D2</span><span class="tt">2次元（サイドステップ・アングル）</span><span class="pill none">未</span></div>
+        <div class="fld"><b>実物</b><span class="v-real">前後だけでなく横にも動く。アングルを取って打ち分ける。</span></div>
+        <div class="fld"><b>今のFSM</b><span class="v-now">1次元のみ。</span></div>
+        <div class="fld"><b>機械的定義</b><span class="v-mech">y 軸を追加し、攻撃に有効角度パラメータを持たせる。CLAUDE.md にも将来拡張と記載済み。</span></div>
+      </article>
+      <article class="item" data-status="part">
+        <div class="hd"><span class="id">D3</span><span class="tt">構え（オーソ／サウスポー）</span><span class="pill part">部分</span></div>
+        <div class="fld"><b>実物</b><span class="v-real">前後の足・効き手が違うとリーチ・有効角度が変わる。サウスポー対策など。</span></div>
+        <div class="fld"><b>今のFSM</b><span class="v-now">advanceDir は持つが、リーチ・有効角度は対称。</span></div>
+        <div class="fld"><b>機械的定義</b><span class="v-mech">構え属性を持たせ、リード手／リア手で reach・damage を分岐。</span></div>
+      </article>
+    </div>
+  </section>
+
+  <!-- E. ルール・試合構造 -->
+  <section class="layer">
+    <h2>E. ルール・試合構造 <small>3項目: 未3 / 部分0</small></h2>
+    <div class="items">
+      <article class="item" data-status="none">
+        <div class="hd"><span class="id">E1</span><span class="tt">ラウンド制（インターバル）</span><span class="pill none">未</span></div>
+        <div class="fld"><b>実物</b><span class="v-real">3分動き／1分休み。1ラウンドごとに回復・調整。</span></div>
+        <div class="fld"><b>今のFSM</b><span class="v-now">連続フレーム（MAX_FRAME=800 で打ち切り）。</span></div>
+        <div class="fld"><b>機械的定義</b><span class="v-mech">一定F毎にインターバル状態を挟む。HP / スタミナの一部回復。</span></div>
+      </article>
+      <article class="item" data-status="none">
+        <div class="hd"><span class="id">E2</span><span class="tt">判定（採点）</span><span class="pill none">未</span></div>
+        <div class="fld"><b>実物</b><span class="v-real">KOにならない試合は採点で決着。有効打数・優勢度などで採点。</span></div>
+        <div class="fld"><b>今のFSM</b><span class="v-now">時間切れは結果なし（KOのみ決着）。</span></div>
+        <div class="fld"><b>機械的定義</b><span class="v-mech">終了時に有効打数・残HP・優勢F等で採点ロジック追加。</span></div>
+      </article>
+      <article class="item" data-status="none">
+        <div class="hd"><span class="id">E3</span><span class="tt">反則</span><span class="pill none">未</span></div>
+        <div class="fld"><b>実物</b><span class="v-real">バッティング・ローブロー・ホールディング等。警告・減点・失格。</span></div>
+        <div class="fld"><b>今のFSM</b><span class="v-now">無い。</span></div>
+        <div class="fld"><b>機械的定義</b><span class="v-mech">後回しでも実装上は定義可能だが、現状の行動セットでは観測機会が少ない。</span></div>
+      </article>
+    </div>
+  </section>
+
+  <!-- F. 個性・技量 -->
+  <section class="layer">
+    <h2>F. 個性・技量 <small>3項目: 未2 / 部分1</small></h2>
+    <div class="items">
+      <article class="item" data-status="none">
+        <div class="hd"><span class="id">F1</span><span class="tt">技量（個人差）</span><span class="pill none">未</span></div>
+        <div class="fld"><b>実物</b><span class="v-real">同じパンチでも個人で速さ・正確さ・威力が違う。「ジャブが速い選手」など。</span></div>
+        <div class="fld"><b>今のFSM</b><span class="v-now">性格4軸のみ。技自体は全選手共通。</span></div>
+        <div class="fld"><b>機械的定義</b><span class="v-mech">個別に startup / active / recovery / damage に係数を掛ける「技量パラメータ」を追加。</span></div>
+      </article>
+      <article class="item" data-status="part">
+        <div class="hd"><span class="id">F2</span><span class="tt">スタイル類型</span><span class="pill part">部分</span></div>
+        <div class="fld"><b>実物</b><span class="v-real">アウトボクサー／インファイター／カウンターパンチャー／スラッガー。</span></div>
+        <div class="fld"><b>今のFSM</b><span class="v-now">性格スライダーで暗黙再現。明示的なスタイル概念なし。</span></div>
+        <div class="fld"><b>機械的定義</b><span class="v-mech">性格プリセットとして定義可。F1（技量）と組み合わせるとさらに分化する。</span></div>
+      </article>
+      <article class="item" data-status="none">
+        <div class="hd"><span class="id">F3</span><span class="tt">性格の状況依存</span><span class="pill none">未</span></div>
+        <div class="fld"><b>実物</b><span class="v-real">疲労・効きで攻めっ気が落ちる。リードしたら逃げ切り、追い込まれたら一発狙い。</span></div>
+        <div class="fld"><b>今のFSM</b><span class="v-now">性格は固定。状態によらず同じ評価式。</span></div>
+        <div class="fld"><b>機械的定義</b><span class="v-mech">性格係数を「現在の疲労・効き・HP差・残りF」で動的補正。</span></div>
+      </article>
+    </div>
+  </section>
+
+  <!-- G. 戦略・読み -->
+  <section class="layer">
+    <h2>G. 戦略・読み <small>2項目: 未2 / 部分0</small></h2>
+    <div class="items">
+      <article class="item" data-status="none">
+        <div class="hd"><span class="id">G1</span><span class="tt">ラウンドを跨ぐ試合運び</span><span class="pill none">未</span></div>
+        <div class="fld"><b>実物</b><span class="v-real">序盤は様子見、中盤に勝負、終盤は逃げ切り or 詰め。ラウンド単位の思考。</span></div>
+        <div class="fld"><b>今のFSM</b><span class="v-now">即時の効用評価のみ。長期視点なし。</span></div>
+        <div class="fld"><b>機械的定義</b><span class="v-mech">ラウンド導入後、長期評価（疲労温存・採点リード）を点数項に追加。</span></div>
+      </article>
+      <article class="item" data-status="none">
+        <div class="hd"><span class="id">G2</span><span class="tt">相手の癖を試合中に学習</span><span class="pill none">未</span></div>
+        <div class="fld"><b>実物</b><span class="v-real">「毎回後退する」「毎回ガードする」等の癖を試合中に観測して戦術を変える。</span></div>
+        <div class="fld"><b>今のFSM</b><span class="v-now">無い。毎フレーム独立に評価。</span></div>
+        <div class="fld"><b>機械的定義</b><span class="v-mech">相手の過去N選択の分布を観測し、scoreActions に補正項を入れる。</span></div>
+      </article>
+    </div>
+  </section>
+
+  <div class="footer">
+    <div><b>合計 22 項目: 未17 / 部分5 / 済0</b></div>
+    <div class="warn">⚠ この棚卸しの順序は重要度ランキングではない。並べ替えはユーザー判断。</div>
+    <div>関連: <a href="docs/MEMORY.md">docs/MEMORY.md</a> ／ <a href="docs/feedback-mechanics-first-fun-emerges.md">機械的仕組みを先に積む（方法論）</a> ／ <a href="boxer_fsm.html">既存FSM図</a> ／ <a href="boxer_states_taxonomy.html">状態タクソノミー</a></div>
+  </div>
+
+<script>
+  // 合計の表示
+  const items = document.querySelectorAll('.item');
+  const cn = { all: items.length, none: 0, part: 0, done: 0 };
+  items.forEach(it => { cn[it.dataset.status]++; });
+  document.getElementById('totals').textContent =
+    `合計 ${cn.all}（未${cn.none} / 部分${cn.part} / 済${cn.done}）`;
+
+  // フィルタ
+  document.querySelectorAll('.filter button').forEach(b => {
+    b.onclick = () => {
+      document.querySelectorAll('.filter button').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+      const f = b.dataset.f;
+      document.querySelectorAll('.item').forEach(it => {
+        it.style.display = (f === 'all' || it.dataset.status === f) ? '' : 'none';
+      });
+      // 全部隠れたレイヤは折り畳む
+      document.querySelectorAll('.layer').forEach(l => {
+        const visible = [...l.querySelectorAll('.item')].some(it => it.style.display !== 'none');
+        l.style.display = visible ? '' : 'none';
+      });
+    };
+  });
+</script>
+</body>
+</html>

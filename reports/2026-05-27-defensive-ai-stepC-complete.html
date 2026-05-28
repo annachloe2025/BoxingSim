@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BoxingSim 段階3 (α) Step C 完成 + 守備 AI 構造改善 総括 2026-05-27</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; padding: 18px 22px 60px;
+    background: #14181d; color: #d8dee6;
+    font-family: "Consolas", "SFMono-Regular", "Courier New", monospace;
+    font-size: 13px; line-height: 1.55;
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; color: #8fd3ff; }
+  .sub { color: #7c8794; margin: 0 0 14px; font-size: 12px; line-height: 1.7; }
+  .sub b { color: #d8dee6; font-weight: normal; }
+
+  .panel {
+    background: #1c2229; border: 1px solid #2c343d; border-radius: 8px;
+    padding: 12px 16px; margin-bottom: 14px;
+  }
+  .panel h2 {
+    font-size: 14px; margin: 0 0 10px; color: #8fd3ff; letter-spacing: .03em;
+    border-bottom: 1px solid #2c343d; padding-bottom: 6px;
+  }
+  .panel h3 { font-size: 12.5px; margin: 12px 0 6px; color: #aeb9c4; }
+  .panel h4 { font-size: 12px; margin: 10px 0 4px; color: #9aa7b4; font-weight: normal; }
+  .panel p { margin: 6px 0; }
+  .panel ul { margin: 6px 0 6px 18px; padding: 0; }
+  .panel ul li { padding: 1px 0; }
+  .panel ol { margin: 6px 0 6px 22px; padding: 0; }
+  .panel ol li { padding: 2px 0; }
+  code { color: #aeb9c4; background: #11161b; padding: 1px 4px; border-radius: 3px; font-size: 12px; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; margin: 6px 0; }
+  th, td { border: 1px solid #2c343d; padding: 5px 8px; text-align: center; vertical-align: top; }
+  th { color: #9aa7b4; font-weight: normal; background: #11161b; font-size: 11.5px; letter-spacing: .03em; }
+  td.lbl { text-align: left; color: #d8dee6; }
+  td.lblL { text-align: left; color: #d8dee6; }
+  td.num { color: #ffd27d; font-variant-numeric: tabular-nums; }
+  td.dim { color: #7c8794; text-align: left; }
+  td.hi { color: #5aafff; font-weight: bold; }
+  td.warn { color: #ff7d7d; font-weight: bold; }
+  td.ok { color: #6fd3a0; font-weight: bold; }
+  td.head { color: #8fd3ff; }
+  td.sweet { color: #5aafff; font-weight: bold; background: #11202b; }
+  td.improve { color: #6fd3a0; font-weight: bold; }
+  td.regress { color: #ff7d7d; }
+
+  .formula {
+    background: #11161b; border-left: 3px solid #5aafff;
+    padding: 8px 12px; margin: 6px 0; border-radius: 4px;
+    font-size: 12.5px; color: #d8e6ff;
+  }
+  .formula em { color: #ffd27d; font-style: normal; }
+  .formula code { color: #aeb9c4; }
+
+  .note { font-size: 11.5px; color: #7c8794; line-height: 1.7; margin-top: 6px; }
+  .note b { color: #aeb9c4; font-weight: normal; }
+
+  .meta {
+    background: #1c2229; border-left: 3px solid #ffd27d; padding: 8px 12px;
+    border-radius: 4px; margin-bottom: 14px; font-size: 11.5px; color: #d8dee6; line-height: 1.7;
+  }
+  .meta a { color: #8fd3ff; text-decoration: none; }
+  .meta a:hover { text-decoration: underline; }
+
+  .good-box {
+    background: #16221c; border: 2px solid #6fd3a0; border-radius: 6px;
+    padding: 10px 14px; margin: 10px 0;
+  }
+  .good-box h3 { color: #6fd3a0; margin: 0 0 6px; font-size: 13px; }
+  .good-box ul li { padding: 2px 0; font-size: 12px; }
+
+  .bad-box {
+    background: #22171a; border: 2px solid #ff7d7d; border-radius: 6px;
+    padding: 10px 14px; margin: 10px 0;
+  }
+  .bad-box h3 { color: #ff7d7d; margin: 0 0 6px; font-size: 13px; }
+  .bad-box ul li { padding: 2px 0; font-size: 12px; }
+
+  .warn-box {
+    background: #22201a; border: 2px solid #ffce4d; border-radius: 6px;
+    padding: 10px 14px; margin: 10px 0;
+  }
+  .warn-box h3 { color: #ffce4d; margin: 0 0 6px; font-size: 13px; }
+  .warn-box ul li { padding: 2px 0; font-size: 12px; }
+
+  .sweet-box {
+    background: #11202b; border: 2px solid #5aafff; border-radius: 6px;
+    padding: 10px 14px; margin: 10px 0;
+  }
+  .sweet-box h3 { color: #5aafff; margin: 0 0 6px; font-size: 13px; }
+  .sweet-box p { margin: 4px 0; font-size: 12px; }
+  .sweet-box ul li { padding: 2px 0; font-size: 12px; }
+
+  .bug-box {
+    background: #221b16; border: 2px solid #ffce4d; border-radius: 6px;
+    padding: 12px 16px; margin: 10px 0;
+  }
+  .bug-box h3 { color: #ffce4d; margin: 0 0 8px; font-size: 13.5px; }
+  .bug-box p { margin: 5px 0; font-size: 12px; }
+  .bug-box code { font-size: 11.5px; }
+
+  .change {
+    background: #11161b; border-left: 3px solid #5aafff; border-radius: 4px;
+    padding: 8px 12px; margin: 8px 0; font-size: 12px;
+  }
+  .change h4 { color: #8fd3ff; margin: 0 0 4px; font-size: 12.5px; }
+  .change p { margin: 4px 0; }
+  .change.fix {
+    border-left-color: #ffce4d;
+  }
+  .change.fix h4 { color: #ffce4d; }
+
+  .footer { color: #7c8794; font-size: 11.5px; margin-top: 22px; line-height: 1.8; border-top: 1px solid #2c343d; padding-top: 12px; }
+  .footer a { color: #8fd3ff; text-decoration: none; }
+  .footer a:hover { text-decoration: underline; }
+  .footer ul { margin: 4px 0 4px 18px; padding: 0; }
+  .footer ul li { padding: 1px 0; }
+
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 10.5px; margin-left: 4px; }
+  .pill.ok { background: #6fd3a0; color: #14181d; }
+  .pill.warn { background: #ffce4d; color: #14181d; }
+  .pill.bad { background: #ff7d7d; color: #14181d; }
+  .pill.sweet { background: #5aafff; color: #14181d; }
+  .pill.next { background: #2c343d; color: #aeb9c4; }
+</style>
+</head>
+<body>
+  <h1>段階3 (α) Step C 完成 + 守備 AI 構造改善 総括</h1>
+  <p class="sub">
+    守備 AI 構造改善 3 段プラン (A/B/C) のうち <b>Step C 完成</b>。
+    本レポートは Step C 単独ではなく、<b>段階3 (α) 全体（A + B + C）の完成レポート</b>として、
+    3 つの構造的問題（threat 依存 / ガード切替コスト 0F / 一方的試合）の
+    解消度を機械的観測とともに総括する。
+    あわせて Step C 実装中に発覚した既存バグ
+    （<code>tools/verify.js</code> の ELEM stub 不足により Step B 観測時に
+    <code>guardCommitment</code> が実は無効化されていた件）の経緯も記載する。
+  </p>
+
+  <div class="meta">
+    <b>関連</b>:
+    <a href="2026-05-27-defensive-ai-stepA.html">2026-05-27 Step A 配管</a> ／
+    <a href="2026-05-27-defensive-ai-stepB.html">2026-05-27 Step B（数値は要訂正、冒頭 panel 参照）</a> ／
+    <a href="2026-05-26-perception-lag.html">2026-05-26 perception-lag 中間</a> ／
+    <a href="2026-05-26-phase3-complete.html">2026-05-26 段階3 完成</a> ／
+    プラン: <code>~/.claude/plans/ai-gleaming-hollerith.md</code> ／
+    <a href="../TASKS.md">TASKS.md</a> ／ <a href="../LOG.md">LOG.md</a>
+  </div>
+
+  <!-- ===== 1. 背景 ===== -->
+  <div class="panel">
+    <h2>1. 背景</h2>
+    <p>
+      <a href="2026-05-26-perception-lag.html">perception-lag 中間</a> で抽出された
+      守備 AI 構造的問題 3 点に対する 3 段プラン (A/B/C)。Step C は最後の段で、
+      <b>ガード切替コスト = 0F</b> 問題に対する処置を担う。
+    </p>
+    <ul>
+      <li>
+        <b>#1 threatened 依存</b> — Step B で <code>guardScore</code> 式を組み替え、
+        threat 依存比を 3.67× → 2.29× に圧縮（後述するバグの影響で当時の数値の解釈は要訂正）
+      </li>
+      <li>
+        <b>#2 ガード切替コスト = 0F</b> — Step C で対応（本レポート）
+      </li>
+      <li>
+        <b>#3 一方的試合</b> — #1 と #2 の合成効果として観察
+      </li>
+    </ul>
+    <p>
+      Step C の目的は、<b>guardSwapStartup を 0 → 3F</b> に引き上げ、
+      ガードを「上下打ち分けで意味を持つ姿勢」に変質させること。
+      副次的に Step C 実装中に既存バグを発見・修正したため、
+      Step C 観測は実質的に <b>guardCommitment + guardSwapStartup の同時初実効化</b>として扱う必要がある。
+    </p>
+  </div>
+
+  <!-- ===== 2. 実装内容 ===== -->
+  <div class="panel">
+    <h2>2. 実装内容</h2>
+
+    <h3>2-1. 主目的: ガード切替コストの導入</h3>
+    <div class="change">
+      <h4><code>src/index.html</code> — MOVES のガード 6 種</h4>
+      <p>l.286-289, l.300-301 周辺 6 箇所:</p>
+      <p><code>guardSwapStartup: 0</code> &nbsp;→&nbsp; <code>guardSwapStartup: <b>3</b></code></p>
+      <p class="note">
+        対象: <code>guardH_up</code>, <code>guardH_dn</code>, <code>guardE_up</code>, <code>guardE_dn</code>,
+        およびその構え保持系。ガードの上下切替時に 3F の startup を要求する。
+        Step B までは切替コスト 0F で「毎フレーム自由に上下を変えられる」状態だった。
+      </p>
+    </div>
+    <div class="change">
+      <h4><code>src/index.html</code> — UI スライダー初期値の同期</h4>
+      <p>l.228 付近: <code>id="gsw" value="0"</code> &nbsp;→&nbsp; <code>id="gsw" value="<b>3</b>"</code></p>
+      <p class="note">
+        MOVES 既定値と UI 初期表示を一致させる。手動操作で 0F に戻して比較することも可能。
+      </p>
+    </div>
+
+    <h3>2-2. 副次の修正: <code>tools/verify.js</code> ELEM stub 不足</h3>
+    <div class="change fix">
+      <h4><code>tools/verify.js</code> l.12-17 周辺の ELEM stub に未登録キーを追加</h4>
+      <p>追加: <code>gcP: { value: "50" }</code>, <code>gcE: { value: "50" }</code>, <code>gsw: { value: "3" }</code></p>
+      <p class="note">
+        修正前: <code>build()</code> 内で <code>parseFloat(ELEM.gcP.value)</code> が
+        <code>undefined</code> → NaN → <code>|| 0</code> フォールバックされ、
+        MOVES.guardSwapStartup と PERS.guardCommitment が両方 0 で上書きされていた。
+        修正後: 正しく <b>gc=0.5 / gsw=3</b> がセットされる。
+      </p>
+    </div>
+  </div>
+
+  <!-- ===== 3. 重要な発見: 既存バグの発覚 ===== -->
+  <div class="panel">
+    <h2>3. 重要な発見: 既存バグの発覚 — Step B の数値は部分的に無効</h2>
+
+    <div class="bug-box">
+      <h3>⚠ ELEM stub 不足による guardCommitment の長期無効化</h3>
+      <p>
+        Step C の実装で <code>gsw</code> を verify.js から動かそうとした際、
+        ELEM stub に <code>gsw</code> キーが存在しないことが発覚。
+        同時に <code>gcP</code> / <code>gcE</code> も未登録であることがわかった。
+      </p>
+      <p>
+        これは <b>Step A → Step B を通じて存在していた既存バグ</b>。
+        Step B 時点で <code>PERS.{P,E}.guardCommitment</code> を 0 → 0.5 に変更したが、
+        verify.js 側では <code>build()</code> 内で NaN → <code>|| 0</code> フォールバックされ、
+        <b>実際は guardCommitment = 0 のまま観測されていた</b>。
+      </p>
+      <p>
+        つまり <a href="2026-05-27-defensive-ai-stepB.html">Step B レポート</a> の数値は
+        本来意図した「guardScore 式変更 + guardCommitment 有効化」の効果ではなく、
+        <b>guardScore 式変更だけの効果</b>（threat 依存比 3.67× → 2.29×）を示していた。
+        Step B レポート冒頭にも警告 panel を追加してある。
+      </p>
+      <p>
+        Step C の数値は <b>(guardCommitment = 0.5) + (guardSwapStartup = 3) が初めて両方実効化された</b>
+        結果として扱う必要がある。以降の比較は「Step B → Step C」と書いてあっても、
+        実態は「guardScore 式変更のみ → guardScore 式変更 + guardCommitment + guardSwapStartup」の差分である。
+      </p>
+    </div>
+
+    <p class="note">
+      <b>教訓</b>: <code>tools/verify.js</code> の ELEM stub は <code>src/index.html</code> の
+      DOM に対する mock であり、UI 要素を追加するたびに stub 側も同期する必要がある。
+      Identity Check は「式変更時の挙動一致」しか見ていないため、stub 不足のような
+      <b>入力欠落型のバグ</b>は素通りする。
+    </p>
+  </div>
+
+  <!-- ===== 4. 観測: 非対称 lag 7 段スキャン ===== -->
+  <div class="panel">
+    <h2>4. 観測: 非対称 baseP / baseE × lag 7 段（50 戦/段、Step B → Step C diff）</h2>
+
+    <table>
+      <thead>
+        <tr>
+          <th>lag (p/d)</th>
+          <th>勝敗 (P/E/時間切れ)</th>
+          <th>KO 中央 F</th>
+          <th>clean</th>
+          <th>block (chip)</th>
+          <th>block/clean</th>
+          <th>殴り合い%</th>
+          <th>ガ切替/試合</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="head">0/0</td>
+          <td class="num">0/2/48 → 3/2/45</td>
+          <td class="num">755 → 675</td>
+          <td class="num">401 → 383</td>
+          <td class="num">979(150) → 1097(201)</td>
+          <td class="warn">2.44 → 2.86</td>
+          <td class="num">10.6 → 9.5</td>
+          <td class="num">18.2 → 18.4</td>
+        </tr>
+        <tr>
+          <td class="head">1/2</td>
+          <td class="num">11/10/29 → 17/15/18</td>
+          <td class="num">632 → 611</td>
+          <td class="num">642 → 678</td>
+          <td class="num">747(144) → 751(143)</td>
+          <td class="num">1.16 → 1.11</td>
+          <td class="num">14.5 → 14.6</td>
+          <td class="improve">16.8 → 10.6 (-37%)</td>
+        </tr>
+        <tr>
+          <td class="sweet">2/4</td>
+          <td class="sweet">34/15/1 → 32/15/3</td>
+          <td class="sweet">574 → 537</td>
+          <td class="sweet">797 → 818</td>
+          <td class="sweet">441(122) → 478(120)</td>
+          <td class="sweet">0.55 → 0.58</td>
+          <td class="sweet">17.5 → 17.6</td>
+          <td class="sweet">8.3 → 6.7</td>
+        </tr>
+        <tr>
+          <td class="head">3/5</td>
+          <td class="num">29/21/0 → 35/15/0</td>
+          <td class="num">433 → 382</td>
+          <td class="num">807 → 792</td>
+          <td class="num">187(58) → 173(61)</td>
+          <td class="warn">0.23 → 0.22</td>
+          <td class="num">20.8 → 21.5</td>
+          <td class="num">3.9 → 3.2</td>
+        </tr>
+        <tr>
+          <td class="head">4/6</td>
+          <td class="num">35/15/0 → 33/17/0</td>
+          <td class="num">340 → 359</td>
+          <td class="num">803 → 808</td>
+          <td class="num">86(36) → 102(35)</td>
+          <td class="warn">0.11 → 0.13</td>
+          <td class="num">23.3 → 23.4</td>
+          <td class="num">2.2 → 1.9</td>
+        </tr>
+        <tr>
+          <td class="head">5/8</td>
+          <td class="num">34/16/0 → 39/11/0</td>
+          <td class="num">389 → 384</td>
+          <td class="num">840 → 824</td>
+          <td class="num">80(31) → 85(34)</td>
+          <td class="warn">0.10 → 0.10</td>
+          <td class="num">21.8 → 21.8</td>
+          <td class="num">2.6 → 2.6</td>
+        </tr>
+        <tr>
+          <td class="head">7/10</td>
+          <td class="num">30/20/0 → 33/17/0</td>
+          <td class="num">333 → 350</td>
+          <td class="num">820 → 822</td>
+          <td class="num">66(24) → 49(19)</td>
+          <td class="warn">0.08 → 0.06</td>
+          <td class="num">22.5 → 22.5</td>
+          <td class="num">2.1 → 1.7</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="note">
+      <b>注:</b> 「Step B → Step C」と表記しているが、3 章で述べた通り Step B 側の数値は
+      実態としては「guardScore 式変更のみ」の効果である。lag=2/4 行を青背景でスイートスポットとして強調。
+    </p>
+  </div>
+
+  <!-- ===== 5. 観測: 性格 3 ケース × lag 2 段 ===== -->
+  <div class="panel">
+    <h2>5. 観測: 性格パターン 3 ケース × lag=(3,5)(5,8)</h2>
+
+    <table>
+      <thead>
+        <tr>
+          <th>ケース</th><th>p/d</th>
+          <th>勝敗 (P/E/時間切れ)</th>
+          <th>KO 中央 F</th>
+          <th>clean</th>
+          <th>block (chip)</th>
+          <th>block/clean</th>
+          <th>ガ切替/試合</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="lblL">両攻撃</td><td class="head">3/5</td>
+          <td class="num">31/19/0 → 30/20/0</td>
+          <td class="num">291 → 298</td>
+          <td class="num">861 → 871</td>
+          <td class="num">50(22) → 48(17)</td>
+          <td class="num">0.058 → 0.055</td>
+          <td class="num">0.4 → 0.3</td>
+        </tr>
+        <tr>
+          <td class="lblL">両攻撃</td><td class="head">5/8</td>
+          <td class="num">25/25/0 → 25/25/0</td>
+          <td class="num">310 → 310</td>
+          <td class="num">941 → 953</td>
+          <td class="num">23(12) → 22(11)</td>
+          <td class="num">0.024 → 0.023</td>
+          <td class="num">0.3 → 0.3</td>
+        </tr>
+        <tr>
+          <td class="lblL"><b>両守備</b></td><td class="head">3/5</td>
+          <td class="improve">8/4/38 → 20/12/18</td>
+          <td class="num">648 → 702</td>
+          <td class="num">503 → 583</td>
+          <td class="num">351(108) → 450(148)</td>
+          <td class="improve">0.70 → 0.77</td>
+          <td class="improve">43.8 → 27.5 (-37%)</td>
+        </tr>
+        <tr>
+          <td class="lblL"><b>両守備</b></td><td class="head">5/8</td>
+          <td class="num">20/11/19 → 15/26/9</td>
+          <td class="num">632 → 545</td>
+          <td class="num">692 → 693</td>
+          <td class="num">201(79) → 250(102)</td>
+          <td class="num">0.29 → 0.36</td>
+          <td class="improve">34.4 → 17.7 (-49%)</td>
+        </tr>
+        <tr>
+          <td class="lblL">攻 vs 守</td><td class="head">3/5</td>
+          <td class="num">33/14/3 → 37/11/2</td>
+          <td class="num">477 → 451</td>
+          <td class="num">778 → 763</td>
+          <td class="num">292(79) → 256(87)</td>
+          <td class="num">0.38 → 0.34</td>
+          <td class="num">6.3 → 4.8</td>
+        </tr>
+        <tr>
+          <td class="lblL">攻 vs 守</td><td class="head">5/8</td>
+          <td class="num">46/4/0 → 45/5/0</td>
+          <td class="num">393 → 377</td>
+          <td class="num">756 → 716</td>
+          <td class="num">121(39) → 125(41)</td>
+          <td class="num">0.16 → 0.17</td>
+          <td class="num">4.2 → 3.1</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="note">
+      両守備型 lag=3/5 と 5/8 の改善が顕著（緑強調）。両攻撃型はほぼ無変化（df=0.2 で
+      guard score が小さい域に留まるため guardCommitment の効果が薄い — 設計通り）。
+    </p>
+  </div>
+
+  <!-- ===== 6. 構造的解釈 ===== -->
+  <div class="panel">
+    <h2>6. 構造的解釈</h2>
+
+    <div class="good-box">
+      <h3>良い変化（緑）— guardCommitment が初めて実効化された結果</h3>
+      <ul>
+        <li>
+          <b>両守備型での顕著な改善</b>:
+          ガ切替 43.8 → 27.5（lag=3/5、-37%）、34.4 → 17.7（lag=5/8、-49%）、
+          block/clean 0.70 → 0.77、時間切れ 38 → 18（lag=3/5）・19 → 9（lag=5/8）。
+          guardCommitment の継続バイアスが df=0.8 の guard score 拡大に対して
+          <b>振動抑制方向に効いている</b>
+        </li>
+        <li>
+          <b>両守備型の質的転換</b>: Step B 時点の「過剰振動（ガ切替 43.8 / 試合）」から、
+          Step C で「機能的な使い分け（27.5 / 試合）」へ振る舞いの質が変わった。
+          ガード切替自体は半減した一方で block 数は逆増（351 → 450）しており、
+          「切替の量が減って、効いている切替の比率が上がった」読み
+        </li>
+        <li>
+          <b>非対称 lag=1/2 の改善</b>:
+          ガ切替 16.8 → 10.6（-37%）、時間切れ 29 → 18、P+E 勝 21 → 32。
+          lag=1/2 帯で「ガード継続バイアスが迷い時間を切り詰める」効果が出ている
+        </li>
+        <li>
+          <b>R3 の懸念が機能側に振れた</b>:
+          Step B 時点で「guardCommitment が df=0.8 拡大に対して弱い」懸念があったが、
+          Step C で guardSwapStartup=3 と組み合わさることで継続バイアスが活き、
+          振動が抑制された
+        </li>
+      </ul>
+    </div>
+
+    <div class="warn-box">
+      <h3>guardSwapStartup の効果は副次的（黄）</h3>
+      <ul>
+        <li>
+          <b>主役は guardCommitment</b>。改善の大部分は両守備型のガ切替低下と block/clean 上昇に集中しており、
+          これは継続バイアス起因と解釈するのが自然
+        </li>
+        <li>
+          <b>gsw=3 単独の効果は chip 比率の微増程度</b>:
+          lag=0/0 の chip 率 15.3%（150/979）→ 18.3%（201/1097）に上昇。
+          切替に startup が乗ることでガードの「上下不一致」が増えて chip 経由の削りが微増した、というマイルドな効果
+        </li>
+        <li>
+          <b>非対称 lag>=3 帯では gsw=3 / gc=0.5 とも効果が小さい</b>:
+          知覚遅延が大きい領域は「機械的にガードが成立しにくい」設計通りの構造で、
+          上下打ち分けの読み合いが成立する手前で被弾が決まってしまう
+        </li>
+      </ul>
+    </div>
+
+    <div class="bad-box">
+      <h3>悪い変化・未解消（赤）</h3>
+      <ul>
+        <li>
+          <b>lag=0/0 時間切れ 48/50 → 45/50（90%）</b>:
+          わずかに改善はしたが、依然プラン R1 基準（35% 未満）を大幅超。
+          無遅延条件では攻撃側が読まれすぎて当てに行けず、
+          <b>Step C 単独では構造的に解決不能</b>と確定
+        </li>
+        <li>
+          <b>非対称 lag>=3 の block/clean &lt; 0.5</b>（0.22 / 0.13 / 0.10 / 0.06）:
+          Step B から実質変化なし。知覚遅延が大きい帯で守備が機械的に成立しない問題は残存。
+          ただしこれは設計通りの構造であり、lag 既定値の選択側で吸収すべき
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ===== 7. 5 劇の再現性 ===== -->
+  <div class="panel">
+    <h2>7. 5 劇の再現性</h2>
+
+    <table>
+      <thead>
+        <tr><th>劇</th><th>観測指標</th><th>Step C 状況</th><th>判定</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="lblL">① ジャブの賭け</td>
+          <td class="dim">jab のガード率 / 回避率</td>
+          <td class="lblL">lag=2/4: ガード 22% / 回避 47%</td>
+          <td class="ok">再現</td>
+        </tr>
+        <tr>
+          <td class="lblL">② ストレートは見てガード</td>
+          <td class="dim">str vs jab のガード率差</td>
+          <td class="lblL">lag=2/4: str 49% vs jab 22%（差 27pt）</td>
+          <td class="ok">再現</td>
+        </tr>
+        <tr>
+          <td class="lblL">③ 強ストレート vs ジャブ割り込み</td>
+          <td class="dim">hvy whiff% / jab counter</td>
+          <td class="lblL">lag=3/5: hvy whiff 65% / jab counter 390 件</td>
+          <td class="ok">強く再現</td>
+        </tr>
+        <tr>
+          <td class="lblL">④ フェイント誘発</td>
+          <td class="dim">fnt 試行数</td>
+          <td class="lblL">両守備型 3/5: 434 試行（Step B 574 → 減少だが依然最多）</td>
+          <td class="ok">再現</td>
+        </tr>
+        <tr>
+          <td class="lblL">⑤ チップ崩し</td>
+          <td class="dim">block 中の chip 比</td>
+          <td class="lblL">lag=2/4: 120/478 = 25%</td>
+          <td class="ok">再現</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="note">
+      <b>全 5 劇すべて保持</b>。Step C の式変更で観察可能な事象が削れていないことを確認。
+      fnt 試行数の減少は「攻撃側がフェイント無しでも当てられる」改善方向の表れであり、
+      ④ の機能損傷ではない。
+    </p>
+  </div>
+
+  <!-- ===== 8. 健全な基準テーブル ===== -->
+  <div class="panel">
+    <h2>8. 健全な基準テーブル（Step C 版）</h2>
+
+    <table>
+      <thead>
+        <tr>
+          <th>シナリオ</th><th>時間切れ &lt;35%</th>
+          <th>KO 中央 300-600F</th><th>block/clean &gt;0.5</th>
+          <th>殴り合い &lt;40%</th><th>5 劇</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="lblL">非対称 0/0</td>
+          <td class="warn">❌ 90%</td><td class="dim">— (675F)</td>
+          <td class="ok">✅ 2.86</td><td class="ok">✅ 9.5%</td>
+          <td class="num">△</td>
+        </tr>
+        <tr>
+          <td class="lblL">非対称 1/2</td>
+          <td class="num">⚠ 36%</td><td class="num">⚠ 611F</td>
+          <td class="ok">✅ 1.11</td><td class="ok">✅ 14.6%</td>
+          <td class="ok">✅</td>
+        </tr>
+        <tr>
+          <td class="sweet">非対称 2/4</td>
+          <td class="sweet">✅ 6%</td><td class="sweet">✅ 537F</td>
+          <td class="sweet">✅ 0.58</td><td class="sweet">✅ 17.6%</td>
+          <td class="sweet">✅</td>
+        </tr>
+        <tr>
+          <td class="lblL">非対称 3/5</td>
+          <td class="ok">✅ 0%</td><td class="ok">✅ 382F</td>
+          <td class="warn">❌ 0.22</td><td class="ok">✅ 21.5%</td>
+          <td class="ok">✅</td>
+        </tr>
+        <tr>
+          <td class="lblL">非対称 5/8</td>
+          <td class="ok">✅ 0%</td><td class="ok">✅ 384F</td>
+          <td class="warn">❌ 0.10</td><td class="ok">✅ 21.8%</td>
+          <td class="ok">✅</td>
+        </tr>
+        <tr>
+          <td class="lblL">両攻撃 3/5</td>
+          <td class="ok">✅ 0%</td><td class="num">⚠ 298F</td>
+          <td class="warn">❌ 0.055</td><td class="ok">✅ 28.5%</td>
+          <td class="num">△</td>
+        </tr>
+        <tr>
+          <td class="lblL">両守備 3/5</td>
+          <td class="num">⚠ 36%</td><td class="ok">✅ 702F</td>
+          <td class="ok">✅ 0.77</td><td class="ok">✅ 11.2%</td>
+          <td class="ok">✅</td>
+        </tr>
+        <tr>
+          <td class="lblL">両守備 5/8</td>
+          <td class="ok">✅ 18%</td><td class="ok">✅ 545F</td>
+          <td class="warn">❌ 0.36</td><td class="ok">✅ 12.5%</td>
+          <td class="ok">✅</td>
+        </tr>
+        <tr>
+          <td class="lblL">攻 vs 守 3/5</td>
+          <td class="ok">✅ 4%</td><td class="ok">✅ 451F</td>
+          <td class="warn">❌ 0.34</td><td class="ok">✅ 18.3%</td>
+          <td class="ok">✅</td>
+        </tr>
+        <tr>
+          <td class="lblL">攻 vs 守 5/8</td>
+          <td class="ok">✅ 0%</td><td class="ok">✅ 377F</td>
+          <td class="warn">❌ 0.17</td><td class="ok">✅ 18.7%</td>
+          <td class="ok">✅</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="sweet-box">
+      <h3>スイートスポット: lag = (p=2, d=4) を維持</h3>
+      <p>
+        Step C 後も <b>lag=2/4 は 5 基準同時クリア</b>を維持。
+        時間切れ 6%、KO 中央 537F、block/clean 0.58、殴り合い 17.6%、5 劇すべて。
+        Step C の式変更を通しても破綻しない安定領域として確定。
+      </p>
+    </div>
+  </div>
+
+  <!-- ===== 9. R1 / R2 / R3 最終判定 ===== -->
+  <div class="panel">
+    <h2>9. R1 / R2 / R3 最終判定</h2>
+
+    <table>
+      <thead>
+        <tr><th>ID</th><th>内容</th><th>Step B 状態</th><th>Step C 状態</th><th>最終判定</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="head">R1</td>
+          <td class="lblL">lag=0/0 時間切れ過多</td>
+          <td class="warn">❌ 48/50 (96%)</td>
+          <td class="warn">⚠ 45/50 (90%)</td>
+          <td class="lblL">
+            <b>未解消だが改善方向</b>。lag=0/0 は攻撃が完全に読まれる構造的泥沼で、
+            Step C 単独では解決不能と確定。lag 既定値側で吸収するか、
+            別レイヤー（フェイント補強 / 距離由来の不確実性）で対応する領域
+          </td>
+        </tr>
+        <tr>
+          <td class="head">R2</td>
+          <td class="lblL">Step C 起因の KO 異常増</td>
+          <td class="dim">未発火（Step C 未実施）</td>
+          <td class="ok">✅ 未発火</td>
+          <td class="lblL">
+            フェイント効きすぎパターンなし。
+            fnt 試行数は Step B 比でむしろ減少（攻撃側がフェイント無しでも当てられる改善側の表れ）。
+            上下打ち分けが極端な KO 量産を生む懸念は実観測で否定された
+          </td>
+        </tr>
+        <tr>
+          <td class="head">R3</td>
+          <td class="lblL">guardCommitment と df の効果重複</td>
+          <td class="num">▲ 要観察</td>
+          <td class="ok">✅ 機能側に振れた</td>
+          <td class="lblL">
+            両守備型ガ切替 43.8 → 27.5、block/clean 0.70 → 0.77、時間切れ 38 → 18。
+            「振動」懸念は guardSwapStartup=3 と guardCommitment=0.5 の組み合わせで
+            「機能」側に転換した。質的転換として観測済み
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ===== 10. 段階3 (α) 全体総括 ===== -->
+  <div class="panel">
+    <h2>10. 段階3 (α) 全体総括</h2>
+
+    <table>
+      <thead>
+        <tr><th>#</th><th>問題</th><th>解消手段</th><th>解消度</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="head">#1</td>
+          <td class="lblL">threatened フラグ依存</td>
+          <td class="lblL">Step B: guardScore 式組み替え（threat 依存比 3.67× → 2.29×）</td>
+          <td class="ok">✅ 構造的に解消</td>
+        </tr>
+        <tr>
+          <td class="head">#2</td>
+          <td class="lblL">ガード切替コスト = 0F</td>
+          <td class="lblL">Step C: guardSwapStartup 0 → 3F + guardCommitment 0 → 0.5</td>
+          <td class="ok">✅ 構造的に解消</td>
+        </tr>
+        <tr>
+          <td class="head">#3</td>
+          <td class="lblL">一方的試合</td>
+          <td class="lblL">#1 + #2 の合成効果</td>
+          <td class="num">⚠ 部分解消</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="note">
+      #3 の部分解消の内訳: <b>lag>=1 帯では均衡化が成立</b>（lag=2/4 で P/E=32/15、lag=3/5 で 35/15）
+      した一方、<b>lag=0/0 は構造的不能</b>として残った。
+      これは perception-lag 設計の前提（lag を持つことが守備成立の必要条件）と整合的であり、
+      lag 既定値選択の問題に帰着する。
+    </p>
+
+    <h3>残課題</h3>
+    <ol>
+      <li>
+        <b>lag=0/0 時間切れ 90%</b>: Step C 単独では到達不能と確定。
+        lag を完全に 0 にする運用自体の見直し領域
+      </li>
+      <li>
+        <b>lag&gt;=3 帯の block/clean &lt; 0.5</b>:
+        知覚遅延が大きいとガード機能が機械的に成立しにくい構造（設計通り）。
+        lag 既定値選択で吸収すべき
+      </li>
+      <li>
+        <b>両守備型のガ切替 27.5 回/試合</b>:
+        Step B 比で半減したが依然多い。
+        guardCommitment 感度分析（0.5 / 0.7 / 0.9）で追加検証推奨
+      </li>
+    </ol>
+  </div>
+
+  <!-- ===== 11. 次のステップ: (B) lag 既定値再決定 ===== -->
+  <div class="panel">
+    <h2>11. 次のステップ: (B) lag 既定値再決定</h2>
+
+    <table>
+      <thead>
+        <tr><th>順位</th><th>候補 (p/d)</th><th>根拠</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="sweet">第 1 候補</td>
+          <td class="sweet">(2, 4)</td>
+          <td class="lblL">
+            Step B / C を通じて唯一 <b>5 基準同時クリア</b>。
+            block/clean 0.58、KO 中央 537F、時間切れ 6%、ガ切替 6.7 回、5 劇全て。
+            既定値として安定領域
+          </td>
+        </tr>
+        <tr>
+          <td class="hi">第 2 候補</td>
+          <td class="num">(3, 5)</td>
+          <td class="lblL">
+            時間切れ 0%、KO 中央 382F、決着率最良。
+            ただし block/clean 0.22 で守備が機械的に弱い帯。
+            「決着重視」プリセット用
+          </td>
+        </tr>
+        <tr>
+          <td class="num">補助候補</td>
+          <td class="num">(1, 2)</td>
+          <td class="lblL">
+            guardCommitment の効果が最大に出る帯（ガ切替 -37%）。
+            時間切れ 36% でやや高めだが、guardCommitment の威力が見える領域。
+            「読み合いプリセット」用
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="sweet-box">
+      <h3>推奨運用</h3>
+      <p>
+        既定 <b>(p=2, d=4)</b> を base にし、ユーザー選択で
+        <b>(p=1, d=2)</b> と <b>(p=3, d=5)</b> をプリセットとして併置する案。
+        段階3 (α) 完了の節目として、perception-lag (B) ルート（lag 既定値再決定）へ進む。
+      </p>
+    </div>
+  </div>
+
+  <div class="footer">
+    <b>参照ファイル</b>
+    <ul>
+      <li>
+        <code>src/index.html</code> —
+        MOVES の <code>guardSwapStartup</code>: 0 → 3 (l.286-289, 300-301) ／
+        UI スライダー <code>gsw</code> 初期値 0 → 3 (l.228)
+      </li>
+      <li>
+        <code>tools/verify.js</code> — ELEM stub に <code>gcP</code> / <code>gcE</code> / <code>gsw</code> 追加 (l.12-17 周辺)
+      </li>
+      <li>プラン: <code>~/.claude/plans/ai-gleaming-hollerith.md</code></li>
+      <li><a href="2026-05-27-defensive-ai-stepA.html">reports/2026-05-27-defensive-ai-stepA.html</a>（Step A 配管 + Identity Check）</li>
+      <li><a href="2026-05-27-defensive-ai-stepB.html">reports/2026-05-27-defensive-ai-stepB.html</a>（Step B / 数値の解釈は冒頭 panel 参照）</li>
+      <li><a href="2026-05-26-perception-lag.html">reports/2026-05-26-perception-lag.html</a>（守備 AI 構造的問題 3 点の出所）</li>
+      <li><a href="2026-05-26-phase3-complete.html">reports/2026-05-26-phase3-complete.html</a>（5 劇再現性の比較元）</li>
+      <li><a href="../TASKS.md">TASKS.md</a> ／ <a href="../LOG.md">LOG.md</a></li>
+    </ul>
+  </div>
+
+</body>
+</html>

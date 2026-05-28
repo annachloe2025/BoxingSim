@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>段階2: 頭/腹打ち分けの完成</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; padding: 18px 22px 60px;
+    background: #14181d; color: #d8dee6;
+    font-family: "Consolas", "SFMono-Regular", "Courier New", monospace;
+    font-size: 13px; line-height: 1.55;
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; color: #8fd3ff; }
+  .sub { color: #7c8794; margin: 0 0 14px; font-size: 12px; line-height: 1.7; }
+  .sub b { color: #d8dee6; font-weight: normal; }
+
+  .panel {
+    background: #1c2229; border: 1px solid #2c343d; border-radius: 8px;
+    padding: 12px 16px; margin-bottom: 14px;
+  }
+  .panel h2 {
+    font-size: 14px; margin: 0 0 10px; color: #8fd3ff; letter-spacing: .03em;
+    border-bottom: 1px solid #2c343d; padding-bottom: 6px;
+  }
+  .panel h3 { font-size: 12.5px; margin: 12px 0 6px; color: #aeb9c4; }
+  .panel p { margin: 6px 0; }
+  .panel ul { margin: 6px 0 6px 18px; padding: 0; }
+  .panel ul li { padding: 1px 0; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; margin: 6px 0; }
+  th, td { border: 1px solid #2c343d; padding: 5px 8px; text-align: center; }
+  th { color: #9aa7b4; font-weight: normal; background: #11161b; font-size: 11.5px; letter-spacing: .03em; }
+  td.lbl { text-align: left; color: #d8dee6; }
+  td.num { color: #ffd27d; font-variant-numeric: tabular-nums; }
+  td.dim { color: #7c8794; }
+  td.warn { color: #ff7d7d; font-weight: bold; }
+  td.ok { color: #6fd3a0; font-weight: bold; }
+  td.hi { color: #5aafff; font-weight: bold; }
+  td.head { color: #8fd3ff; }
+  td.body { color: #ffce4d; }
+
+  code {
+    background: #11161b; padding: 1px 6px; border-radius: 3px;
+    color: #aeb9c4; font-size: 12px;
+  }
+  .formula {
+    background: #11161b; border-left: 3px solid #5aafff;
+    padding: 8px 12px; margin: 6px 0; border-radius: 4px;
+    font-size: 12.5px; color: #d8e6ff;
+  }
+  .note { font-size: 11.5px; color: #7c8794; line-height: 1.7; margin-top: 6px; }
+  .note b { color: #aeb9c4; font-weight: normal; }
+
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 10.5px; margin-left: 4px; }
+  .pill.a { background: #1f6feb; color: #fff; }
+  .pill.b { background: #ffce4d; color: #14181d; }
+  .pill.c { background: #6fd3a0; color: #14181d; }
+</style>
+</head>
+<body>
+  <h1>段階2: 頭/腹打ち分けの完成</h1>
+  <p class="sub">
+    日付: <b>2026-05-26 (中盤)</b> ／ 場所: <b>BoxingSim / index.html / head_body_spec.html / verify.js</b><br>
+    駆け引きロードマップ段階2 の記録。スコープを <b>頭/腹打ち分けのみ</b> に縮小し、A: データ → B: 攻撃AI → C: 守備AI で実装。
+    最終的に <b>150戦すべて時間切れ</b> という結果が出て、段階3（反応遅延 / 観測曖昧化）の動機が機械的に裏付けられた。
+  </p>
+
+  <div class="panel">
+    <h2>1. スコープ縮小: フェイントは分離</h2>
+    <p>当初は「頭/腹 + フェイント」を予定していたが、相談の結果 <b>頭/腹打ち分けのみ</b> に縮小決定。</p>
+    <p class="note">理由: フェイントは「相手の能動的な待ち状態（カウンター待ち・読み構え）を誤発火させる」道具。
+    今の FSM に「待ち状態」が無いため、先に作っても <b>損な選択肢</b> にしかならない（記憶: <code>feedback-feint-needs-bait-target</code>）。
+    設計線として「頭/腹2択 → バックステップ回避 → コーナー追い詰め → 回数制限」が次の波として記録（<code>project-head-body-stepback-corner-loop</code>）。</p>
+  </div>
+
+  <div class="panel">
+    <h2>2. 仕様書 head_body_spec.html</h2>
+    <ul>
+      <li>攻撃 <b>4種</b>・ガード <b>6種</b></li>
+      <li>▲(head) / ▼(body) symbol で完全対称命名</li>
+      <li>AI は新性格軸なし</li>
+      <li>攻撃側: <b>相手ガードの逆を狙う</b>（×1.5 / ×0.3）</li>
+      <li>守備側: <b>相手攻撃に合わせる</b>（×2.0 / ×0.5）</li>
+    </ul>
+    <p>実装3ステップ: <span class="pill a">A データと判定</span> → <span class="pill b">B 攻撃AI</span> → <span class="pill c">C 守備AI</span></p>
+  </div>
+
+  <div class="panel">
+    <h2>3. Step A: データと判定 <span class="pill a">A</span></h2>
+    <ul>
+      <li>MOVES を <b>10 → 15</b> に拡張、<code>target</code> 属性付与、▲ / ▼ symbol で命名</li>
+      <li>接触判定を <code>victimState==="ガード"</code> → <code>getGuardTarget(opp) === m.target</code> に置換</li>
+      <li>ガード硬直中の target は <code>stunTarget</code> で保持</li>
+      <li>観測に self / opponent の <code>guardTarget</code> / <code>attackTarget</code> を追加（opponent 側は ★）</li>
+      <li><code>scoreActions</code> は head 行動の score を完全保存、body 行動は <code>score=0</code> で絶対選ばれない構造に</li>
+    </ul>
+    <h3>Identity Check 完全一致</h3>
+    <p>sa = 0 / 0.5 / 1.0 すべて段階1完了時点と <b>完全一致</b>。</p>
+    <table>
+      <thead><tr><th>sa</th><th>P勝</th><th>時間切れ</th><th>ジャブ数</th><th>スタ0F合計</th></tr></thead>
+      <tbody>
+        <tr><td class="lbl">0.0</td><td class="num">4</td><td class="num">45</td><td class="num">1023</td><td class="num">18060</td></tr>
+        <tr><td class="lbl">0.5</td><td class="num">6</td><td class="num">44</td><td class="num">999</td><td class="num">12490</td></tr>
+        <tr><td class="lbl">1.0</td><td class="num">2</td><td class="num">48</td><td class="num">914</td><td class="num">51</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <h2>4. Step B: 攻撃 AI <span class="pill b">B</span></h2>
+    <p>攻撃 <code>target</code> 倍率を導入。</p>
+    <div class="formula">
+      oppGT = null → 等倍<br>
+      oppGT == m.target（ガード方向） → <em>×0.3</em><br>
+      oppGT != m.target（ガードの逆） → <em>×1.5</em>
+    </div>
+    <h3>verify.js 非対称50戦比較</h3>
+    <table>
+      <thead><tr><th>sa</th><th>P勝</th><th>時間切れ</th><th>KO 中央値</th><th>clean</th><th>block</th><th>slip</th></tr></thead>
+      <tbody>
+        <tr><td class="lbl">0.0</td><td class="ok">0 → 27</td><td class="ok">45 → 2</td><td class="num">588</td><td class="num">879</td><td class="num">430</td><td class="num">415</td></tr>
+        <tr><td class="lbl">0.5</td><td class="ok">6 → 40</td><td class="ok">44 → 6</td><td class="num">639</td><td class="num">769</td><td class="num">504</td><td class="num">510</td></tr>
+        <tr><td class="lbl">1.0</td><td class="ok">2 → 33</td><td class="ok">48 → 16</td><td class="num">690</td><td class="num">691</td><td class="num">481</td><td class="num">520</td></tr>
+      </tbody>
+    </table>
+    <h3>観察</h3>
+    <ul>
+      <li><b>body 率 ~50%</b>: 守備が head 固定でも、AI が攻撃を考えるとき相手が非ガード状態のことが多く <code>oppGT=null → 等倍 50/50</code> になる</li>
+      <li><b>slip（部位ミス）が block と同程度</b>: 守備の半分がすり抜けた = head 固定の脆さが数値化された</li>
+      <li>攻撃が通るようになり試合時間が激減（前は時間切れ多発、今は決着が普通に出る）</li>
+    </ul>
+  </div>
+
+  <div class="panel">
+    <h2>5. Step C: 守備 AI <span class="pill c">C</span> — 段階2 終了</h2>
+    <p>守備 <code>target</code> 倍率を追加。性格軸は既存5軸のまま追加なし。</p>
+    <div class="formula">
+      oppAtkT = null → <em>▲×1.2</em> / <em>▼×1.0</em><br>
+      oppAtkT = head → <em>▲×2.0</em> / <em>▼×0.5</em><br>
+      oppAtkT = body → <em>▲×0.5</em> / <em>▼×2.0</em>
+    </div>
+    <h3>verify.js 非対称50戦比較</h3>
+    <table>
+      <thead><tr><th>sa</th><th>P勝</th><th>E勝</th><th>時間切れ</th><th>clean</th><th>block</th><th>slip</th></tr></thead>
+      <tbody>
+        <tr><td class="lbl">0.0</td><td class="num">0</td><td class="num">0</td><td class="warn">50</td><td class="num">447</td><td class="warn">1881</td><td class="warn">106</td></tr>
+        <tr><td class="lbl">0.5</td><td class="num">0</td><td class="num">0</td><td class="warn">50</td><td class="num">334</td><td class="warn">1874</td><td class="warn">108</td></tr>
+        <tr><td class="lbl">1.0</td><td class="num">0</td><td class="num">0</td><td class="warn">50</td><td class="num">269</td><td class="warn">1491</td><td class="warn">92</td></tr>
+      </tbody>
+    </table>
+    <h3>観察</h3>
+    <ul>
+      <li><b>150戦すべて時間切れ</b>。守備が常に追従してダメージがほぼ通らない</li>
+      <li><code>block : slip ≈ 95 : 5</code> → 守備の追従精度95%。残り 5% は <code>decideEvery=3F</code> の判定ラグに起因</li>
+      <li>body 率は両者とも 49〜52% — 「逆を狙う / 合わせる」が釣り合い、最終的に 50/50 ランダムに見える</li>
+      <li>HP は両者高残（70〜90%）で時間切れ。スタ0F は依然多いがそれでも決着せず</li>
+    </ul>
+    <p class="note">これは予想通り「<b>完全公開＋無遅延 → 守備が常に勝つ → 攻撃通らず</b>」の状態。</p>
+  </div>
+
+  <div class="panel">
+    <h2>6. 段階3 の動機が機械的に裏付けられた</h2>
+    <p>defender が <b>瞬時に追従できるから時間切れになる</b>。
+    これで段階3（反応遅延 / 観測曖昧化）の必要性が、感覚ではなく数値（150 / 150 時間切れ）で示された。</p>
+    <p>段階2 完成後の次の線（記憶 <code>project-head-body-stepback-corner-loop</code> の予想）はまだ表面化していない。
+    バックステップで両択回避するより、その場ガードで両択防御できてしまうため。
+    <b>コーナー機構を入れる前に、段階3（反応遅延）でバランスを変える方が筋</b>、というのがこの日の結論。</p>
+  </div>
+</body>
+</html>

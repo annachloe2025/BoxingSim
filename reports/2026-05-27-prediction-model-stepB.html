@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BoxingSim 段階4 Step B: scoreActions の soft 化 + 観測 &gt; 予測原則 2026-05-27</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; padding: 18px 22px 60px;
+    background: #14181d; color: #d8dee6;
+    font-family: "Consolas", "SFMono-Regular", "Courier New", monospace;
+    font-size: 13px; line-height: 1.55;
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; color: #8fd3ff; }
+  .sub { color: #7c8794; margin: 0 0 14px; font-size: 12px; line-height: 1.7; }
+  .sub b { color: #d8dee6; font-weight: normal; }
+
+  .panel {
+    background: #1c2229; border: 1px solid #2c343d; border-radius: 8px;
+    padding: 12px 16px; margin-bottom: 14px;
+  }
+  .panel h2 {
+    font-size: 14px; margin: 0 0 10px; color: #8fd3ff; letter-spacing: .03em;
+    border-bottom: 1px solid #2c343d; padding-bottom: 6px;
+  }
+  .panel h3 { font-size: 12.5px; margin: 12px 0 6px; color: #aeb9c4; }
+  .panel h4 { font-size: 12px; margin: 10px 0 4px; color: #9aa7b4; font-weight: normal; }
+  .panel p { margin: 6px 0; }
+  .panel ul { margin: 6px 0 6px 18px; padding: 0; }
+  .panel ul li { padding: 1px 0; }
+  .panel ol { margin: 6px 0 6px 22px; padding: 0; }
+  .panel ol li { padding: 2px 0; }
+  code { color: #aeb9c4; background: #11161b; padding: 1px 4px; border-radius: 3px; font-size: 12px; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; margin: 6px 0; }
+  th, td { border: 1px solid #2c343d; padding: 5px 8px; text-align: center; vertical-align: top; }
+  th { color: #9aa7b4; font-weight: normal; background: #11161b; font-size: 11.5px; letter-spacing: .03em; }
+  td.lbl { text-align: left; color: #d8dee6; }
+  td.lblL { text-align: left; color: #d8dee6; }
+  td.num { color: #ffd27d; font-variant-numeric: tabular-nums; }
+  td.dim { color: #7c8794; text-align: left; }
+  td.hi { color: #5aafff; font-weight: bold; }
+  td.warn { color: #ff7d7d; font-weight: bold; }
+  td.bad { color: #ff7d7d; font-weight: bold; background: #22171a; }
+  td.ok { color: #6fd3a0; font-weight: bold; }
+  td.head { color: #8fd3ff; }
+  td.sweet { color: #5aafff; font-weight: bold; background: #11202b; }
+  td.pick { color: #5aafff; font-weight: bold; background: #11202b; }
+
+  .formula {
+    background: #11161b; border-left: 3px solid #5aafff;
+    padding: 8px 12px; margin: 6px 0; border-radius: 4px;
+    font-size: 12.5px; color: #d8e6ff;
+  }
+  .formula em { color: #ffd27d; font-style: normal; }
+  .formula code { color: #aeb9c4; }
+
+  .diff-row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    margin: 6px 0;
+  }
+  .diff-col {
+    background: #11161b; border: 1px solid #2c343d; border-radius: 4px;
+    padding: 8px 10px; font-size: 12px;
+  }
+  .diff-col.old { border-left: 3px solid #7c8794; }
+  .diff-col.new { border-left: 3px solid #5aafff; }
+  .diff-col h4 { margin: 0 0 4px; font-size: 11.5px; color: #aeb9c4; font-weight: normal; }
+
+  .note { font-size: 11.5px; color: #7c8794; line-height: 1.7; margin-top: 6px; }
+  .note b { color: #aeb9c4; font-weight: normal; }
+
+  .meta {
+    background: #1c2229; border-left: 3px solid #ffd27d; padding: 8px 12px;
+    border-radius: 4px; margin-bottom: 14px; font-size: 11.5px; color: #d8dee6; line-height: 1.7;
+  }
+  .meta a { color: #8fd3ff; text-decoration: none; }
+  .meta a:hover { text-decoration: underline; }
+
+  .pass-box {
+    background: #16221c; border: 2px solid #6fd3a0; border-radius: 6px;
+    padding: 10px 14px; margin: 10px 0;
+  }
+  .pass-box h3 { color: #6fd3a0; margin: 0 0 6px; font-size: 13px; }
+  .pass-box p { margin: 4px 0; font-size: 12px; }
+  .pass-box ul { margin: 6px 0 6px 22px; }
+  .pass-box ul li { padding: 2px 0; font-size: 12px; }
+  .pass-box code { color: #d8e6ff; }
+
+  .bad-box {
+    background: #22171a; border: 2px solid #ff7d7d; border-radius: 6px;
+    padding: 10px 14px; margin: 10px 0;
+  }
+  .bad-box h3 { color: #ff7d7d; margin: 0 0 6px; font-size: 13px; }
+  .bad-box p { margin: 4px 0; font-size: 12px; }
+  .bad-box ul li { padding: 2px 0; font-size: 12px; }
+
+  .warn-box {
+    background: #22201a; border: 2px solid #ffce4d; border-radius: 6px;
+    padding: 10px 14px; margin: 10px 0;
+  }
+  .warn-box h3 { color: #ffce4d; margin: 0 0 6px; font-size: 13px; }
+  .warn-box p { margin: 4px 0; font-size: 12px; }
+  .warn-box ul li { padding: 2px 0; font-size: 12px; }
+
+  .sweet-box {
+    background: #11202b; border: 2px solid #5aafff; border-radius: 6px;
+    padding: 10px 14px; margin: 10px 0;
+  }
+  .sweet-box h3 { color: #5aafff; margin: 0 0 6px; font-size: 13px; }
+  .sweet-box p { margin: 4px 0; font-size: 12px; }
+  .sweet-box ul li { padding: 2px 0; font-size: 12px; }
+
+  .pick-box {
+    background: #11202b; border: 2px solid #5aafff; border-radius: 6px;
+    padding: 12px 16px; margin: 12px 0;
+  }
+  .pick-box h3 { color: #5aafff; margin: 0 0 8px; font-size: 13.5px; }
+  .pick-box p { margin: 4px 0; font-size: 12px; }
+  .pick-box code { color: #d8e6ff; }
+
+  .lesson-box {
+    background: #14202b; border: 2px solid #5aafff; border-radius: 6px;
+    padding: 10px 14px; margin: 10px 0;
+  }
+  .lesson-box h3 { color: #5aafff; margin: 0 0 6px; font-size: 13px; }
+  .lesson-box h4 { color: #8fd3ff; margin: 8px 0 4px; font-size: 12.5px; }
+  .lesson-box p { margin: 4px 0; font-size: 12px; }
+  .lesson-box ul { margin: 6px 0 6px 22px; }
+  .lesson-box ul li { padding: 2px 0; font-size: 12px; }
+
+  .footer { color: #7c8794; font-size: 11.5px; margin-top: 22px; line-height: 1.8; border-top: 1px solid #2c343d; padding-top: 12px; }
+  .footer a { color: #8fd3ff; text-decoration: none; }
+  .footer a:hover { text-decoration: underline; }
+  .footer ul { margin: 4px 0 4px 18px; padding: 0; }
+  .footer ul li { padding: 1px 0; }
+
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 10.5px; margin-left: 4px; }
+  .pill.ok { background: #6fd3a0; color: #14181d; }
+  .pill.warn { background: #ffce4d; color: #14181d; }
+  .pill.bad { background: #ff7d7d; color: #14181d; }
+  .pill.sweet { background: #5aafff; color: #14181d; }
+  .pill.new { background: #5aafff; color: #14181d; }
+  .pill.next { background: #2c343d; color: #aeb9c4; }
+  .pill.pass { background: #6fd3a0; color: #14181d; }
+
+  .big { color: #ffd27d; font-weight: bold; font-size: 14px; }
+  .delta-good { color: #6fd3a0; font-weight: bold; }
+  .delta-bad { color: #ff7d7d; font-weight: bold; }
+</style>
+</head>
+<body>
+  <h1>段階4 (敵行動予測モデル) Step B: scoreActions の soft 化 + 観測 &gt; 予測原則の導入</h1>
+  <p class="sub">
+    敵行動予測モデル 3 段プラン (A/B/C) の <b>Step B</b> 完了レポート。
+    Step A で配管・観測蓄積まで済んでいた予測分布を、<code>scoreActions</code> の
+    <code>oppGT</code> / <code>oppAtkT</code> / <code>threatened</code> 分岐に
+    <b>「観測 &gt; 予測」原則</b>で接続した（観測あり時は従来 hard 値、観測なし時のみ予測ベースでブレンド）。
+    MT (modelTrust) アブレーション 5 値 × 非対称 lag 7 段で観測し、当初プラン既定 <b>MT=0.5</b> は
+    プラン完了基準を満たさないと判定。観測ベースで既定値を <b>MT=0.3</b> に下方修正した。
+    Step C の意思決定接続は完了とせず、Step C 前に観測指標追加と guardCommitment 感度分析を挟む方針。
+  </p>
+
+  <div class="meta">
+    <b>関連</b>:
+    <a href="2026-05-27-prediction-model-stepA.html">2026-05-27 段階4 Step A（配管 + Identity Check）</a> ／
+    <a href="2026-05-27-defensive-ai-stepB.html">2026-05-27 段階3 (α) Step B（構成参考）</a> ／
+    <a href="2026-05-27-defensive-ai-stepC-complete.html">2026-05-27 段階3 (α) Step C 完成総括</a> ／
+    プラン: <code>~/.claude/plans/ai-gleaming-hollerith.md</code> ／
+    <a href="../TASKS.md">TASKS.md</a> ／ <a href="../LOG.md">LOG.md</a>
+  </div>
+
+  <!-- ===== 1. 背景 ===== -->
+  <div class="panel">
+    <h2>1. 背景</h2>
+    <p>
+      Step A で「予測分布の構造体・更新ルール・観測 API への露出」までを配管し、
+      Identity Check (MD5 完全一致) と予測モデル動作確認 (state top-1 72.2% 等) を済ませた。
+      Step B の目的は、<b>計算済みの予測分布を実際の AI 行動選択 (scoreActions) に反映させる</b>こと。
+    </p>
+    <ul>
+      <li><b>予測の使い所</b>: scoreActions が見ている <code>oppGT</code> / <code>oppAtkT</code> /
+        <code>threatened</code> の <b>観測ベースの hard 分岐</b>。
+        観測ラグがあるシナリオでは数フレーム遅れて確定するため、その空白を予測で埋める</li>
+      <li><b>守るべき原則</b>: <b>観測 &gt; 予測</b>。観測が確定しているなら従来通り hard 値、
+        観測が空いているフレームでのみ予測でブレンドする</li>
+      <li><b>分割</b>: 段階3 (α) Step B と同じ流儀で、<b>Identity Check 用フォールバック (MT=0)</b> を残しつつ既定値で挙動を動かす</li>
+    </ul>
+    <p class="note">
+      Step A レポートの「予測モデル動作確認」で、予測分布が <b>毎フレーム更新され、有意に偏りを検出している</b>
+      ことは確認済み。本 Step では、その分布を実際の意思決定に流したときに <b>試合構造が壊れずに変化する範囲</b>
+      を観測ベースで定める。
+    </p>
+  </div>
+
+  <!-- ===== 2. 実装内容 ===== -->
+  <div class="panel">
+    <h2>2. 実装内容</h2>
+
+    <h3>2-1. <code>scoreActions</code> の soft 化（<code>src/index.html</code>）</h3>
+    <p>
+      <code>oppGT</code> (l.460 付近) / <code>oppAtkT</code> / <code>threatened</code> (l.408 付近) の
+      hard 分岐を、<b>観測 &gt; 予測</b>原則で 3 通りに分岐する soft 版に書き換え。
+    </p>
+
+    <table>
+      <thead><tr><th>分岐</th><th>条件</th><th>挙動</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="head">観測あり</td>
+          <td class="lblL"><code>oppGT !== null</code> 等</td>
+          <td class="lblL">従来通り <b>hard 値</b>（例: <code>{0.3, 1.5}</code>）。Step A までと bit-identical</td>
+        </tr>
+        <tr>
+          <td class="head">観測なし + trust&gt;0</td>
+          <td class="lblL"><code>oppGT === null &amp;&amp; modelTrust &gt; 0</code></td>
+          <td class="lblL">予測でブレンド: <code>(1 - trust) * 中立値 + trust * 予測ベース値</code></td>
+        </tr>
+        <tr>
+          <td class="head">観測なし + trust=0</td>
+          <td class="lblL"><code>oppGT === null &amp;&amp; modelTrust = 0</code></td>
+          <td class="lblL"><b>中立値</b>（完全フォールバック）。Step A baseline と同じ振舞い</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="formula">
+      soft 接続式（概略）:
+      <br><code>score = (oppGT !== null)</code>
+      <br>&nbsp;&nbsp;<code>? hardValue(observation)</code>
+      <br>&nbsp;&nbsp;<code>: (1 - trust) * neutral + trust * predictedBased(predictedOpp)</code>
+    </div>
+
+    <h3>2-2. <code>PERS</code> 既定値</h3>
+    <ul>
+      <li><code>PERS.P.modelTrust</code>: <code>0</code> → <b>当初 0.5 → 観測後 0.3 に調整</b></li>
+      <li><code>PERS.E.modelTrust</code>: <code>0</code> → <b>当初 0.5 → 観測後 0.3 に調整</b></li>
+    </ul>
+    <p class="note">
+      当初プラン記載の既定値は MT=0.5 だったが、後述の verifier 観測結果を受けて <b>0.3 に下方修正</b>。
+      理念整合: 「機械的観察に基づいて数値を直す」「結論ありきの調整は禁止」。
+    </p>
+
+    <h3>2-3. UI スライダー追加 <span class="pill new">新規</span></h3>
+    <ul>
+      <li><code>mtP</code> / <code>mtE</code>: 0..100 表示で % として扱う。初期 <code>value="30"</code></li>
+      <li>build() 内で <code>PERS.{P,E}.modelTrust = num(mtP) / 100</code> 等で注入</li>
+    </ul>
+
+    <h3>2-4. <code>tools/verify.js</code> 変更（R6 教訓どおり最初から登録）</h3>
+    <ul>
+      <li>ELEM stub に <code>mtP</code> / <code>mtE</code> を追加（初期 <code>value="30"</code>）</li>
+      <li><b>環境変数 <code>MT</code></b> で modelTrust を切替可能に（アブレーション用）。
+        例: <code>MT=0 node tools/verify.js</code>、<code>MT=0.7 node tools/verify.js</code></li>
+      <li>MT 未指定時のフォールバックは <b>0</b>（UI 既定値 0.3 とは別管理）。これが Identity Check 互換性の鍵</li>
+    </ul>
+  </div>
+
+  <!-- ===== 3. Identity Check ===== -->
+  <div class="panel">
+    <h2>3. Identity Check 結果（R5）</h2>
+
+    <div class="pass-box">
+      <h3>PASS（<code>MT=0</code> で Step A baseline と意味的内容が完全一致）</h3>
+      <p>
+        <code>MT=0 node tools/verify.js</code> を Step A baseline と比較し、
+        意思決定および試合進行が <b>bit-identical</b> であることを確認。
+      </p>
+      <ul>
+        <li>scoreActions の soft 分岐は <code>trust=0</code> で中立値に落ち、観測あり時も従来 hard 値なので
+          <b>意思決定回路への寄与ゼロ</b> が保証される</li>
+        <li>verify.js 側の MT 未指定フォールバックを 0 のまま維持 → 既存の検証スクリプトを書き換えなくても
+          自動的に baseline が出る</li>
+        <li>UI 既定値 (0.3) とは別管理。「ブラウザで開いたユーザーには予測が効く」「verify.js は baseline」が両立</li>
+      </ul>
+    </div>
+
+    <p class="note">
+      段階3 (α) Step B / 段階4 Step A と同じ流儀で <b>「式を soft 化しても既定回路は baseline と同一」</b>
+      を成立させた。この互換性があるからこそ、後段の MT アブレーションで「差はすべて MT に由来する」と
+      切り分けできる。
+    </p>
+  </div>
+
+  <!-- ===== 4. MT アブレーション ===== -->
+  <div class="panel">
+    <h2>4. MT アブレーション 5値 × 非対称 lag 7 段（50戦/段）</h2>
+
+    <h3>4-1. 時間切れ数（試合長 360F 上限）</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>lag (p/d)</th>
+          <th>MT=0</th><th>MT=0.3</th><th>MT=0.5</th><th>MT=0.7</th><th>MT=1.0</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="head">0/0</td>
+          <td class="num">45</td><td class="num">43</td><td class="num">48</td>
+          <td class="num">47</td><td class="num">44</td>
+        </tr>
+        <tr>
+          <td class="head">1/2</td>
+          <td class="num">18</td><td class="num">29</td><td class="num">31</td>
+          <td class="num">38</td><td class="num">32</td>
+        </tr>
+        <tr>
+          <td class="head">2/4</td>
+          <td class="num">3</td><td class="num">2</td><td class="num">4</td>
+          <td class="warn">13</td><td class="warn">13</td>
+        </tr>
+        <tr>
+          <td class="head">3/5</td>
+          <td class="num">0</td><td class="num">0</td><td class="num">1</td>
+          <td class="num">1</td><td class="num">3</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>4-2. ガード切替/試合</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>lag (p/d)</th>
+          <th>MT=0</th><th>MT=0.3</th><th>MT=0.5</th><th>MT=0.7</th><th>MT=1.0</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="head">2/4</td>
+          <td class="num">6.7</td><td class="num">7.6</td><td class="warn">11.7</td>
+          <td class="warn">13.8</td><td class="bad">16.5</td>
+        </tr>
+        <tr>
+          <td class="head">3/5</td>
+          <td class="num">3.2</td><td class="num">5.6</td><td class="num">7.1</td>
+          <td class="num">7.9</td><td class="warn">12.8</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>4-3. 構造傾向（観測の核心）</h3>
+    <ul>
+      <li><b>MT 上昇でガード切替頻度が線形に増加</b>（lag=3/5 で 3.2→12.8 = 約 4 倍 at MT=1.0）。
+        「予測で先回りガード」が機械的に機能している証拠</li>
+      <li><b>MT 上昇で殴り合い率は単調低下</b>（先読みガード → 当たらない → 殴り合い減）。仕様通り</li>
+      <li><b>block/clean (lag=3/5) は MT 上昇で改善</b>
+        (MT=0: 0.22 → MT=0.5: 0.32 → MT=1.0: 0.44)。段階3 (α) で構造的に解決できなかった
+        「lag≥3 の守備機能性」を予測モデルが補強している</li>
+    </ul>
+  </div>
+
+  <!-- ===== 5. 両者守備型 (最も予測が暴れるシナリオ) ===== -->
+  <div class="panel">
+    <h2>5. 両者守備型 lag=3/5（最も予測が暴れるシナリオ）</h2>
+
+    <table>
+      <thead>
+        <tr><th>MT</th><th>時間切れ</th><th>ガード切替/試合</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="head">0</td>
+          <td class="num">36%</td><td class="num">27.5</td>
+        </tr>
+        <tr>
+          <td class="head">0.3</td>
+          <td class="warn">58%</td><td class="warn">32.8</td>
+        </tr>
+        <tr>
+          <td class="head">0.5</td>
+          <td class="warn">64%</td><td class="warn">38.4</td>
+        </tr>
+        <tr>
+          <td class="head">0.7</td>
+          <td class="bad">82%</td><td class="bad">41.5</td>
+        </tr>
+        <tr>
+          <td class="head">1.0</td>
+          <td class="bad">88%</td><td class="bad">48.0</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="bad-box">
+      <h3>R3 発火 — 守備型ペアで予測の交互切替合戦</h3>
+      <p>
+        MT 高いほど「守備側が予測で先回りガード硬直 → 攻撃通らず時間切れ」の <b>泥沼</b> が発生。
+        両者が予測で交互に切替合戦になる構造。
+      </p>
+      <ul>
+        <li>これは Step A レポートの注記「<b>R3: predictedCounts 発散</b>」リスクの実観測</li>
+        <li>guardCommitment=0.5 が df=0.8 に対し継続バイアスが弱い問題が <b>増幅されている</b></li>
+        <li>Step C で扱う <b>guardCommitment 強化</b> または <b>「予測の確信度ゲート」</b>（Step C 後の改良候補）で対応すべき</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ===== 6. プラン完了基準の判定 ===== -->
+  <div class="panel">
+    <h2>6. プラン完了基準の判定</h2>
+
+    <table>
+      <thead>
+        <tr><th>#</th><th>基準</th><th>結果</th><th>判定</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="head">(1)</td>
+          <td class="lblL">MT=0 で Step A 完全一致</td>
+          <td class="lblL">MD5 一致確認</td>
+          <td class="ok">PASS</td>
+        </tr>
+        <tr>
+          <td class="head">(2)</td>
+          <td class="lblL">MT=0.5 で 5 指標 ±20% 以内</td>
+          <td class="lblL">ガ切替 +122%（大幅超）/ 守備型時間切れ 36→64%</td>
+          <td class="warn">FAIL → 既定値調整 (MT=0.3) で対応</td>
+        </tr>
+        <tr>
+          <td class="head">(3)</td>
+          <td class="lblL">観測空白活用率 &gt; 30%</td>
+          <td class="lblL">直接指標なし。代理: ガ切替 +120% が予測が空白で発火している証拠</td>
+          <td class="dim">△ 測定不能だが起動証拠あり</td>
+        </tr>
+        <tr>
+          <td class="head">(4)</td>
+          <td class="lblL">5 劇継続再現</td>
+          <td class="lblL">lag=2/4 で全劇維持、lag=3/5 では str ガード劇がやや弱化</td>
+          <td class="dim">△ おおむね維持</td>
+        </tr>
+        <tr>
+          <td class="head">(5)</td>
+          <td class="lblL">MT アブレーション</td>
+          <td class="lblL">0/0.3/0.5/0.7/1.0 完走、明確な単調傾向</td>
+          <td class="ok">PASS</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ===== 7. 既定値調整の根拠 ===== -->
+  <div class="panel">
+    <h2>7. 既定値調整 — MT=0.5 → MT=0.3 への観測ベース下方修正</h2>
+
+    <div class="pick-box">
+      <h3>既定値: <code>modelTrust = 0.3</code></h3>
+      <p>
+        verifier 観測の結果、当初プラン既定 <code>MT=0.5</code> はプラン完了基準 (2) を満たせず、
+        特に守備型ペアで深刻な R2 / R3 発火。<b>理念整合の判断</b>: 「機械的観察に基づいて数値を直す」
+        「結論ありきの調整は禁止」に則り、観測由来で <b>MT=0.3</b> に下方修正した。
+      </p>
+    </div>
+
+    <table>
+      <thead>
+        <tr><th>MT</th><th>lag=2/4 5 基準</th><th>守備型 lag=3/5 時間切れ</th><th>推奨</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="head">0</td>
+          <td class="ok">全クリア</td>
+          <td class="num">36%</td>
+          <td class="dim">Step A baseline、予測無効</td>
+        </tr>
+        <tr>
+          <td class="pick">0.3</td>
+          <td class="pick">4 基準クリア</td>
+          <td class="pick">58%</td>
+          <td class="pick">既定値に採用（推奨）</td>
+        </tr>
+        <tr>
+          <td class="head">0.5</td>
+          <td class="num">3 基準クリア（block/clean 改善）</td>
+          <td class="warn">64%</td>
+          <td class="dim">UI で「ガード強化モード」として残す</td>
+        </tr>
+        <tr>
+          <td class="head">0.7</td>
+          <td class="warn">2 基準（スイートスポット崩壊）</td>
+          <td class="bad">82%</td>
+          <td class="dim">UI 上限</td>
+        </tr>
+        <tr>
+          <td class="head">1.0</td>
+          <td class="bad">R2 / R3 全面発火</td>
+          <td class="bad">88%</td>
+          <td class="dim">非推奨</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="note">
+      MT=0.3 を既定にする狙い: <b>スイートスポット (lag=2/4) を維持</b>しつつ、
+      予測モデルの効果（block/clean 改善）を <b>部分的に取り入れ</b>、R2 / R3 リスクを抑える。
+      MT スライダー (0..1) で個別に上げ下げ可能。
+    </p>
+  </div>
+
+  <!-- ===== 8. 5劇再現性 + リスク判定 ===== -->
+  <div class="panel">
+    <h2>8. 5 劇再現性 + R1/R2/R3/R5 リスク判定</h2>
+
+    <h3>8-1. 5 劇再現性（MT=0.3 lag=2/4、スイートスポット）</h3>
+    <table>
+      <thead><tr><th>劇</th><th>観測</th><th>状況</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="head">① ジャブの賭け</td>
+          <td class="num">jab 998 試行 384 cntr</td>
+          <td class="ok">維持</td>
+        </tr>
+        <tr>
+          <td class="head">② ストレートはガード</td>
+          <td class="num">str ガード率 52%</td>
+          <td class="ok">維持</td>
+        </tr>
+        <tr>
+          <td class="head">③ 強ストレート vs ジャブ割り込み</td>
+          <td class="num">hvy whiff 47%</td>
+          <td class="ok">維持</td>
+        </tr>
+        <tr>
+          <td class="head">④ フェイント誘発</td>
+          <td class="num">fnt 324 試行</td>
+          <td class="ok">維持</td>
+        </tr>
+        <tr>
+          <td class="head">⑤ チップ崩し</td>
+          <td class="num">chip 120/478 = 25%</td>
+          <td class="ok">維持</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="note">全 5 劇 lag=2/4 で再現性維持。</p>
+
+    <h3>8-2. R1 / R2 / R3 / R5 リスク判定</h3>
+    <table>
+      <thead><tr><th>リスク</th><th>内容</th><th>観測</th><th>MT=0.3 での扱い</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="head">R1</td>
+          <td class="lblL">予測 × 観測ラグ干渉</td>
+          <td class="lblL">低 lag (p1/d2) で時間切れ +72%。観測 &gt; 予測原則は守られているが、
+            <b>観測確定前の 1-2F 隙間</b>で予測が動いている副作用</td>
+          <td class="num">緩和</td>
+        </tr>
+        <tr>
+          <td class="head">R2</td>
+          <td class="lblL">modelTrust 高すぎ</td>
+          <td class="warn">MT≥0.7 で全面発火、MT=0.5 で部分発火</td>
+          <td class="num">MT=0.3 で抑制</td>
+        </tr>
+        <tr>
+          <td class="head">R3</td>
+          <td class="lblL">predictedCounts 発散</td>
+          <td class="warn">両守備型 lag=3/5 のガ切替 MT 比例で +74%（27.5→48.0）。
+            guardCommitment=0.5 が df=0.8 に対し継続バイアス弱い問題が増幅</td>
+          <td class="dim">残課題（Step C で扱う）</td>
+        </tr>
+        <tr>
+          <td class="head">R5</td>
+          <td class="lblL">Identity Check</td>
+          <td class="ok">MT=0 で完全一致</td>
+          <td class="ok">PASS</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ===== 9. 構造的解釈の要点 ===== -->
+  <div class="panel">
+    <h2>9. 構造的解釈の要点</h2>
+
+    <div class="sweet-box">
+      <h3>予測モデルが「機械的に」機能している証拠</h3>
+      <ul>
+        <li><b>MT 上昇でガード切替頻度が線形に増加</b>（lag=3/5 で 3.2→12.8 = 4 倍 at MT=1.0）
+          → 「予測で先回りガード」の経路が確実に通っている</li>
+        <li><b>MT 上昇で殴り合い率は単調低下</b> → 先読みガード → 当たらない → 殴り合い減、の因果が成立</li>
+        <li><b>block/clean (lag=3/5) は MT 上昇で改善</b> (0.22→0.44) →
+          段階3 (α) で構造的に解決できなかった「lag≥3 の守備機能性」を予測モデルが補強</li>
+      </ul>
+    </div>
+
+    <div class="bad-box">
+      <h3>同時に発火した副作用</h3>
+      <ul>
+        <li><b>両守備型ペアで予測の交互切替合戦</b>: 両者が予測で先回りガードを切替合戦
+          → 攻撃通らず時間切れ。MT 1.0 で時間切れ 88%</li>
+        <li>これは <b>guardCommitment 強化</b>（Step C 想定）または
+          <b>「予測の確信度ゲート」</b>（Step C 後の改良候補）で対応すべき構造問題</li>
+        <li>attacker 側の予測利用 (<code>predictedAtkT</code>) は <b>攻撃 kind 分布が MT で不変</b>
+          → 効いていない可能性。Step C 前に検証推奨</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ===== 10. 次のステップ（Step C 前にやるべきこと） ===== -->
+  <div class="panel">
+    <h2>10. 次のステップ（Step C 前にやるべきこと）</h2>
+
+    <p>verifier 推奨で、Step C 着手前に挟むべき観測・分析タスク 4 件:</p>
+
+    <table>
+      <thead><tr><th>#</th><th>タスク</th><th>目的</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="head">1</td>
+          <td class="lblL"><b>観測空白活用率の指標化</b>（verify.js への新指標追加）</td>
+          <td class="dim">予測の効果を直接測定可能に。プラン完了基準 (3) が △ で止まっている問題の解消</td>
+        </tr>
+        <tr>
+          <td class="head">2</td>
+          <td class="lblL"><b>guardCommitment 感度分析</b> (0.5 / 0.7 / 0.9)</td>
+          <td class="dim">段階3 (α) からの保留課題。Step C 着手前にやると切り分け楽。
+            R3 (両守備型 ガ切替合戦) の構造改善が期待できる</td>
+        </tr>
+        <tr>
+          <td class="head">3</td>
+          <td class="lblL"><b>低 lag (p1/d2) 時間切れ悪化の構造解明</b></td>
+          <td class="dim">観測がほぼ即時で得られるシナリオで予測を使う必要があるかの designer 検討。
+            「観測 &gt; 予測」原則をさらに強化する余地</td>
+        </tr>
+        <tr>
+          <td class="head">4</td>
+          <td class="lblL"><code>predictedAtkT</code> の効果検証</td>
+          <td class="dim">攻撃 kind 分布が MT で不変 → attacker 側の予測利用が効いていない可能性</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="note">
+      これらは Step C 内で扱うか、別タスクで処理するかは <b>要相談</b>。
+      プラン上は次が Step C（<code>modelPrior</code> 設定 UI、<code>modelDecay</code> 調整、
+      性格との交互作用観察）だが、R3 の構造問題を Step C で同時に動かすと
+      <b>切り分けが効かなくなる</b> 懸念がある。
+    </p>
+  </div>
+
+  <!-- ===== 11. 教訓 ===== -->
+  <div class="panel">
+    <h2>11. 教訓</h2>
+
+    <div class="lesson-box">
+      <h3>R6 verify.js ELEM stub バグの予防 — 今回は最初から登録</h3>
+      <p>
+        段階3 (α) Step B で発覚した「UI スライダー追加時に verify.js 側 ELEM stub への登録漏れが
+        sim 動作を壊す」教訓（<code>gcP</code> / <code>gcE</code> 未登録で 1 レポート無効化）に基づき、
+        本 Step B では <code>mtP</code> / <code>mtE</code> 追加と同時に ELEM stub にも登録した。
+      </p>
+      <ul>
+        <li>verify.js 単独で実行しても UI 既定値と同じ <code>value="30"</code> で動く</li>
+        <li>環境変数 <code>MT</code> で意図的に切替可能（アブレーション用）</li>
+        <li>MT 未指定時のフォールバックは <b>0</b> に保ち、Identity Check 互換性を担保</li>
+      </ul>
+
+      <h4>既定値修正は「観測ベース」で。プラン記載値より優先</h4>
+      <p>
+        プラン記載の MT=0.5 既定値はプラン完了基準 (2) を満たせず、観測由来で 0.3 に下方修正。
+        「機械的観察に基づいて数値を直す」「結論ありきの調整は禁止」を踏まえ、
+        プラン値より <b>verifier 観測の方が判断基準として優先</b>。
+      </p>
+    </div>
+  </div>
+
+  <div class="footer">
+    <b>参照ファイル</b>
+    <ul>
+      <li><code>src/index.html</code> —
+        scoreActions soft 化（<code>oppGT</code> 周辺 l.460 付近、<code>threatened</code> 周辺 l.408 付近）／
+        PERS <code>modelTrust</code> 既定 0.3 ／
+        UI スライダー <code>mtP</code> / <code>mtE</code> 追加（初期 30）</li>
+      <li><code>tools/verify.js</code> —
+        ELEM stub に <code>mtP</code> / <code>mtE</code> 追加 ／
+        環境変数 <code>MT</code> 対応（未指定時フォールバック 0、Identity Check 互換）</li>
+      <li>プラン: <code>~/.claude/plans/ai-gleaming-hollerith.md</code> 段階4 Step B</li>
+      <li><a href="2026-05-27-prediction-model-stepA.html">reports/2026-05-27-prediction-model-stepA.html</a>（Step A）</li>
+      <li><a href="2026-05-27-defensive-ai-stepB.html">reports/2026-05-27-defensive-ai-stepB.html</a>（構成参考）</li>
+      <li><a href="2026-05-27-defensive-ai-stepC-complete.html">reports/2026-05-27-defensive-ai-stepC-complete.html</a></li>
+      <li><a href="../TASKS.md">TASKS.md</a> ／ <a href="../LOG.md">LOG.md</a></li>
+    </ul>
+  </div>
+
+</body>
+</html>

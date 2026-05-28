@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>段階1: スタミナシステムの完成</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; padding: 18px 22px 60px;
+    background: #14181d; color: #d8dee6;
+    font-family: "Consolas", "SFMono-Regular", "Courier New", monospace;
+    font-size: 13px; line-height: 1.55;
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; color: #8fd3ff; }
+  .sub { color: #7c8794; margin: 0 0 14px; font-size: 12px; line-height: 1.7; }
+  .sub b { color: #d8dee6; font-weight: normal; }
+
+  .panel {
+    background: #1c2229; border: 1px solid #2c343d; border-radius: 8px;
+    padding: 12px 16px; margin-bottom: 14px;
+  }
+  .panel h2 {
+    font-size: 14px; margin: 0 0 10px; color: #8fd3ff; letter-spacing: .03em;
+    border-bottom: 1px solid #2c343d; padding-bottom: 6px;
+  }
+  .panel h3 { font-size: 12.5px; margin: 12px 0 6px; color: #aeb9c4; }
+  .panel p { margin: 6px 0; }
+  .panel ul { margin: 6px 0 6px 18px; padding: 0; }
+  .panel ul li { padding: 1px 0; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; margin: 6px 0; }
+  th, td { border: 1px solid #2c343d; padding: 5px 8px; text-align: center; }
+  th { color: #9aa7b4; font-weight: normal; background: #11161b; font-size: 11.5px; letter-spacing: .03em; }
+  td.lbl { text-align: left; color: #d8dee6; }
+  td.num { color: #ffd27d; font-variant-numeric: tabular-nums; }
+  td.dim { color: #7c8794; }
+  td.warn { color: #ff7d7d; font-weight: bold; }
+  td.ok { color: #6fd3a0; font-weight: bold; }
+  td.hi { color: #5aafff; font-weight: bold; }
+
+  code {
+    background: #11161b; padding: 1px 6px; border-radius: 3px;
+    color: #aeb9c4; font-size: 12px;
+  }
+  .formula {
+    background: #11161b; border-left: 3px solid #5aafff;
+    padding: 8px 12px; margin: 6px 0; border-radius: 4px;
+    font-size: 12.5px; color: #d8e6ff;
+  }
+  .formula em { color: #ffd27d; font-style: normal; }
+  .note { font-size: 11.5px; color: #7c8794; line-height: 1.7; margin-top: 6px; }
+  .note b { color: #aeb9c4; font-weight: normal; }
+
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 10.5px; margin-left: 4px; }
+  .pill.a { background: #1f6feb; color: #fff; }
+  .pill.b { background: #ffce4d; color: #14181d; }
+  .pill.c { background: #6fd3a0; color: #14181d; }
+</style>
+</head>
+<body>
+  <h1>段階1: スタミナシステムの完成</h1>
+  <p class="sub">
+    日付: <b>2026-05-26 (前半)</b> ／ 場所: <b>BoxingSim / index.html / verify.js</b><br>
+    駆け引きロードマップ <b>「①スタミナ → ②頭/腹 → ③知覚」</b> のうち <b>段階1</b> の記録。
+    A: 値だけ → B: 効果 → C: AI の3ステップで実装。最終的に性格5軸目 <code>staminaAware</code> を加え、sa=0.5 で最バランスという結論に至るまで。
+  </p>
+
+  <div class="panel">
+    <h2>1. 動機: なぜスタミナか</h2>
+    <p>HP / カウンターまで揃った段階での観察から、構造的に必要な要素として選んだ。</p>
+    <ul>
+      <li>同性格・無遅延では相打ちジャブのループが残る</li>
+      <li>非対称性格でも「殴り続ける / ガードし続ける」が許容される</li>
+      <li>→ <b>リソース有限化</b> で「打てる / 打てない」の選択を機械的に発生させる</li>
+    </ul>
+  </div>
+
+  <div class="panel">
+    <h2>2. スタミナ仕様 v2 （stamina_spec.html）</h2>
+    <h3>消費</h3>
+    <table>
+      <thead><tr><th>行動</th><th>消費</th></tr></thead>
+      <tbody>
+        <tr><td class="lbl">ジャブ</td><td class="warn">-6</td></tr>
+        <tr><td class="lbl">ストレート</td><td class="warn">-15</td></tr>
+        <tr><td class="lbl">前進 / 後退</td><td class="num">-0.2 / F</td></tr>
+        <tr><td class="lbl">ステップ系</td><td class="num">-1.0 / F</td></tr>
+        <tr><td class="lbl">ガード移動</td><td class="num">-0.3 / F</td></tr>
+      </tbody>
+    </table>
+    <h3>回復</h3>
+    <table>
+      <thead><tr><th>状態</th><th>回復</th></tr></thead>
+      <tbody>
+        <tr><td class="lbl">待機</td><td class="ok">+1.0 / F</td></tr>
+      </tbody>
+    </table>
+    <h3>効果（連続関数で軽め）</h3>
+    <ul>
+      <li>damage 係数: <code>0.8 - 1.0</code></li>
+      <li>startup 係数: <code>×1.0 - 1.2</code>（疲労で発生が遅くなる）</li>
+      <li>speed 係数: <code>×0.85 - 1.0</code>（移動が遅くなる）</li>
+    </ul>
+    <h3>AI</h3>
+    <p>性格 <b>5軸目 staminaAware</b> を追加し、攻撃 score に倍率を適用。</p>
+    <h3>実装の3ステップ</h3>
+    <p><span class="pill a">Step A</span> 値だけ → <span class="pill b">Step B</span> 効果 → <span class="pill c">Step C</span> AI</p>
+  </div>
+
+  <div class="panel">
+    <h2>3. Step A: 値・消費・回復・観測 <span class="pill a">A</span></h2>
+    <ul>
+      <li><code>staminaCost(全MOVES)</code> 定義</li>
+      <li><code>makeChar</code> の <code>stamina=100</code></li>
+      <li><code>startAction</code> で攻撃消費</li>
+      <li><code>stepSim</code> 内に <b>移動 per-F 消費 + 待機 +1.0/F 回復</b> ステップ追加</li>
+      <li><code>charCard</code> にスタミナバー（青系 <code>#5aafff</code>）</li>
+      <li>観測スキーマ: <code>self.stamina</code>（完全）/ <code>opponent.stamina</code>（★）</li>
+      <li>技テーブルに <code>staminaCost</code> 列</li>
+    </ul>
+    <p><b>効果は未実装</b>（damage / startup / speed は素のまま）。</p>
+    <h3>Identity Check（Step A 前後で完全一致）</h3>
+    <table>
+      <thead><tr><th>seed</th><th>F 数</th></tr></thead>
+      <tbody>
+        <tr><td class="lbl">1</td><td class="num">535</td></tr>
+        <tr><td class="lbl">2</td><td class="num">728</td></tr>
+        <tr><td class="lbl">3</td><td class="num">800</td></tr>
+      </tbody>
+    </table>
+    <h3>観察</h3>
+    <p>AI がスタミナを意識せず使い切る。</p>
+    <ul>
+      <li>平均スタミナ: P=21 / E=29</li>
+      <li>試合の <b>30〜47% がスタ0で経過</b></li>
+    </ul>
+    <p class="note">これは Step C 未実装の必然（想定通り）。Step B 投入で序盤から劣化開始する見込み。</p>
+  </div>
+
+  <div class="panel">
+    <h2>4. Step B: 効果反映 <span class="pill b">B</span></h2>
+    <ul>
+      <li><code>effectivePhaseLen(ch)</code> ヘルパー追加</li>
+      <li><code>advancePhase / phaseRemain / charCard</code> の startup 参照を実効値へ一貫切替</li>
+      <li>stepSim の移動処理に <code>staK_spd = 0.85 + 0.15*s/100</code> 適用</li>
+      <li>ダメージ適用箇所に <code>staK_dmg = 0.8 + 0.2*s/100</code> 適用</li>
+      <li>recovery / active は素のまま（影響範囲を絞る）</li>
+    </ul>
+    <h3>verify.js 50戦比較</h3>
+    <table>
+      <thead><tr><th>条件</th><th>項目</th><th>Step A → Step B</th></tr></thead>
+      <tbody>
+        <tr><td class="lbl">非対称</td><td class="lbl">時間切れ</td><td class="warn">28 → 45</td></tr>
+        <tr><td class="lbl">非対称</td><td class="lbl">P 勝</td><td class="num">19 → 4</td></tr>
+        <tr><td class="lbl">非対称</td><td class="lbl">スタ0滞在 P</td><td class="num">17712 → 18060F</td></tr>
+        <tr><td class="lbl">非対称</td><td class="lbl">スタ0滞在 E</td><td class="num">11023 → 11678F</td></tr>
+        <tr><td class="lbl">対称</td><td class="lbl">時間切れ</td><td class="warn">31 → 42</td></tr>
+        <tr><td class="lbl">対称</td><td class="lbl">P 勝</td><td class="num">9 → 2</td></tr>
+        <tr><td class="lbl">対称</td><td class="lbl">E 勝</td><td class="num">10 → 6</td></tr>
+        <tr><td class="lbl">対称</td><td class="lbl">KO 中央値</td><td class="num">679 → 771F</td></tr>
+      </tbody>
+    </table>
+    <h3>観察</h3>
+    <p>機構は正しく動作。だが AI が <b>「ガス欠で殴り合う」</b> 非実物的挙動を続けるため、弱い攻撃 × 遅い攻撃の応酬で守備側が有利に。
+    時間切れが激増 → 「結果として何が立ち上がったか」の典型例。</p>
+  </div>
+
+  <div class="panel">
+    <h2>5. Step C: AI のスタミナ意識 → 段階1 完了 <span class="pill c">C</span></h2>
+    <p>PERS に5軸目 <code>staminaAware</code> を追加（既定 <code>0.5</code>）。<code>scoreActions</code> の攻撃点数に倍率を掛ける。</p>
+    <div class="formula">
+      atkK = max(0, 1 - sa * (1 - s/100))
+    </div>
+    <p>UI に性格スライダー「スタミナ意識 (0-100)」を追加。</p>
+    <h3>verify.js 50戦比較（非対称、sa 違い）</h3>
+    <table>
+      <thead><tr><th>sa</th><th>P勝</th><th>時間切れ</th><th>スタ0F合計 P</th><th>スタ0F合計 E</th><th>ジャブ P/E</th></tr></thead>
+      <tbody>
+        <tr><td class="lbl">0.0（Step B 相当）</td><td class="num">4</td><td class="num">45</td><td class="num">18060</td><td class="num">11678</td><td class="num">1023 / 712</td></tr>
+        <tr style="background:#11161b;"><td class="lbl ok">0.5（既定）</td><td class="ok">6</td><td class="ok">44</td><td class="hi">12490</td><td class="hi">3652</td><td class="num">999 / 554</td></tr>
+        <tr><td class="lbl">1.0（最大）</td><td class="num">2</td><td class="num">48</td><td class="num">51</td><td class="num">0</td><td class="num">914 / 465</td></tr>
+      </tbody>
+    </table>
+    <h3>観察</h3>
+    <ul>
+      <li><code>staminaAware</code> を上げると AI は明らかにスタミナを温存する（スタ0F 合計が急減）</li>
+      <li><b>sa=0.5 が最バランス</b>: P 勝率最高、ガス欠半減、攻撃数も適度に維持</li>
+      <li>sa=1.0 は温存しすぎて攻め控え → 試合が静かになる</li>
+      <li>段階1 単独では「決定打が打てず時間切れ多発」は残る（時間切れ 44〜48 / 50）</li>
+    </ul>
+  </div>
+
+  <div class="panel">
+    <h2>6. 残課題と段階2 への動機</h2>
+    <p>段階1のゴール <b>「リソース有限化」「機械的にスタミナ管理ができる AI」</b> は達成。</p>
+    <p>ただし「決定打が打てない」のは <b>攻撃の質的差別が無い</b>（評価軸がスタミナのみ）ことの必然。
+    → 段階2（頭/腹打ち分け）で攻撃の選択肢を増やし、「効くタイミングを選ぶ」AI へ進化させる動機が機械的に確定。</p>
+  </div>
+</body>
+</html>

@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>仕様: 頭/腹の打ち分け（段階2）</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; padding: 18px 22px 60px;
+    background: #14181d; color: #d8dee6;
+    font-family: "Consolas", "SFMono-Regular", "Courier New", monospace;
+    font-size: 13px; line-height: 1.55;
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; color: #8fd3ff; }
+  .sub { color: #7c8794; margin: 0 0 14px; font-size: 12px; line-height: 1.7; }
+  .sub b { color: #d8dee6; font-weight: normal; }
+
+  .panel {
+    background: #1c2229; border: 1px solid #2c343d; border-radius: 8px;
+    padding: 12px 16px; margin-bottom: 14px;
+  }
+  .panel h2 {
+    font-size: 14px; margin: 0 0 10px; color: #8fd3ff; letter-spacing: .03em;
+    border-bottom: 1px solid #2c343d; padding-bottom: 6px;
+  }
+  .panel h3 { font-size: 12.5px; margin: 12px 0 6px; color: #aeb9c4; }
+  .panel p { margin: 6px 0; }
+  .panel ul { margin: 6px 0 6px 18px; padding: 0; }
+  .panel ul li { padding: 1px 0; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; margin: 6px 0; }
+  th, td { border: 1px solid #2c343d; padding: 5px 8px; text-align: center; }
+  th { color: #9aa7b4; font-weight: normal; background: #11161b; font-size: 11.5px; letter-spacing: .03em; }
+  td.lbl { text-align: left; color: #d8dee6; }
+  td.num { color: #ffd27d; font-variant-numeric: tabular-nums; }
+  td.neg { color: #ff9d6d; }
+  td.pos { color: #6fd3a0; }
+  td.dim { color: #7c8794; }
+  td.head { color: #8fd3ff; }
+  td.body { color: #ffce4d; }
+
+  .formula {
+    background: #11161b; border-left: 3px solid #5aafff;
+    padding: 8px 12px; margin: 6px 0; border-radius: 4px;
+    font-size: 12.5px; color: #d8e6ff;
+  }
+  .formula em { color: #ffd27d; font-style: normal; }
+  .formula code { color: #aeb9c4; }
+
+  .note { font-size: 11.5px; color: #7c8794; line-height: 1.7; margin-top: 6px; }
+  .note b { color: #aeb9c4; font-weight: normal; }
+
+  /* 2x2 マトリクス */
+  .matrix {
+    background: #11161b; border: 1px solid #2c343d; border-radius: 6px;
+    padding: 12px 14px; margin: 10px 0 14px;
+  }
+  .matrix .ctl { display: flex; gap: 16px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+  .matrix .ctl label { color: #aeb9c4; font-size: 12px; }
+  .matrix .seg { display: inline-flex; border: 1px solid #2c343d; border-radius: 4px; overflow: hidden; }
+  .matrix .seg button {
+    background: #1c2229; color: #aeb9c4; border: 0; padding: 4px 12px;
+    font-family: inherit; font-size: 12px; cursor: pointer; border-right: 1px solid #2c343d;
+  }
+  .matrix .seg button:last-child { border-right: 0; }
+  .matrix .seg button.on { background: #1f6feb; color: #fff; }
+  .matrix .seg.body button.on { background: #b88a1a; color: #fff; }
+  .matrix .result {
+    background: #1c2229; border: 1px solid #2c343d; border-radius: 5px;
+    padding: 10px 14px; margin-top: 6px; display: flex; gap: 18px; align-items: center; flex-wrap: wrap;
+  }
+  .matrix .result .badge {
+    padding: 3px 12px; border-radius: 999px; font-size: 12px; font-weight: bold;
+  }
+  .matrix .result .badge.block { background: #1c4a3a; color: #6fd3a0; }
+  .matrix .result .badge.hit { background: #5a2424; color: #ff9d6d; }
+  .matrix .result .dmg { color: #ffd27d; font-variant-numeric: tabular-nums; font-size: 15px; }
+  .matrix .result .desc { color: #7c8794; font-size: 12px; }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 6px 0; }
+  .grid2 .cell {
+    background: #11161b; border: 1px solid #2c343d; border-radius: 4px;
+    padding: 8px 12px; font-size: 12px;
+  }
+  .grid2 .cell h4 { margin: 0 0 4px; font-size: 12px; color: #aeb9c4; font-weight: normal; }
+  .grid2 .cell.head { border-left: 3px solid #5aafff; }
+  .grid2 .cell.body { border-left: 3px solid #ffce4d; }
+
+  /* ステップカード */
+  .steps { display: grid; grid-template-columns: 1fr; gap: 10px; }
+  @media (min-width: 900px) { .steps { grid-template-columns: 1fr 1fr 1fr; } }
+  .step {
+    background: #11161b; border: 1px solid #2c343d; border-radius: 6px;
+    padding: 10px 12px; position: relative;
+  }
+  .step .id {
+    display: inline-block; color: #fff; background: #1f6feb;
+    border-radius: 999px; padding: 1px 10px; font-size: 11px; font-weight: bold; margin-bottom: 6px;
+  }
+  .step h3 { margin: 0 0 6px; font-size: 13px; color: #e8edf3; }
+  .step ul { margin: 4px 0 4px 16px; padding: 0; color: #aeb9c4; font-size: 12px; }
+  .step ul li { padding: 1px 0; }
+  .step .check { font-size: 11.5px; color: #ffd27d; margin-top: 6px; }
+  .step .check b { color: #aeb9c4; font-weight: normal; }
+
+  /* メタ */
+  .meta {
+    background: #1c2229; border-left: 3px solid #ffd27d; padding: 8px 12px;
+    border-radius: 4px; margin-bottom: 14px; font-size: 11.5px; color: #d8dee6; line-height: 1.7;
+  }
+  .meta a { color: #8fd3ff; text-decoration: none; }
+  .meta a:hover { text-decoration: underline; }
+
+  /* フッター */
+  .footer { color: #7c8794; font-size: 11.5px; margin-top: 22px; line-height: 1.8; border-top: 1px solid #2c343d; padding-top: 12px; }
+  .footer a { color: #8fd3ff; text-decoration: none; }
+  .footer a:hover { text-decoration: underline; }
+
+  .sym-head { color: #8fd3ff; }
+  .sym-body { color: #ffce4d; }
+  .scope-out { color: #7c8794; text-decoration: line-through; }
+</style>
+</head>
+<body>
+  <h1>仕様: 頭/腹の打ち分け — 段階2</h1>
+  <p class="sub">
+    駆け引きを生む3段階ロードマップの<b>第2段階</b>。攻め手 2 ×ガード 2 のマッチング機構を機械的に追加する。<br>
+    段階2 単独では「読み合い」は立ち上がらない（完全情報＋無遅延では守備が常に追従する想定）。
+    読み合いとして立ち上がるのは段階3（反応遅延）と組んだとき。ここでは<b>土台を機械的に積む</b>。
+  </p>
+
+  <div class="meta">
+    <b>方針メモ</b>: <a href="docs/feedback-mechanics-first-fun-emerges.md">機械的仕組みを先に積み、面白さは結果として立ち上がる</a> ／
+    <b>関連</b>: <a href="fsm_gap_inventory.html">FSM 棚卸し（B2 防御の細分化 / 攻撃の細分化）</a> ／ <a href="stamina_spec.html">段階1 スタミナ仕様</a> ／ <a href="TASKS.md">TASKS.md</a>
+  </div>
+
+  <!-- ===== スコープ確定 ===== -->
+  <div class="panel">
+    <h2>0. スコープ確定（2026-05-26 相談）</h2>
+    <ul>
+      <li><b>段階2 = 頭/腹の打ち分け のみ</b>。<span class="scope-out">フェイント</span> は本段階から外し、後段に分離。</li>
+      <li>理由: フェイントは「相手の能動的な待ち状態（カウンター待ち・読み構え）を誤発火させる」道具。
+        誘発対象となる「待ち状態」が今の FSM には存在しない。先に作っても損な選択肢にしかならない。</li>
+      <li>フェイントは「待ち状態」（カウンター予約・反応構え等）の設計とセットで後段に。段階3（反応遅延）の後で組み合わせるのが自然。</li>
+    </ul>
+    <p class="note">
+      <b>段階2 完成後に立ち上がる線（観察対象として事前記録）</b>:
+      頭/腹2択を入れると、守備側は<b>バックステップで両択回避</b>が最適化される → 結果として
+      <b>コーナーに追い詰められる</b>事態が増える → <b>バックステップを回数制限</b>で抑える、という流れが
+      正常な駆け引きとして発生するはず。段階2 単独で対策せず、コーナー機構（fsm_gap_inventory D1）と
+      セットで解く。
+    </p>
+  </div>
+
+  <!-- ===== 基本コンセプト ===== -->
+  <div class="panel">
+    <h2>1. 基本コンセプト</h2>
+    <ul>
+      <li>攻撃に <b>target ∈ {head, body}</b> を持たせる。攻撃側は head/body のどちらを狙うかを毎回選ぶ。</li>
+      <li>ガードにも <b>target ∈ {head, body}</b> を持たせる。守備側は head/body のどちらを守るかを毎回選ぶ。</li>
+      <li>判定: 攻撃 target == ガード target → <b>ブロック成功</b>（ダメージ0）／ ミスマッチ → <b>ノーガード相当</b>（フルダメージ）。</li>
+      <li>段階2 では target は<b>完全公開</b>（観測に出す、★印付き）。曖昧化は段階3 で行う。</li>
+      <li>性格軸は<b>追加しない</b>（既存5軸のまま）。target 選択は「相手のガード逆」一本で機械的に決める。</li>
+    </ul>
+
+    <h3>判定マトリクス（イメージ）</h3>
+    <div class="matrix">
+      <div class="ctl">
+        <label>攻撃 target</label>
+        <div class="seg" id="aSeg">
+          <button data-v="head" class="on">▲ 頭</button>
+          <button data-v="body">▼ 腹</button>
+        </div>
+        <label>ガード target</label>
+        <div class="seg body" id="gSeg">
+          <button data-v="head" class="on">▲ 頭</button>
+          <button data-v="body">▼ 腹</button>
+          <button data-v="none">— なし</button>
+        </div>
+        <label>攻撃種別</label>
+        <div class="seg" id="kSeg">
+          <button data-v="jab" class="on">ジャブ（dmg 5）</button>
+          <button data-v="straight">ストレート（dmg 12）</button>
+        </div>
+      </div>
+      <div class="result">
+        <span class="badge" id="rBadge">—</span>
+        <span class="dmg" id="rDmg">—</span>
+        <span class="desc" id="rDesc">—</span>
+      </div>
+      <p class="note">クリーンヒット時はカウンター倍率（×1.5）・相打ち・パニッシュの既存ロジックが上乗せされる（このマトリクスは素のダメージのみ表示）。</p>
+    </div>
+  </div>
+
+  <!-- ===== データモデル ===== -->
+  <div class="panel">
+    <h2>2. データモデル（MOVES）</h2>
+    <p>既存7行（jab / straight / guard / guard-fwd / guard-back / forward / backward / step-in / step-back / idle）を以下のように拡張する。
+       既存のもの 3 つを <code>*-head</code> にリネームし、差分で 7 行を新規追加（攻撃 2 + ガード 4 + ガード移動 4 のうち重複を除く）。</p>
+
+    <table>
+      <thead>
+        <tr><th>key</th><th>kind</th><th>target</th><th>startup</th><th>active</th><th>recovery</th><th>reach</th><th>damage</th><th>stamCost</th><th>備考</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="lbl">jab</td><td>attack</td><td class="head">▲ head</td><td class="num">4</td><td class="num">2</td><td class="num">6</td><td class="num">1.4</td><td class="num">5</td><td class="num neg">−6</td><td class="dim">既存（target 追加のみ）</td></tr>
+        <tr><td class="lbl">straight</td><td>attack</td><td class="head">▲ head</td><td class="num">6</td><td class="num">2</td><td class="num">12</td><td class="num">1.6</td><td class="num">12</td><td class="num neg">−15</td><td class="dim">既存（target 追加のみ）</td></tr>
+        <tr><td class="lbl">body-jab</td><td>attack</td><td class="body">▼ body</td><td class="num">4</td><td class="num">2</td><td class="num">6</td><td class="num">1.4</td><td class="num">5</td><td class="num neg">−6</td><td class="dim">新規（jab の腹版）</td></tr>
+        <tr><td class="lbl">body-straight</td><td>attack</td><td class="body">▼ body</td><td class="num">6</td><td class="num">2</td><td class="num">12</td><td class="num">1.6</td><td class="num">12</td><td class="num neg">−15</td><td class="dim">新規（straight の腹版）</td></tr>
+        <tr><td class="lbl">guard-head</td><td>guard</td><td class="head">▲ head</td><td class="num">0</td><td>—</td><td>—</td><td>—</td><td>—</td><td class="num">0</td><td class="dim">旧 guard をリネーム</td></tr>
+        <tr><td class="lbl">guard-body</td><td>guard</td><td class="body">▼ body</td><td class="num">0</td><td>—</td><td>—</td><td>—</td><td>—</td><td class="num">0</td><td class="dim">新規</td></tr>
+        <tr><td class="lbl">guard-fwd-head</td><td>guardMove</td><td class="head">▲ head</td><td class="num">0</td><td>—</td><td>—</td><td>—</td><td>—</td><td class="num neg">−0.3/F</td><td class="dim">旧 guard-fwd をリネーム</td></tr>
+        <tr><td class="lbl">guard-fwd-body</td><td>guardMove</td><td class="body">▼ body</td><td class="num">0</td><td>—</td><td>—</td><td>—</td><td>—</td><td class="num neg">−0.3/F</td><td class="dim">新規</td></tr>
+        <tr><td class="lbl">guard-back-head</td><td>guardMove</td><td class="head">▲ head</td><td class="num">0</td><td>—</td><td>—</td><td>—</td><td>—</td><td class="num neg">−0.3/F</td><td class="dim">旧 guard-back をリネーム</td></tr>
+        <tr><td class="lbl">guard-back-body</td><td>guardMove</td><td class="body">▼ body</td><td class="num">0</td><td>—</td><td>—</td><td>—</td><td>—</td><td class="num neg">−0.3/F</td><td class="dim">新規</td></tr>
+        <tr><td class="dim">forward / backward / step-in / step-back / idle</td><td class="dim">move / idle</td><td class="dim">—</td><td class="dim">—</td><td class="dim">—</td><td class="dim">—</td><td class="dim">—</td><td class="dim">—</td><td class="dim">既存</td><td class="dim">変更なし</td></tr>
+      </tbody>
+    </table>
+
+    <p class="note">
+      <b>初期パラメータ方針</b>: body-jab = head-jab のコピー、body-straight = head-straight のコピー。
+      target だけが違う。差別化（startup ±1F / damage ±2 等）は<b>verify.js の観察結果を見て後から調整</b>。
+      最初に細工しないのは「同じステートで何が起きるか」を見るため。
+    </p>
+  </div>
+
+  <!-- ===== 判定ロジック ===== -->
+  <div class="panel">
+    <h2>3. 判定ロジック</h2>
+    <p>既存の「接触検出 → 効果適用」の2パス方式は維持。検出パスで攻撃と被弾者状態を記録、適用パスで以下のロジックを通す。</p>
+
+    <div class="formula">
+      <code>// 検出パスで記録した接触ごとに、適用パスで:</code><br>
+      <em>A</em> = 攻撃の target （<code>'head' | 'body'</code>）<br>
+      <em>G</em> = 被弾者の現在の <code>guardTarget</code> （ガード/ガード移動中なら <code>'head' | 'body'</code>、その他は <code>null</code>）<br><br>
+      <code>if (G === null)</code> → ノーガード判定（既存と同じ damage 計算、のけぞり付与）<br>
+      <code>else if (G === A)</code> → ブロック成功（damage = 0、ガード硬直付与）<br>
+      <code>else</code> → ノーガード相当（既存の damage 計算、のけぞり付与）
+    </div>
+
+    <ul>
+      <li>カウンター倍率（×1.5・始動つぶし）／相打ち／パニッシュの既存ロジックはそのまま流用。target は「ブロック成立か否か」の判定にのみ使う。</li>
+      <li><code>guardTarget</code> はキャラの派生プロパティ。<code>moveKey</code> が guard-* / guard-fwd-* / guard-back-* のいずれかなら、その末尾から導出する（別フィールドは持たない）。</li>
+    </ul>
+  </div>
+
+  <!-- ===== 表示と観測 ===== -->
+  <div class="panel">
+    <h2>4. 表示と観測</h2>
+
+    <h3>画面表示</h3>
+    <ul>
+      <li><b>キャラカード</b>: actionLabel に上下記号を付加。
+        <span class="sym-head">▲ 頭ジャブ</span> / <span class="sym-body">▼ 腹ジャブ</span> /
+        <span class="sym-head">ガード▲</span> / <span class="sym-body">ガード▼</span> など。
+        target を持たない行動（前進・後退・待機）は記号なし。</li>
+      <li><b>間合いゲージ（リーチ帯）</b>: 既存の自分=緑 / 敵=赤、発生中=濃 / 始動中=淡 の表示はそのまま。
+        <b>帯の上に小さく ▲ / ▼ を重ねる</b>（色分けはせず記号のみで判別）。</li>
+      <li><b>行動候補テーブル（score 表示）</b>: 攻撃が 4 行 / ガードが 6 行に増えるので、target 列を別カラムに切り出し、種別ごとにソートして見やすく。</li>
+    </ul>
+
+    <h3>観測スキーマ（buildObs）</h3>
+    <div class="grid2">
+      <div class="cell head">
+        <h4>self（完全把握）</h4>
+        <ul>
+          <li><code>action</code>: <code>'jab/head' | 'straight/head' | 'body-jab/body' | ... | 'guard-fwd/body'</code></li>
+          <li><code>guardTarget</code>: <code>'head' | 'body' | null</code> （ガード系状態でないときは null）</li>
+          <li>他の既存フィールドは変更なし</li>
+        </ul>
+      </div>
+      <div class="cell body">
+        <h4>opponent（★ 段階3で曖昧化対象）</h4>
+        <ul>
+          <li><code>action</code>: 同上の形式で完全公開（★）</li>
+          <li><code>guardTarget</code>: 完全公開（★）</li>
+          <li>段階3 で「active F の直前まで target を隠す」「反応遅延 NF」等で曖昧化</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>relative ブロック</h3>
+    <ul>
+      <li><code>reachableAttacks</code>: 自分が今出せる攻撃のうち射程内のもの一覧
+        <code>['jab','straight','body-jab','body-straight']</code> から該当を返す。
+        target 込みの最適評価のため。既存の <code>inRangeForJab</code> 等はそのまま残す。</li>
+    </ul>
+
+    <h3>技編集テーブル</h3>
+    <ul>
+      <li>行が 10 行＋移動類 5 行で計 15 行になるので、<code>kind</code> 列でソート（attack 4 → guard 6 → move 4 → idle）。</li>
+      <li>新列 <code>target</code>（head/body/—）を追加（リードオンリー、MOVES の定数）。</li>
+    </ul>
+  </div>
+
+  <!-- ===== AI 統合 ===== -->
+  <div class="panel">
+    <h2>5. AI への統合</h2>
+    <p>新しい性格軸は追加しない（既存 ag/df/pd/pa/sa のまま）。scoreActions に <b>二要素の倍率</b> を掛ける形で「相手のガードを見て逆を狙う／相手の攻撃に合わせる」を機械的に表現。</p>
+
+    <h3>攻撃側（4 攻撃の score 倍率）</h3>
+    <div class="formula">
+      <code>oppGT</code> = <code>opponent.guardTarget</code> （null / 'head' / 'body'）<br><br>
+      <code>if (oppGT === null)</code> → head-* も body-* も等倍（既存ロジックそのまま）<br>
+      <code>else if (oppGT === attackTarget)</code> → score × <em>0.3</em>（ガード方向に突っ込む、避けたい）<br>
+      <code>else</code> → score × <em>1.5</em>（逆を突く、選好）
+    </div>
+    <p class="note">
+      意図: 相手が頭を守っていれば腹を、腹を守っていれば頭を狙う。両者完全公開なので守備側も即追従 →
+      段階2 単独では「攻撃が通らない / 時間切れ多発」になる想定。それを観測して段階3 の必要性を裏付ける。
+    </p>
+
+    <h3>守備側（6 ガードの target 選択）</h3>
+    <div class="formula">
+      <code>oppAct</code> = <code>opponent.action</code> （phase + target）<br><br>
+      <code>if (oppAct が攻撃 startup 中)</code> → そのattackTargetと同じ target のガード系 score × <em>2.0</em>、逆 target × <em>0.5</em><br>
+      <code>else if (oppAct が攻撃 active 中)</code> → 判定確定済み、target 据え置き（変更しても無意味）<br>
+      <code>else (非攻撃状態)</code> → <em>head</em> をデフォルト選好（×1.2）
+    </div>
+    <p class="note">
+      ガード移動 vs その場ガード の選び方は既存ロジック（pd 防御性 と pr 好む間合い）を流用、target だけ上記で決める。
+      pd が高いほどガード系全般を選びやすく、その中で target は上の倍率で決まる、という二段構え。
+    </p>
+
+    <h3>guardTarget の連続性</h3>
+    <ul>
+      <li>1 回 startAction で選んだ target はその行動が続く限り保持。DECIDE_EVERY=3 のタイミングで再評価され、target を変える場合は<b>ガードを再 startAction</b>（即時切り替え）。</li>
+      <li>最小実装では切り替えコストなし。verify.js で「切り替え多発の異常」が出たら、次イテレーションで 1F の idle 強制等を入れる。</li>
+    </ul>
+
+    <h3>性格との関係</h3>
+    <ul>
+      <li>既存 <code>ag</code>（攻撃性）/ <code>df</code>（防御性）はそのまま、攻撃/防御の総量を制御。</li>
+      <li>頭/腹の選好は性格化せず、「相手のガード逆」一本（土台方針）。後で必要なら 6 軸目 <code>bodyPreference</code> を追加できる構造。</li>
+    </ul>
+  </div>
+
+  <!-- ===== 実装ステップ ===== -->
+  <div class="panel">
+    <h2>6. 実装の進め方（3 ステップ分割）</h2>
+    <p class="note">スタミナと同じく、機械的に1段ずつ進め、各段で <code>verify.js</code> で挙動を観察してから次へ。</p>
+
+    <div class="steps">
+      <div class="step">
+        <span class="id">Step A</span>
+        <h3>データと判定の刷新</h3>
+        <ul>
+          <li>MOVES に target 付与・新規 7 行追加・既存 3 行リネーム（jab→jab[head], guard→guard-head 等）</li>
+          <li>接触判定に target マッチ照合を追加（既存の防御判定を target 比較に置き換え）</li>
+          <li>観測 self/opponent.action / guardTarget を新形式に</li>
+          <li>キャラカード・リーチ帯・技編集テーブルを新形式に</li>
+          <li><b>AI は既存ロジックのまま</b>（target 倍率はまだ入れず、head 固定で動かす）</li>
+        </ul>
+        <div class="check"><b>Identity Check</b>: 全部 head のままで以前と同じ挙動（seed 1/2/3 の試合長・勝者が前回と一致）になることを確認。</div>
+      </div>
+      <div class="step">
+        <span class="id">Step B</span>
+        <h3>AI 攻撃 target 選択</h3>
+        <ul>
+          <li>scoreActions に「相手 guardTarget の逆を狙う」倍率を追加（×1.5 / ×0.3）</li>
+          <li>攻撃側だけが target を選ぶ。守備側はまだ head 固定</li>
+          <li>relative.reachableAttacks 等の利用</li>
+        </ul>
+        <div class="check"><b>観察ポイント</b>: 50戦して攻撃 head/body 比率と「ガード貫通率」を計測。守備が head 固定の状態で body 攻撃が通ることを確認。</div>
+      </div>
+      <div class="step">
+        <span class="id">Step C</span>
+        <h3>AI 守備 target 選択</h3>
+        <ul>
+          <li>守備側の「opponent.attackTarget に合わせる」倍率を追加（×2.0 / ×0.5）</li>
+          <li>非攻撃時の head デフォルト選好（×1.2）</li>
+          <li>性格は既存5軸そのまま</li>
+        </ul>
+        <div class="check"><b>観察ポイント</b>: 完全公開＋無遅延では守備が常に追従し攻撃が通らない、を観測。時間切れ・ガス欠が増える想定。それが段階3 の動機になる。</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 検証計画 ===== -->
+  <div class="panel">
+    <h2>7. 検証計画（verify.js で測るもの）</h2>
+
+    <h3>Step A 後（AI 既存ロジック）</h3>
+    <ul>
+      <li><b>Identity Check</b>: seed 1/2/3 の試合結果が段階1完了時点と完全一致。target 機構の追加で挙動が変わっていないこと。</li>
+    </ul>
+
+    <h3>Step B 後（攻撃側だけ target 選択）</h3>
+    <ul>
+      <li>50戦して: 攻撃の head/body 比率（攻撃側が「逆」を選んでいる比率）</li>
+      <li>「守備 head 固定 vs 攻撃 body」のヒット率（守備が頭固定なので body が通るはず）</li>
+      <li>KO 数 / KO 中央値 F の変化</li>
+    </ul>
+
+    <h3>Step C 後（守備側も target 選択 = 段階2 完成）</h3>
+    <ul>
+      <li>時間切れ率（Step B 後と比較。守備有利で増える予想）</li>
+      <li>KO 数 / KO 中央値 F の変化</li>
+      <li>攻撃 head/body 比率（攻撃側の偏りが出るか）</li>
+      <li>「ガード切り替え遅れヒット」発生回数（無遅延なので 0 のはず）</li>
+      <li>平均スタミナ・スタ0 F 合計（時間切れ多発でガス欠が増えるはず）</li>
+      <li>guardTarget の切り替え頻度（ジッタ発生有無）</li>
+    </ul>
+
+    <p class="note">
+      ここで観察するのは「狙ったか」ではなく「<b>結果として何が立ち上がったか</b>」。
+      想定通り「守備有利で時間切れ多発」が出れば、段階3（反応遅延）に進む動機が立つ。
+      想定外（攻撃 head/body 極端な偏り、ガード切り替え無限ループ、特定セットで KO 量産 等）が出たら、それも観察対象として LOG.md に記録。
+    </p>
+  </div>
+
+  <div class="footer">
+    関連: <a href="fsm_gap_inventory.html">FSM 棚卸し</a> ／ <a href="stamina_spec.html">段階1 スタミナ仕様</a> ／ <a href="boxer_states_taxonomy.html">状態タクソノミー</a> ／ <a href="docs/MEMORY.md">方法論メモ</a>
+  </div>
+
+<script>
+  // 判定マトリクスのインタラクティブ
+  const segs = { a: 'aSeg', g: 'gSeg', k: 'kSeg' };
+  const state = { a: 'head', g: 'head', k: 'jab' };
+  function bindSeg(key) {
+    const el = document.getElementById(segs[key]);
+    el.querySelectorAll('button').forEach(btn => {
+      btn.onclick = () => {
+        el.querySelectorAll('button').forEach(b => b.classList.remove('on'));
+        btn.classList.add('on');
+        state[key] = btn.dataset.v;
+        render();
+      };
+    });
+  }
+  Object.keys(segs).forEach(bindSeg);
+
+  function render() {
+    const baseDmg = state.k === 'jab' ? 5 : 12;
+    const badge = document.getElementById('rBadge');
+    const dmg = document.getElementById('rDmg');
+    const desc = document.getElementById('rDesc');
+
+    if (state.g === 'none') {
+      badge.textContent = 'ノーガード';
+      badge.className = 'badge hit';
+      dmg.textContent = '−' + baseDmg + ' HP';
+      desc.textContent = 'ガードが無いのでフルダメージ。のけぞり付与';
+    } else if (state.g === state.a) {
+      badge.textContent = 'ブロック';
+      badge.className = 'badge block';
+      dmg.textContent = '−0 HP';
+      desc.textContent = 'target 一致 → 防御成功、ガード硬直のみ';
+    } else {
+      badge.textContent = 'すり抜け';
+      badge.className = 'badge hit';
+      dmg.textContent = '−' + baseDmg + ' HP';
+      desc.textContent = 'target ミスマッチ → ガードしてもダメージ通る、のけぞり付与';
+    }
+  }
+  render();
+</script>
+</body>
+</html>

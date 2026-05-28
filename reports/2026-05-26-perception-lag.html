@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>段階3 中間レポート: 知覚遅延の挙動</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; padding: 18px 22px 60px;
+    background: #14181d; color: #d8dee6;
+    font-family: "Consolas", "SFMono-Regular", "Courier New", monospace;
+    font-size: 13px; line-height: 1.55;
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; color: #8fd3ff; }
+  .sub { color: #7c8794; margin: 0 0 14px; font-size: 12px; line-height: 1.7; }
+  .sub b { color: #d8dee6; font-weight: normal; }
+
+  .panel {
+    background: #1c2229; border: 1px solid #2c343d; border-radius: 8px;
+    padding: 12px 16px; margin-bottom: 14px;
+  }
+  .panel h2 {
+    font-size: 14px; margin: 0 0 10px; color: #8fd3ff; letter-spacing: .03em;
+    border-bottom: 1px solid #2c343d; padding-bottom: 6px;
+  }
+  .panel h3 { font-size: 12.5px; margin: 12px 0 6px; color: #aeb9c4; }
+  .panel p { margin: 6px 0; }
+  .panel ul { margin: 6px 0 6px 18px; padding: 0; }
+  .panel ul li { padding: 1px 0; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; margin: 6px 0; }
+  th, td { border: 1px solid #2c343d; padding: 5px 8px; text-align: center; }
+  th { color: #9aa7b4; font-weight: normal; background: #11161b; font-size: 11.5px; letter-spacing: .03em; }
+  td.lbl { text-align: left; color: #d8dee6; }
+  td.num { color: #ffd27d; font-variant-numeric: tabular-nums; }
+  td.neg { color: #ff9d6d; }
+  td.pos { color: #6fd3a0; }
+  td.dim { color: #7c8794; }
+  td.hi { color: #5aafff; font-weight: bold; }
+  td.warn { color: #ff7d7d; font-weight: bold; }
+
+  .formula {
+    background: #11161b; border-left: 3px solid #5aafff;
+    padding: 8px 12px; margin: 6px 0; border-radius: 4px;
+    font-size: 12.5px; color: #d8e6ff;
+  }
+  .formula em { color: #ffd27d; font-style: normal; }
+  .formula code { color: #aeb9c4; }
+
+  .note { font-size: 11.5px; color: #7c8794; line-height: 1.7; margin-top: 6px; }
+  .note b { color: #aeb9c4; font-weight: normal; }
+
+  .timeline {
+    background: #11161b; border: 1px solid #2c343d; border-radius: 6px;
+    padding: 8px 12px; margin: 8px 0; overflow-x: auto;
+  }
+  .timeline pre { margin: 0; font-size: 11.5px; color: #aeb9c4; line-height: 1.5; }
+  .timeline pre b { color: #ffd27d; }
+  .timeline pre i { color: #6fd3a0; font-style: normal; }
+  .timeline pre s { color: #ff7d7d; text-decoration: none; }
+
+  /* メタ */
+  .meta {
+    background: #1c2229; border-left: 3px solid #ffd27d; padding: 8px 12px;
+    border-radius: 4px; margin-bottom: 14px; font-size: 11.5px; color: #d8dee6; line-height: 1.7;
+  }
+  .meta a { color: #8fd3ff; text-decoration: none; }
+  .meta a:hover { text-decoration: underline; }
+
+  /* 選択肢カード */
+  .options { display: grid; grid-template-columns: 1fr; gap: 10px; }
+  @media (min-width: 900px) { .options { grid-template-columns: 1fr 1fr 1fr; } }
+  .opt {
+    background: #11161b; border: 1px solid #2c343d; border-radius: 6px;
+    padding: 10px 12px; position: relative;
+  }
+  .opt h3 { margin: 0 0 4px; font-size: 13px; color: #e8edf3; }
+  .opt .rec { display: inline-block; color: #fff; background: #1f6feb; border-radius: 999px; padding: 1px 8px; font-size: 11px; margin-left: 6px; }
+  .opt p { font-size: 11.5px; color: #aeb9c4; margin: 4px 0; }
+  .opt .pros { color: #6fd3a0; font-size: 11px; }
+  .opt .cons { color: #ff9d6d; font-size: 11px; }
+
+  /* フッター */
+  .footer { color: #7c8794; font-size: 11.5px; margin-top: 22px; line-height: 1.8; border-top: 1px solid #2c343d; padding-top: 12px; }
+  .footer a { color: #8fd3ff; text-decoration: none; }
+  .footer a:hover { text-decoration: underline; }
+
+  .legend-row { display: flex; gap: 12px; font-size: 11.5px; color: #7c8794; flex-wrap: wrap; }
+  .legend-row span b { color: #d8dee6; }
+</style>
+</head>
+<body>
+  <h1>段階3 中間レポート: 知覚遅延（perceptionLag）の挙動観測</h1>
+  <p class="sub">
+    駆け引きを生む3段階ロードマップの<b>第3段階</b>。実物の反応時間を機械的に再現する仕組みを入れ、verify.js で挙動を観察した中間結果。<br>
+    既定 7F で実装したが、実測では<b>3F でも別ゲーム化</b>するほど効果が強いことが判明。次の手の選択肢を整理。
+  </p>
+
+  <div class="meta">
+    <b>関連</b>: <a href="head_body_spec.html">段階2 頭/腹仕様</a> ／ <a href="stamina_spec.html">段階1 スタミナ仕様</a> ／
+    <a href="fsm_gap_inventory.html">FSM 棚卸し（C1 反応遅延 / C2 観測の不完全さ）</a> ／ <a href="LOG.md">LOG.md</a> ／ <a href="TASKS.md">TASKS.md</a>
+  </div>
+
+  <!-- ===== 1. 仕組み ===== -->
+  <div class="panel">
+    <h2>1. 仕組み（実装の核）</h2>
+    <p>
+      これまで AI は <code>buildObs()</code> 経由で<b>相手の現在の状態をリアルタイム</b>で読めていた（攻撃 startup に入った瞬間に守備が反応できた）。
+      段階3 では<b>★ 印フィールドだけ</b>、相手の N フレーム前のスナップショットを返すようにした。
+    </p>
+
+    <h3>遅延対象（★）</h3>
+    <table>
+      <thead><tr><th>フィールド</th><th>意味</th><th>遅延</th><th>理由</th></tr></thead>
+      <tbody>
+        <tr><td class="lbl">opponent.x</td><td>位置</td><td class="dim">リアルタイム</td><td class="dim">目で見えてる</td></tr>
+        <tr><td class="lbl">opponent.hp</td><td>HP</td><td class="dim">リアルタイム</td><td class="dim">可視（出血・倒れ等）</td></tr>
+        <tr><td class="lbl">opponent.state ★</td><td>状態（始動/発生/硬直/...）</td><td class="hi">遅延</td><td class="dim">構えの読み取り</td></tr>
+        <tr><td class="lbl">opponent.action ★</td><td>出している技</td><td class="hi">遅延</td><td class="dim">「ジャブ振ってきた」の認識</td></tr>
+        <tr><td class="lbl">opponent.attackTarget ★</td><td>攻撃 target</td><td class="hi">遅延</td><td class="dim">頭か腹かの読み</td></tr>
+        <tr><td class="lbl">opponent.guardTarget ★</td><td>ガード target</td><td class="hi">遅延</td><td class="dim">相手の防御方向の読み</td></tr>
+        <tr><td class="lbl">opponent.phaseRemaining ★</td><td>フェーズ残り</td><td class="hi">遅延</td><td class="dim">内部値、原理的に見えない</td></tr>
+        <tr><td class="lbl">opponent.stamina ★</td><td>スタミナ</td><td class="hi">遅延</td><td class="dim">呼吸・足取りの推定</td></tr>
+      </tbody>
+    </table>
+
+    <h3>実装の式</h3>
+    <div class="formula">
+      <code>lag = PERS[meK].perceptionLag</code><br>
+      <code>histIdx = (s.frame - 1) - lag</code><br>
+      <code>oppPast = frames[histIdx] ?? frames[0]</code>　<span class="note">（履歴不足時は初期 idle 状態）</span><br><br>
+      ★ フィールドはすべて <code>oppPast</code> から取得、リアルタイムフィールドは <code>s[oppK]</code> から取得。
+    </div>
+
+    <p class="note">
+      性格6軸目として <code>perceptionLag</code> を追加。各キャラ独立。0=完全情報（=段階2 完成時と同じ）／7=実物寄り。<br>
+      <b>UI</b>: 「性格」表に「知覚遅延 (0-10F)」のスライダーを追加。<b>verify.js</b>: 履歴 <code>S.frames</code> を maintain するように修正済み。
+    </p>
+  </div>
+
+  <!-- ===== 2. なぜ効くか ===== -->
+  <div class="panel">
+    <h2>2. なぜ knock-out が突然増えるか（時間軸）</h2>
+    <p>P がジャブ（startup=4F）を出した瞬間からの、守備 E が「反応してガード」するまでのタイムライン。</p>
+
+    <h3>lag=0F（現在情報）</h3>
+    <div class="timeline">
+<pre>
+F=N    P startAction「ジャブ」, attackTarget=head 確定
+F=N+1  E の観測: opp.action="ジャブ", attackTarget=head が <i>すぐ見える</i>
+       E の decTimer は前回判断から進行中（最長 3F）
+F=N+1〜N+3  E は decTimer 経過待ち
+F=N+3  <b>E decTimer=0 → 判断 → 上ガード切替</b>（or 既に上ガードならそのまま）
+F=N+4  P active 入り → E は既に上ガード → <b>ブロック</b>
+</pre>
+    </div>
+
+    <h3>lag=5F（既定 7F に近い実態）</h3>
+    <div class="timeline">
+<pre>
+F=N    P startAction「ジャブ」, attackTarget=head 確定
+F=N+1〜N+5  E の観測: opp.action は <s>5F 前の state</s> = <b>idle に見える</b>
+       E は「相手 idle なので threatened=false」と判断 → ガード選好 0.10×df
+       → 多くの場合 ガード以外（前進・ステップイン・自分も攻撃）を選ぶ
+F=N+4  P active 入り → E はガード姿勢を取っていない → <b>clean ヒット</b>
+F=N+6  E の観測がようやく「P が攻撃した」を反映するが既に被弾後
+</pre>
+    </div>
+
+    <p class="note">
+      <b>つまり</b>: 知覚遅延は「ガードが間に合わない」だけでなく、「相手の攻撃に気づかない」→「そもそもガード姿勢を取らない」を引き起こす。
+      AI が threatened フラグでガード選好を切り替える設計が、遅延と組むと過度に裏目に出る構造になっている。
+    </p>
+  </div>
+
+  <!-- ===== 3. 観測結果（50戦集計） ===== -->
+  <div class="panel">
+    <h2>3. 観測結果（非対称 50戦集計・sa=0.5 固定）</h2>
+    <p>性格: Player=やや攻撃型(ag=0.6, df=0.4) / 敵=やや守備型(ag=0.4, df=0.6)。両者同じ lag。</p>
+
+    <table>
+      <thead><tr><th>perceptionLag</th><th>P勝</th><th>E勝</th><th>時間切れ</th><th>KO中央値</th><th>clean ヒット</th><th>block</th><th>slip</th></tr></thead>
+      <tbody>
+        <tr><td class="num">0F</td><td class="num">0</td><td class="num">0</td><td class="warn">50</td><td class="dim">—</td><td class="num">334</td><td class="hi">1874</td><td class="num">108</td></tr>
+        <tr><td class="num">3F</td><td class="num">21</td><td class="num">16</td><td class="num">13</td><td class="num">559F</td><td class="num">1129</td><td class="num">791</td><td class="num">51</td></tr>
+        <tr><td class="num">5F</td><td class="num">29</td><td class="num">21</td><td class="num">0</td><td class="num">332F</td><td class="num">1107</td><td class="warn">52</td><td class="num">17</td></tr>
+        <tr><td class="num">7F</td><td class="num">33</td><td class="num">17</td><td class="num">0</td><td class="num">312F</td><td class="num">1092</td><td class="warn">8</td><td class="num">14</td></tr>
+      </tbody>
+    </table>
+
+    <p class="legend-row">
+      <span><b>clean</b>: 守ってない相手にきれいに当たった</span>
+      <span><b>block</b>: target 一致でブロック成功</span>
+      <span><b>slip</b>: 守っていたが target ミスマッチですり抜けた</span>
+    </p>
+
+    <h3>解釈の境界</h3>
+    <ul>
+      <li><b>lag=0F</b>: 段階2 完成時と同一。守備が常に追従して block が圧倒、攻撃は事実上通らない。<b>全 50戦が 800F に達して時間切れ</b>。</li>
+      <li><b>lag=3F</b>: 「読み合いの境界」。攻撃の半分くらい通り、KO=37/50、時間切れ=13。<b>もっとも健全な試合</b>になる。</li>
+      <li><b>lag=5F</b>: 守備機構ほぼ崩壊（block=52 のみ）。全 50戦が KO で決着、平均試合時間=326F とかなり短い。</li>
+      <li><b>lag=7F</b>: ほぼ完全な攻撃通り抜け（block=8）。守備が機能していない。</li>
+    </ul>
+
+    <h3>単発比較（seed×lag）</h3>
+    <table>
+      <thead><tr><th>seed</th><th>lag</th><th>長さ</th><th>勝者</th><th>HP P/E</th><th>clean/block/slip</th></tr></thead>
+      <tbody>
+        <tr><td class="num">1</td><td class="num">0F</td><td class="warn">800F</td><td class="dim">時間切れ</td><td class="num">90 / 71</td><td class="num">2 / 43 / 4</td></tr>
+        <tr><td class="num">1</td><td class="num">3F</td><td class="num">513F</td><td class="lbl">敵</td><td class="num">0 / 34</td><td class="num">21 / 9 / 2</td></tr>
+        <tr><td class="num">1</td><td class="num">5F</td><td class="num">306F</td><td class="lbl">敵</td><td class="num">0 / 31</td><td class="num">24 / 0 / 0</td></tr>
+        <tr><td class="num">1</td><td class="num">7F</td><td class="num">306F</td><td class="lbl">敵</td><td class="num">0 / 31</td><td class="num">24 / 0 / 0</td></tr>
+        <tr><td class="num">2</td><td class="num">0F</td><td class="warn">800F</td><td class="dim">時間切れ</td><td class="num">83 / 80</td><td class="num">5 / 38 / 1</td></tr>
+        <tr><td class="num">2</td><td class="num">3F</td><td class="num">789F</td><td class="lbl">Player</td><td class="num">11 / 0</td><td class="num">27 / 19 / 3</td></tr>
+        <tr><td class="num">2</td><td class="num">5F</td><td class="num">294F</td><td class="lbl">Player</td><td class="num">23 / 0</td><td class="num">17 / 0 / 1</td></tr>
+        <tr><td class="num">2</td><td class="num">7F</td><td class="num">373F</td><td class="lbl">敵</td><td class="num">0 / 7</td><td class="num">20 / 2 / 0</td></tr>
+        <tr><td class="num">3</td><td class="num">0F</td><td class="warn">800F</td><td class="dim">時間切れ</td><td class="num">64 / 64</td><td class="num">9 / 35 / 2</td></tr>
+        <tr><td class="num">3</td><td class="num">3F</td><td class="num">778F</td><td class="lbl">Player</td><td class="num">50 / 0</td><td class="num">21 / 25 / 2</td></tr>
+        <tr><td class="num">3</td><td class="num">5F</td><td class="num">357F</td><td class="lbl">敵</td><td class="num">0 / 15</td><td class="num">28 / 0 / 0</td></tr>
+        <tr><td class="num">3</td><td class="num">7F</td><td class="num">357F</td><td class="lbl">敵</td><td class="num">0 / 15</td><td class="num">28 / 0 / 0</td></tr>
+      </tbody>
+    </table>
+    <p class="note">
+      <b>注目</b>: seed=1, seed=3 で lag=5 と lag=7 が完全同一の結果。途中までは違う展開だが、KO までに分岐点がなく同じ収束パターンになっている。
+    </p>
+  </div>
+
+  <!-- ===== 4. 構造的観察 ===== -->
+  <div class="panel">
+    <h2>4. 構造的に何が起きているか</h2>
+
+    <h3>① 守備 AI の threatened フラグ依存</h3>
+    <p>現在の <code>scoreActions</code> ではガードの score は基本 0.10、相手が <code>始動</code> または <code>発生</code> 中で射程内なら ×12 倍（threatened=true で 1.20 倍）。</p>
+    <div class="formula">
+      <code>guardScore = (threatened ? 1.20 : 0.10) × (0.30 + df)</code>
+    </div>
+    <p class="note">
+      lag=0 では「相手攻撃 startup」が常に観測できるので threatened が立ち、ガード score が支配的になる。
+      lag が入ると threatened がしばらく立たない → ガード以外を選ぶ → 攻撃通る。
+    </p>
+
+    <h3>② ガード切替コスト = 0F の前提が崩れる</h3>
+    <p>段階2 時点では「いつでもガードに入れる、切替も即時」という前提で、守備が劣勢にならなかった。
+      知覚が遅れると、ガード切替のための前提情報（「相手が攻撃してきている」）が手に入る時点で既に間に合っていない。</p>
+
+    <h3>③ 一方的になる理由</h3>
+    <p>両者とも lag=5F+ だと、両者とも threatened に反応できず、両者とも守備を取らず、両者とも殴り合う。
+      結果として「先に当てた方の勝ち（高速 KO）」になる。<b>読み合いの圏が消滅</b>している。</p>
+
+    <h3>④ body率は変わらない（50%）</h3>
+    <p>全 lag で body率 49〜52%。攻撃 target 選択ロジック（相手 guardTarget の逆を狙う）が、遅延データの相手 guardTarget=null（idle に見える）に基づくため、結局 50/50 ランダムになる。
+      これは段階2 時点の現象と同じ構造。</p>
+  </div>
+
+  <!-- ===== 5. 次の手 ===== -->
+  <div class="panel">
+    <h2>5. 次の手の選択肢</h2>
+    <p>「lag が強すぎる」を解消する方向は複数ある。どこから手を付けるかの選択肢。</p>
+
+    <div class="options">
+      <div class="opt">
+        <h3>(A) 守備 AI を構造的に直す<span class="rec">推奨</span></h3>
+        <p>実物ボクサーは「構え＝デフォルト」。AI も threatened フラグに依存せず、常時ある程度ガードを選好する形に。</p>
+        <ul style="margin:4px 0 4px 16px;padding:0;color:#aeb9c4;font-size:11.5px;">
+          <li>guard 基準 score を 0.10 → 0.35 に</li>
+          <li>or 「射程内なら threat 無しでも 0.60×df」</li>
+          <li>or 「ガード移動」（前進しつつガード）を選好</li>
+        </ul>
+        <p class="pros">○ 構造を直すので lag を変えるたびに調整しなくて済む</p>
+        <p class="cons">× バランス再調整必要</p>
+      </div>
+
+      <div class="opt">
+        <h3>(B) 既定値を 3F に下げる</h3>
+        <p>「読み合いの境界」である lag=3F を既定にする。それ以上は「鈍い反応のキャラ」用の値として位置付ける。</p>
+        <p class="pros">○ 即座に健全な試合になる</p>
+        <p class="cons">× AI の構造的歪みは温存される。lag を上げると同じ問題が再発</p>
+      </div>
+
+      <div class="opt">
+        <h3>(C) フィールド別ラグに細分化</h3>
+        <p>action/attackTarget は 5F、guardTarget は 3F、stamina は 10F、のように細分化。位置に近い情報ほど短く。</p>
+        <p class="pros">○ より実物に近い知覚モデル</p>
+        <p class="cons">× パラメータ増・実装複雑化。まず単一ラグで AI を直してからの方が良い</p>
+      </div>
+    </div>
+
+    <h3>推奨ルート</h3>
+    <p><b>A → B</b>: まず AI 守備の構造的歪み（threatened 依存）を直し、その上で「健全な試合になる lag 値」を再観測して既定値を決める。
+      C は土台が固まってから検討。</p>
+  </div>
+
+  <!-- ===== 6. 当面のチェックリスト ===== -->
+  <div class="panel">
+    <h2>6. 当面のチェックリスト</h2>
+    <ul>
+      <li>[ ] (A) 守備 AI のガード基準 score を上げる（threatened 依存を弱める）</li>
+      <li>[ ] verify.js で lag=0/2/3/5/7 を再観測し、健全な試合になる範囲を特定</li>
+      <li>[ ] (B) 既定値の決定（おそらく 3F or 2F）</li>
+      <li>[ ] LOG.md に段階3 結果を記録、TASKS.md を更新</li>
+      <li>[ ] （後段）フィールド別ラグ・動的ラグ（疲労連動）・注意の偏り</li>
+    </ul>
+  </div>
+
+  <div class="footer">
+    関連: <a href="head_body_spec.html">段階2 仕様</a> ／ <a href="stamina_spec.html">段階1 仕様</a> ／
+    <a href="fsm_gap_inventory.html">FSM 棚卸し</a> ／ <a href="docs/MEMORY.md">方法論メモ</a>
+  </div>
+</body>
+</html>

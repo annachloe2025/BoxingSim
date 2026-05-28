@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BoxingSim 段階3 (α) Step A: 配管 + 観測フック + Identity Check 2026-05-27</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; padding: 18px 22px 60px;
+    background: #14181d; color: #d8dee6;
+    font-family: "Consolas", "SFMono-Regular", "Courier New", monospace;
+    font-size: 13px; line-height: 1.55;
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; color: #8fd3ff; }
+  .sub { color: #7c8794; margin: 0 0 14px; font-size: 12px; line-height: 1.7; }
+  .sub b { color: #d8dee6; font-weight: normal; }
+
+  .panel {
+    background: #1c2229; border: 1px solid #2c343d; border-radius: 8px;
+    padding: 12px 16px; margin-bottom: 14px;
+  }
+  .panel h2 {
+    font-size: 14px; margin: 0 0 10px; color: #8fd3ff; letter-spacing: .03em;
+    border-bottom: 1px solid #2c343d; padding-bottom: 6px;
+  }
+  .panel h3 { font-size: 12.5px; margin: 12px 0 6px; color: #aeb9c4; }
+  .panel h4 { font-size: 12px; margin: 10px 0 4px; color: #9aa7b4; font-weight: normal; }
+  .panel p { margin: 6px 0; }
+  .panel ul { margin: 6px 0 6px 18px; padding: 0; }
+  .panel ul li { padding: 1px 0; }
+  .panel ol { margin: 6px 0 6px 22px; padding: 0; }
+  .panel ol li { padding: 2px 0; }
+  code { color: #aeb9c4; background: #11161b; padding: 1px 4px; border-radius: 3px; font-size: 12px; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; margin: 6px 0; }
+  th, td { border: 1px solid #2c343d; padding: 5px 8px; text-align: center; vertical-align: top; }
+  th { color: #9aa7b4; font-weight: normal; background: #11161b; font-size: 11.5px; letter-spacing: .03em; }
+  td.lbl { text-align: left; color: #d8dee6; }
+  td.lblL { text-align: left; color: #d8dee6; }
+  td.num { color: #ffd27d; font-variant-numeric: tabular-nums; }
+  td.dim { color: #7c8794; text-align: left; }
+  td.hi { color: #5aafff; font-weight: bold; }
+  td.warn { color: #ff7d7d; font-weight: bold; }
+  td.ok { color: #6fd3a0; font-weight: bold; }
+  td.head { color: #8fd3ff; }
+
+  .formula {
+    background: #11161b; border-left: 3px solid #5aafff;
+    padding: 8px 12px; margin: 6px 0; border-radius: 4px;
+    font-size: 12.5px; color: #d8e6ff;
+  }
+  .formula em { color: #ffd27d; font-style: normal; }
+  .formula code { color: #aeb9c4; }
+
+  .note { font-size: 11.5px; color: #7c8794; line-height: 1.7; margin-top: 6px; }
+  .note b { color: #aeb9c4; font-weight: normal; }
+
+  .meta {
+    background: #1c2229; border-left: 3px solid #ffd27d; padding: 8px 12px;
+    border-radius: 4px; margin-bottom: 14px; font-size: 11.5px; color: #d8dee6; line-height: 1.7;
+  }
+  .meta a { color: #8fd3ff; text-decoration: none; }
+  .meta a:hover { text-decoration: underline; }
+
+  .pass-box {
+    background: #16221c; border: 2px solid #6fd3a0; border-radius: 6px;
+    padding: 12px 16px; margin: 10px 0;
+  }
+  .pass-box h3 { color: #6fd3a0; margin: 0 0 8px; font-size: 13.5px; }
+  .pass-box p { margin: 4px 0; font-size: 12px; }
+  .pass-box ul { margin: 6px 0 6px 22px; }
+  .pass-box ul li { padding: 2px 0; font-size: 12px; }
+
+  .change {
+    background: #11161b; border-left: 3px solid #5aafff; border-radius: 4px;
+    padding: 8px 12px; margin: 8px 0; font-size: 12px;
+  }
+  .change h4 { color: #8fd3ff; margin: 0 0 4px; font-size: 12.5px; }
+  .change p { margin: 4px 0; }
+
+  .change.fix {
+    border-left-color: #ffce4d;
+  }
+  .change.fix h4 { color: #ffce4d; }
+
+  .footer { color: #7c8794; font-size: 11.5px; margin-top: 22px; line-height: 1.8; border-top: 1px solid #2c343d; padding-top: 12px; }
+  .footer a { color: #8fd3ff; text-decoration: none; }
+  .footer a:hover { text-decoration: underline; }
+  .footer ul { margin: 4px 0 4px 18px; padding: 0; }
+  .footer ul li { padding: 1px 0; }
+
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 10.5px; margin-left: 4px; }
+  .pill.pass { background: #6fd3a0; color: #14181d; }
+  .pill.noop { background: #2c343d; color: #aeb9c4; }
+  .pill.next { background: #ffce4d; color: #14181d; }
+</style>
+</head>
+<body>
+  <h1>段階3 (α) Step A: 配管 + 観測フック追加 + Identity Check</h1>
+  <p class="sub">
+    守備 AI 構造改善 3 段プラン (A/B/C) の <b>Step A</b> 完了レポート。
+    後段で式を変更する前の<b>配管と観測フックのみ</b>を追加し、既存挙動との
+    <b>bit-identical（完全一致）</b>を verify.js で確認した。
+    挙動を動かす式変更は Step B / C で行う。
+  </p>
+
+  <div class="meta">
+    <b>関連</b>:
+    <a href="2026-05-26-perception-lag.html">2026-05-26 perception-lag 中間</a> ／
+    <a href="2026-05-27-current-state-analysis.html">2026-05-27 現状分析</a> ／
+    プラン: <code>~/.claude/plans/ai-gleaming-hollerith.md</code> ／
+    <a href="../TASKS.md">TASKS.md</a> ／ <a href="../LOG.md">LOG.md</a>
+  </div>
+
+  <!-- ===== 1. 背景 ===== -->
+  <div class="panel">
+    <h2>1. 背景</h2>
+
+    <p>
+      <a href="2026-05-26-perception-lag.html">perception-lag 中間レポート</a> で、
+      守備 AI に構造的問題 3 点が抽出されている:
+    </p>
+    <ul>
+      <li><b>① threatened フラグ依存</b> — ガード score が threatened の有無で 0.10 / 1.20 と段差し、lag 下では threatened が立つ前に被弾</li>
+      <li><b>② ガード切替コスト = 0F</b> — 段階 2 時点の瞬時切替前提が lag 導入後も残存</li>
+      <li><b>③ 一方的試合</b> — 両者 lag=5F+ で守備姿勢が出ず、先手 KO 一辺倒</li>
+    </ul>
+
+    <p>
+      これに対するプラン <code>ai-gleaming-hollerith.md</code> は構造改善を 3 段に分割している:
+    </p>
+    <table>
+      <thead><tr><th>Step</th><th>役割</th><th>挙動への影響</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="head">A（今回）</td>
+          <td class="lblL">配管 + 観測フック追加</td>
+          <td class="ok">無し（既定 0 / no-op）<span class="pill noop">no-op</span></td>
+        </tr>
+        <tr>
+          <td class="dim">B</td>
+          <td class="lblL dim">guardScore 式の構造修正（threat 依存比 3.7× → 2.3×）、guardCommitment 既定 0.5 有効化</td>
+          <td class="dim">あり<span class="pill next">予告</span></td>
+        </tr>
+        <tr>
+          <td class="dim">C</td>
+          <td class="lblL dim">guardSwapStartup=3F を有効化（FSM レベルの切替コスト）</td>
+          <td class="dim">あり<span class="pill next">予告</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="note">
+      Step A の役割は、後段 (B/C) で式を動かしたときに <b>「どこが何によって変わったか」を機械的に切り分けるための基準</b> を作ること。
+      段階 1 Step A、段階 2 Step A と同じ流儀（配管先行 → 値変更）。
+    </p>
+  </div>
+
+  <!-- ===== 2. 実装内容 ===== -->
+  <div class="panel">
+    <h2>2. 実装内容</h2>
+
+    <h3>2-1. <code>src/index.html</code> の 4 配管（すべて既定 0 で no-op）</h3>
+
+    <div class="change">
+      <h4>① PERS 8 軸目 <code>guardCommitment</code> 追加 <span class="pill noop">既定 0</span></h4>
+      <p>
+        <code>src/index.html l.380-386</code>。ガード方向の継続選好度 ∈ [0, 1]。
+        既定 0 では従来通り「毎フレーム白紙」の guard 選好になる。
+        Step B で既定 0.5 を有効化し、ガード方向の継続性を入れる予定。
+      </p>
+    </div>
+
+    <div class="change">
+      <h4>② MOVES ガード 6 種に <code>guardSwapStartup</code> フィールド <span class="pill noop">既定 0</span></h4>
+      <p>
+        <code>src/index.html l.286-289, l.300-301</code>。
+        別 target （head ↔ body）の guard 系 move に切り替えるときに発生する追加 startup フレーム数。
+        既定 0 では従来の瞬時切替が温存される。Step C で 3F を有効化する予定。
+      </p>
+    </div>
+
+    <div class="change">
+      <h4>③ <code>startAction</code> の swap 検出 <span class="pill noop">読まれるが 0 加算</span></h4>
+      <p>
+        <code>src/index.html l.524-529</code>。
+        直前 moveKey が guard 系 &amp; 新 k も guard 系 &amp; target 不一致のとき、
+        <code>ch.stopRec = MOVES[k].guardSwapStartup || 0</code> を加算する。
+        現在は全 guard 系 move の <code>guardSwapStartup</code> が 0 のため、加算量は 0F のままで挙動は不変。
+      </p>
+    </div>
+
+    <div class="change">
+      <h4>④ <code>scoreActions</code> の guardCommitment 倍率 <span class="pill noop">既定 0 で ×1.0</span></h4>
+      <p>
+        <code>src/index.html l.473-477</code>。
+        <code>self.guardTarget</code> と一致する guard 行動には <code>×(1 + 0.5·gc)</code>、
+        不一致には <code>×(1 - 0.5·gc)</code>。
+        <code>self.guardTarget</code> が null のときは両方 ×1.0。
+        <code>gc=0</code> （既定）では一致／不一致いずれも倍率 1.0 で従来挙動と完全に同じ。
+      </p>
+    </div>
+
+    <h3>2-2. UI スライダー追加</h3>
+    <ul>
+      <li><b>ガード継続選好 guardCommitment</b>（Player / 敵 別、<code>src/index.html l.224</code>）</li>
+      <li><b>ガード切替コスト guardSwapStartup</b>（両者共通、<code>src/index.html l.227</code>） — MOVES グローバル設定として一括反映</li>
+    </ul>
+    <p class="note">
+      UI を先に出しておくことで、Step B/C で値を動かす段になっても UI 追加を伴わずに済む。
+    </p>
+
+    <h3>2-3. <code>tools/verify.js</code> 拡張</h3>
+    <table>
+      <thead><tr><th>追加項目</th><th>場所</th><th>役割</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="lblL">ガード切替頻度カウンタ</td>
+          <td class="dim">l.101, 128, 217</td>
+          <td class="dim">runMatch ループ内で「直前 guard 系 → 現 guard 系 &amp; target 不一致」を検出</td>
+        </tr>
+        <tr>
+          <td class="lblL">殴り合い率</td>
+          <td class="dim">l.105, 134, 218-219</td>
+          <td class="dim">1 試合内「両者とも非ガード move/attack」フレーム比</td>
+        </tr>
+        <tr>
+          <td class="lblL">lag スキャン拡張</td>
+          <td class="dim">4 段 → 7 段</td>
+          <td class="dim"><code>[[0,0], [1,2], [2,4], [3,5], [4,6], [5,8], [7,10]]</code></td>
+        </tr>
+        <tr>
+          <td class="lblL">性格パターン 3 ケース</td>
+          <td class="dim">—</td>
+          <td class="dim">両攻撃型 / 両守備型 / 非対称 × lag=(3,5)(5,8)</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>2-4. 副次バグ修正<span class="pill" style="background:#ffce4d; color:#14181d;">fix</span></h3>
+    <div class="change fix">
+      <h4><code>tools/verify.js</code> のパス修正</h4>
+      <p>
+        <code>./index.html</code> → <code>../src/index.html</code>。
+        2026-05-27 フォルダ整理時に <code>index.html</code> が <code>src/</code> 下に移動したが
+        verify.js のパスが追従しておらず、起動できない状態が残っていた。今回の動作確認で発覚し合わせて修正。
+      </p>
+    </div>
+  </div>
+
+  <!-- ===== 3. Identity Check 結果 ===== -->
+  <div class="panel">
+    <h2>3. Identity Check 結果</h2>
+
+    <div class="pass-box">
+      <h3>PASS（完全 bit-identical）</h3>
+      <p>
+        Step A の 4 配管はすべて既定値で no-op であり、verify.js での新旧出力比較は
+        <b>新規ブロック以外完全一致</b>。
+      </p>
+      <ul>
+        <li>
+          <b>単発比較</b>: seed = 1, 2, 3 × (p0/d0)(p2/d4)(p3/d5)(p5/d8) の
+          <b>フレーム数・KO・攻撃内訳・ヒット内訳がすべて完全一致</b>
+        </li>
+        <li>
+          <b>50 戦集計</b>: 旧 4 段すべての
+          P 勝 / E 勝 / 時間切れ / 平均 F / KO 中央値 / スタミナ / 総攻撃 /
+          ヒット内訳 / 技 kind outcome / whiff 内訳 / whiff 原因 が完全一致
+        </li>
+        <li>
+          <b>差分</b>: 新規出力ブロックのみ
+          （新 lag 3 段 [4,6][5,8][7,10] と性格 3 ケース、
+          <code>--- 段階3 (α) Step A 新指標 ---</code> セクション）
+        </li>
+      </ul>
+    </div>
+
+    <p class="note">
+      Identity Check は「式に手を入れる前に配管を済ませる」スタイルの定型確認。
+      これにより Step B/C で値を動かしたときの差分が、
+      <b>「Step B で動いた」「Step C で動いた」と切り分けて読める</b>。
+    </p>
+  </div>
+
+  <!-- ===== 4. 新指標フックの出力サンプル ===== -->
+  <div class="panel">
+    <h2>4. 新指標フックの出力サンプル</h2>
+
+    <p>
+      verify.js に追加した 2 指標（ガード切替頻度 / 殴り合い率）は読み出されているが、
+      Step A では構造変更が無いため値そのものは「既定状態でのベースライン」を示すに留まる。
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>シナリオ</th>
+          <th>ガード切替 / 試合</th>
+          <th>合計（50 戦）</th>
+          <th>殴り合い率</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="lblL">非対称 baseP / baseE (lag=0/0)</td>
+          <td class="num">13.0 回</td>
+          <td class="dim">649</td>
+          <td class="num">9.0%</td>
+        </tr>
+        <tr>
+          <td class="lblL">両攻撃型 (lag=3/5)</td>
+          <td class="num">0.3 回</td>
+          <td class="dim">16</td>
+          <td class="num">28.7%</td>
+        </tr>
+        <tr>
+          <td class="lblL">両攻撃型 (lag=5/8)</td>
+          <td class="num">0.2 回</td>
+          <td class="dim">8</td>
+          <td class="num">28.3%</td>
+        </tr>
+        <tr>
+          <td class="lblL">両守備型 (lag=3/5)</td>
+          <td class="dim" colspan="3">ジャブ被弾率 79% / フェイント試行 569 など、攻撃型と劇的に違うプロファイル（数値詳細は verify 出力を参照）</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>読み取り</h3>
+    <ul>
+      <li>
+        <b>ガード切替頻度</b>: lag が増えると「現 target の guard 自体を選ばなくなる」ので切替回数も下がる
+        （0.3 → 0.2）。lag=0 の理想条件下でも 13 回/試合と多く、「白紙の再決定」がそのまま切替に出ている
+      </li>
+      <li>
+        <b>殴り合い率</b>: lag=0 で 9% に対し lag=3/5 以上は 28% 前後と跳ねる。これが「一方的試合」の数値裏付け
+      </li>
+      <li>
+        いずれも <b>「フックは読まれているが、現状は何の補正もかからない（既定 no-op）」</b> 状態の確認。
+        Step B / C で値を動かしたときに、この同じ指標がどう変位するかが評価軸になる
+      </li>
+    </ul>
+  </div>
+
+  <!-- ===== 5. 次のステップ ===== -->
+  <div class="panel">
+    <h2>5. 次のステップ（プラン外の予告）</h2>
+
+    <table>
+      <thead><tr><th>Step</th><th>内容</th><th>動かすパラメータ</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="head">B</td>
+          <td class="lblL">guardScore 式の構造修正</td>
+          <td class="dim">threat 依存比 3.7× → 2.3× ／ <code>guardCommitment</code> 既定 0.5 を有効化</td>
+        </tr>
+        <tr>
+          <td class="head">C</td>
+          <td class="lblL">FSM レベルの切替コスト導入</td>
+          <td class="dim"><code>guardSwapStartup = 3F</code> を有効化</td>
+        </tr>
+        <tr>
+          <td class="dim">別タスク</td>
+          <td class="lblL dim">lag 既定値の再決定</td>
+          <td class="dim">perception-lag (B) ルート（Step C 完了後）</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="note">
+      Step B / C で挙動を動かしたとき、本レポートで提示した bit-identical の基準と
+      新指標 2 種（ガード切替頻度・殴り合い率）が回帰検出と効果測定の物差しになる。
+      「読み合いの圏が回復したか」を係数の言い分ではなく試合フレーム上の数値で確認できる。
+    </p>
+  </div>
+
+  <div class="footer">
+    <b>参照ファイル</b>
+    <ul>
+      <li><code>src/index.html</code> — PERS 8 軸目 (l.380-386) ／ MOVES guardSwapStartup (l.286-289, l.300-301) ／ startAction swap 検出 (l.524-529) ／ scoreActions gc 倍率 (l.473-477) ／ UI スライダー (l.224, l.227)</li>
+      <li><code>tools/verify.js</code> — ガード切替頻度 (l.101, 128, 217) ／ 殴り合い率 (l.105, 134, 218-219) ／ lag スキャン 7 段化 ／ 性格 3 ケース ／ パス修正 <code>./index.html</code> → <code>../src/index.html</code></li>
+      <li>プラン: <code>~/.claude/plans/ai-gleaming-hollerith.md</code></li>
+      <li><a href="2026-05-26-perception-lag.html">reports/2026-05-26-perception-lag.html</a>（守備 AI 構造的問題 3 点の出所）</li>
+      <li><a href="2026-05-27-current-state-analysis.html">reports/2026-05-27-current-state-analysis.html</a>（推奨候補 (α) としての本タスク位置付け）</li>
+      <li><a href="../TASKS.md">TASKS.md</a> ／ <a href="../LOG.md">LOG.md</a></li>
+    </ul>
+  </div>
+
+</body>
+</html>
