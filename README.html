@@ -65,12 +65,13 @@
 <h1>BoxingSim — Dashboard</h1>
 <p class="sub">
   <b>最終更新:</b> 2026-05-28 / <b>場所:</b> <code>C:\Users\hoeho\Documents\Claude\BoxingSim\</code><br>
-  フレーム単位ボクシング戦闘エンジン。FSM 方法論の検証台。
+  フレーム単位ボクシング戦闘エンジン。FSM 方法論の検証台。<br>
+  <a href="audio.html" style="color:#ffd27d;">▶ 音声レポート（最新10件・スマホ向け）</a>
 </p>
 
 <div class="now-bar">
   <div class="label">▌ 現在地</div>
-  <div class="val">段階5 <b>結論を再評価</b>（<a href="reports/2026-05-28-prediction-strength-ko-artifact.html">予測強度・KO実体の検証</a>）。Step C の「KO増加 → ガード崩しが必要」は、KO増加が<b>ラウンド構造の見かけ</b>（時間切れがKOに変換）だったと判明し覆った。判定到達は<b>予測強度 MT がレバー</b>（両守備3/5: 4→28%、非対称0/0: 44→64%、MT0→0.9 で単調増加）。ただし高lag帯は観測空白で予測が効かず判定率ほぼ0=別軸の構造問題。<br><b>次の方向は再検討中（未決定）</b>。候補の含意整理は新レポート、5候補比較は <a href="reports/2026-05-27-next-candidates-comparison.html">次候補比較レポート</a> 参照。</div>
+  <div class="val">段階5 <b>結論を再評価</b>（<a href="reports/2026-05-28-prediction-strength-ko-artifact.html">予測強度・KO実体の検証</a>）。Step C の「KO増加 → ガード崩しが必要」は、KO増加が<b>ラウンド構造の見かけ</b>（時間切れがKOに変換）だったと判明し覆った。判定到達は<b>予測強度 MT がレバー</b>（両守備3/5: 4→28%、非対称0/0: 44→64%、MT0→0.9 で単調増加）。ただし高lag帯は観測空白で予測が効かず判定率ほぼ0=別軸の構造問題。<br>その後、<b>技DB参照層 (Step 1a)</b> を配管（<a href="reports/2026-05-28-move-reference-step1a.html">レポート</a>、挙動不変・Identity PASS）。次は<b>知覚 → 行動 (Step 1b)</b>: 正確に知覚した時の行動を計算機導出で 1 つずつ。</div>
 </div>
 
 <div class="grid">
@@ -78,6 +79,10 @@
   <!-- 最新レポート -->
   <div class="panel">
     <h2>レポート一覧</h2>
+    <h3>読み合い（技DB参照 → 知覚行動）</h3>
+    <ul>
+      <li><span class="badge done">Step 1a</span> <a href="reports/2026-05-28-move-reference-step1a.html">技DB参照層 — moveData / situation / allMoveKeys 追加（挙動不変・Identity PASS、次は知覚→行動 1b）</a></li>
+    </ul>
     <h3>次の方向の検討</h3>
     <ul>
       <li><span class="badge now">再評価</span> <a href="reports/2026-05-28-prediction-strength-ko-artifact.html">予測強度・KO実体の検証 — 段階5 結論を再評価（KO増加は見かけ・判定は予測強度がレバー）</a></li>

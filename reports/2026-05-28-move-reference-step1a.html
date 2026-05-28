@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>技データベース参照層 Step 1a — 実装完了</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; padding: 18px 22px 60px;
+    background: #14181d; color: #d8dee6;
+    font-family: "Consolas", "SFMono-Regular", "Courier New", monospace;
+    font-size: 13px; line-height: 1.55;
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; color: #8fd3ff; }
+  .sub { color: #7c8794; margin: 0 0 14px; font-size: 12px; line-height: 1.7; }
+  .sub b { color: #d8dee6; font-weight: normal; }
+
+  .panel {
+    background: #1c2229; border: 1px solid #2c343d; border-radius: 8px;
+    padding: 12px 16px; margin-bottom: 14px;
+  }
+  .panel h2 {
+    font-size: 14px; margin: 0 0 10px; color: #8fd3ff; letter-spacing: .03em;
+    border-bottom: 1px solid #2c343d; padding-bottom: 6px;
+  }
+  .panel p { margin: 6px 0; }
+  .panel ul { margin: 6px 0 6px 18px; padding: 0; }
+  .panel ul li { padding: 1px 0; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; margin: 6px 0; }
+  th, td { border: 1px solid #2c343d; padding: 5px 8px; text-align: left; vertical-align: top; }
+  th { color: #9aa7b4; font-weight: normal; background: #11161b; font-size: 11.5px; letter-spacing: .03em; }
+  td.fn { color: #8fd3ff; white-space: nowrap; }
+  td.dim { color: #7c8794; }
+  code { background: #11161b; color: #d8e6ff; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+
+  .verdict { border-left: 3px solid #2c343d; padding: 10px 14px; border-radius: 4px; margin: 8px 0; }
+  .verdict.good { background: #112318; border-left-color: #6fd3a0; }
+  .verdict.good h3 { color: #6fd3a0; margin: 0 0 6px; font-size: 13px; }
+  .verdict.info { background: #11202b; border-left-color: #5aafff; }
+  .verdict.info h3 { color: #8fd3ff; margin: 0 0 6px; font-size: 13px; }
+  .verdict p { margin: 5px 0; font-size: 12px; }
+  .verdict code { background: #0c1014; }
+
+  .meta {
+    background: #1c2229; border-left: 3px solid #ffd27d; padding: 8px 12px;
+    border-radius: 4px; margin-bottom: 14px; font-size: 11.5px; color: #d8dee6; line-height: 1.7;
+  }
+  .meta a { color: #8fd3ff; text-decoration: none; }
+  .meta a:hover { text-decoration: underline; }
+
+  .note { font-size: 11.5px; color: #7c8794; line-height: 1.7; margin-top: 6px; }
+  .note b { color: #aeb9c4; font-weight: normal; }
+
+  .footer { color: #7c8794; font-size: 11.5px; margin-top: 22px; line-height: 1.8; border-top: 1px solid #2c343d; padding-top: 12px; }
+  .footer a { color: #8fd3ff; text-decoration: none; }
+  .footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+  <h1>技データベース参照層 Step 1a — 実装完了</h1>
+  <p class="sub">
+    既にある技データと現況を AI が参照できる surface を作る、<b>挙動を変えない配管のみ</b>のステップ。<br>
+    仕様: <code>docs/design/move_reference_spec.html</code>
+  </p>
+
+  <div class="meta">
+    <b>関連</b>:
+    <a href="../docs/design/move_reference_spec.html">move_reference_spec.html（仕様）</a> ／
+    <a href="../LOG.md">LOG.md</a> ／ <a href="../TASKS.md">TASKS.md</a> ／ <a href="../README.html">Dashboard</a>
+  </div>
+
+  <!-- ===== 目的 ===== -->
+  <div class="panel">
+    <h2>1. 目的</h2>
+    <p>
+      AI が行動を判断する際に「相手の技」と「今の状況」を一望できる参照面を用意する。
+      これは「相手の技を 5f 知覚した時の状況を技 DB で参照する」仕組みの第一スライス。
+      既存の <code>MOVES</code> / <code>buildObs</code> / <code>busyFrames</code> を呼ぶだけの薄い層で、<b>挙動は一切変えない</b>（既存コードは未編集、追加のみ）。
+      <code>scoreActions</code> には未接続。
+    </p>
+  </div>
+
+  <!-- ===== 追加 API ===== -->
+  <div class="panel">
+    <h2>2. 追加した参照 API</h2>
+    <p><code>src/index.html</code> の <code>buildObs</code> 直後（1283–1311 行付近）に挿入。</p>
+    <table>
+      <thead>
+        <tr><th>関数</th><th>戻り値</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="fn">allMoveKeys()</td>
+          <td><code>MOVE_ORDER</code> を返す薄い getter。技キーの一覧。</td>
+        </tr>
+        <tr>
+          <td class="fn">moveData(key)</td>
+          <td>
+            1 技の素のフレームデータを構造化:
+            <code>key</code> / <code>kind</code> / <code>target</code> / <code>startup</code> / <code>active</code> /
+            <code>recovery</code> / <code>reach</code> / <code>damage</code> / <code>hitstun</code> /
+            <code>blockstun</code> / <code>chipRatio</code> / <code>staminaCost</code>。
+            未知 key は <code>null</code>。スタミナ実効値は混ぜない素の値。
+          </td>
+        </tr>
+        <tr>
+          <td class="fn">situation(obs)</td>
+          <td>
+            既存 <code>buildObs</code> の戻り値を <code>self</code> / <code>opponent</code> / <code>between</code> に集約。<br>
+            <code>self.{state, phaseRemaining, framesUntilActable, guardTarget, attackTarget}</code><br>
+            <code>opponent.{同上 + isAttacking, isGuarding}</code>（★<code>detailLag</code> 観測値を中継）<br>
+            <code>between.{distance, closing, inMyReach, inOppReach, frameAdvantage}</code>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="note">
+      <b>framesUntilActable</b> は既存 <code>busyFrames</code> の別名で、新規計算はしていない。<br>
+      <b>frameAdvantage</b>（ガードさせた後の有利/不利 F）はユーザー承認のうえ含めた。
+    </p>
+  </div>
+
+  <!-- ===== Identity Check ===== -->
+  <div class="panel">
+    <h2>3. Identity Check</h2>
+    <div class="verdict good">
+      <h3>○ PASS（バイト完全一致）</h3>
+      <p>
+        編集前後で <code>node tools/verify.js</code>（MT 未設定＝既定 MT=0 / roundEnabled 既定 true）の標準出力 MD5 が一致:
+        <code>0ffc2eaadcf3a65bb5fe4dcb8bec9ee9</code>。
+      </p>
+      <p>
+        メイン側でも独立に md5sum で再現確認済み。追加のみ（既存コード未編集）のため挙動不変は構造的にも保証される。
+        <code>tools/verify.js</code> は無編集（UI 要素の追加が無いため ELEM stub 同期は不要）、エラーなく実行。
+      </p>
+    </div>
+  </div>
+
+  <!-- ===== Out of scope / 次 ===== -->
+  <div class="panel">
+    <h2>4. Out of scope と次のステップ</h2>
+    <div class="verdict info">
+      <h3>本ステップの範囲外</h3>
+      <p>
+        対策導出・予測（0f）・スキル・戦略は範囲外（callsite ゼロ、<code>scoreActions</code> 未接続を grep で確認済み）。
+      </p>
+    </div>
+    <p>
+      <b>次（Step 1b）</b>: この参照データを見て、正確に知覚した時にどう行動するか（対策は手書きせず計算機で導出）を 1 つずつ作る。
+    </p>
+  </div>
+
+  <div class="footer">
+    一次資料: <code>src/index.html</code>（追加のみ） / <code>tools/verify.js</code>（MD5 不変・無編集）。<br>
+    仕様: <a href="../docs/design/move_reference_spec.html">docs/design/move_reference_spec.html</a> ／
+    <a href="../LOG.md">LOG.md</a> ／ <a href="../README.html">Dashboard</a>
+  </div>
+</body>
+</html>

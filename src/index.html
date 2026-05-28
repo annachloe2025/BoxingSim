@@ -1275,6 +1275,67 @@ function buildObs(s, prev, meK, oppK) {
     prediction: me.predictedOpp || null,
   };
 }
+
+// ===== Step 1a: 技データベースの参照層（読み取り専用・副作用なし）=====
+// 点数計算（scoreActions）には未接続。定義を置くだけ。挙動は bit-identical。
+
+// 全 move key を列挙する薄い getter（MOVE_ORDER をそのまま返す）。
+function allMoveKeys() {
+  return MOVE_ORDER;
+}
+
+// moveData(key): 1 つの技の素のフレームデータを構造化して返す。未知 key は null。
+//   スタミナ実効値（effectivePhaseLen）は混ぜない＝技スペックの台帳。
+function moveData(key) {
+  const m = MOVES[key];
+  if (!m) return null;
+  return {
+    key,
+    kind: m.kind,
+    target: m.target || null,
+    startup: m.startup || 0,
+    active: m.active || 0,
+    recovery: m.recovery || 0,
+    reach: m.reach || 0,
+    damage: m.damage || 0,
+    hitstun: m.hitstun || 0,
+    blockstun: m.blockstun || 0,
+    chipRatio: m.chipRatio || 0,
+    staminaCost: m.staminaCost || 0,
+  };
+}
+
+// situation(obs): 既存 buildObs の戻り値から現況を1オブジェクトに集約。新規計算なし。
+//   opponent.* は ★detailLag 遅延の観測値をそのまま中継（知覚モデルを壊さない）。
+//   framesUntilActable は busyFrames の別名（行動可能=ガード可能で同一値）。
+function situation(obs) {
+  return {
+    self: {
+      state: obs.self.state,
+      phaseRemaining: obs.self.phaseRemaining,
+      framesUntilActable: obs.self.busyFrames,
+      guardTarget: obs.self.guardTarget,
+      attackTarget: obs.self.attackTarget,
+    },
+    opponent: {
+      state: obs.opponent.state,
+      phaseRemaining: obs.opponent.phaseRemaining,
+      framesUntilActable: obs.opponent.busyFrames,
+      isAttacking: obs.opponent.isAttacking,
+      isGuarding: obs.opponent.isGuarding,
+      guardTarget: obs.opponent.guardTarget,
+      attackTarget: obs.opponent.attackTarget,
+    },
+    between: {
+      distance: obs.relative.distance,
+      closing: obs.relative.closing,
+      inMyReach: obs.relative.inMyReach,
+      inOppReach: obs.relative.inOppReach,
+      frameAdvantage: obs.relative.frameAdvantage,
+    },
+  };
+}
+
 // 段階4 Step A: 敵行動予測モデル。
 //   forgetting count（指数減衰カウント）で「相手の次の DECIDE 区間に何が来るか」の分布を保持。
 //   観測対象は detailLag 経由の oppDetail snapshot（既存 buildObs と一貫）。

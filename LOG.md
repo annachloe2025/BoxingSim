@@ -310,3 +310,4 @@
 
 ## 2026-05-28
 - **予測強度・KO実体の検証**（詳細: `reports/2026-05-28-prediction-strength-ko-artifact.html`）。ユーザーの2疑問を実測。Q1: KO増加はほぼ見かけ（旧800F単発の時間切れが3RでKOに変換、round構造が停滞をKO化）。Q2: 予測強度MTを上げると判定到達率が単調増加（両守備3/5: 4→28%、非対称0/0: 44→64%、MT0→0.9）=『推論で判定勝負が増える』仮説を支持。ただし高lag帯は観測空白で予測が効かず判定率ほぼ0。前回の『chip弱い→ガード崩し必要』結論は見かけKOに引きずられた早計と判明。verify.js は MD5 不変・無編集。次の方向は未決定。
+- **Step 1a: 技データベース参照層 実装完了**（仕様 `docs/design/move_reference_spec.html` / 詳細 `reports/2026-05-28-move-reference-step1a.html`）。src/index.html に `moveData(key)` / `situation(obs)` / `allMoveKeys()` を追加（buildObs 直後）。既存 MOVES/buildObs/busyFrames を呼ぶだけの薄い参照層で、scoreActions 未接続・挙動不変。Identity Check PASS（MD5 `0ffc2eaadcf3a65bb5fe4dcb8bec9ee9`、編集前後一致、メイン独立再現）。対策導出・予測・スキルは次の Step 1b 以降。

@@ -59,6 +59,10 @@
     - [ ] HP 残存率の採点算入 — 判定発火条件拡張
     - [ ] 10-9/10-8/10-10 内訳の verify.js 出力 — R5 詳細調査
 
+## 読み合い（技DB参照 → 知覚行動）
+- [x] Step 1a 技DB参照層（`moveData` / `situation` / `allMoveKeys` 追加・scoreActions 未接続・挙動不変・Identity PASS）
+- [ ] Step 1b 正確知覚時の行動を計算機導出で1つずつ
+
 - [ ] **次の段階候補**:
   - [ ] ガード崩し機構 C (ガードクラッシュ攻撃) — 段階5 が「足りない」を機械的に裏付けた次の自然な候補
   - [ ] 段階4 Step C: modelPrior UI 等（保留中）

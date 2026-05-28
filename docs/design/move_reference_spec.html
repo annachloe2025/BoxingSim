@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>仕様: 技データベース参照層（Step 1a）</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; padding: 18px 22px 60px;
+    background: #14181d; color: #d8dee6;
+    font-family: "Consolas", "SFMono-Regular", "Courier New", monospace;
+    font-size: 13px; line-height: 1.55;
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; color: #8fd3ff; }
+  .sub { color: #7c8794; margin: 0 0 14px; font-size: 12px; line-height: 1.7; }
+  .sub b { color: #d8dee6; font-weight: normal; }
+
+  .panel {
+    background: #1c2229; border: 1px solid #2c343d; border-radius: 8px;
+    padding: 12px 16px; margin-bottom: 14px;
+  }
+  .panel h2 {
+    font-size: 14px; margin: 0 0 10px; color: #8fd3ff; letter-spacing: .03em;
+    border-bottom: 1px solid #2c343d; padding-bottom: 6px;
+  }
+  .panel h3 { font-size: 12.5px; margin: 12px 0 6px; color: #aeb9c4; }
+  .panel p { margin: 6px 0; }
+  .panel ul { margin: 6px 0 6px 18px; padding: 0; }
+  .panel ul li { padding: 1px 0; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; margin: 6px 0; }
+  th, td { border: 1px solid #2c343d; padding: 5px 8px; text-align: left; vertical-align: top; }
+  th { color: #9aa7b4; font-weight: normal; background: #11161b; font-size: 11.5px; letter-spacing: .03em; }
+  td.k { color: #ffd27d; white-space: nowrap; }
+  td.new { color: #6fd3a0; }
+  td.exist { color: #7c8794; }
+  td.partial { color: #ffce4d; }
+
+  .formula {
+    background: #11161b; border-left: 3px solid #5aafff;
+    padding: 8px 12px; margin: 6px 0; border-radius: 4px;
+    font-size: 12.5px; color: #d8e6ff; white-space: pre-wrap;
+  }
+  .formula em { color: #ffd27d; font-style: normal; }
+  .formula code { color: #aeb9c4; }
+  code { color: #ffd27d; }
+
+  .note { font-size: 11.5px; color: #7c8794; line-height: 1.7; margin-top: 6px; }
+  .note b { color: #aeb9c4; font-weight: normal; }
+
+  .badge { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 11px; font-weight: bold; }
+  .badge.new { background: #1c4a3a; color: #6fd3a0; }
+  .badge.exist { background: #2c343d; color: #9aa7b4; }
+  .badge.scope { background: #5a2424; color: #ff9d6d; }
+
+  .meta {
+    background: #1c2229; border-left: 3px solid #ffd27d; padding: 8px 12px;
+    border-radius: 4px; margin-bottom: 14px; font-size: 11.5px; color: #d8dee6; line-height: 1.7;
+  }
+  .accept { background: #1c2229; border-left: 3px solid #6fd3a0; padding: 8px 12px;
+    border-radius: 4px; margin: 6px 0; font-size: 12px; color: #d8dee6; line-height: 1.7; }
+  .oos { background: #1c2229; border-left: 3px solid #ff9d6d; padding: 8px 12px;
+    border-radius: 4px; margin: 6px 0; font-size: 12px; color: #d8dee6; line-height: 1.7; }
+</style>
+</head>
+<body>
+
+<h1>仕様: 技データベースの参照層（Step 1a）</h1>
+<p class="sub">
+  <b>目的（1行）</b>: 技を放つために既にある技データ＋現在の状況を、AI（キャラ）が
+  まとめて参照できる surface（読み取り専用 API）を作る。<b>挙動は一切変えない（bit-identical）</b>。
+</p>
+
+<div class="meta">
+  分類: <b>参照層の追加のみ</b>。点数計算（<code>scoreActions</code>）には<b>未接続</b>。
+  これは段階1b（参照層を実際に意思決定で使う）への足場であり、それ自体は AI の選択を変えない。
+  対象実装: <code>src/index.html</code>。
+</div>
+
+<!-- ============================================================ -->
+<div class="panel">
+  <h2>1. 既にあるもの／新規に作るもの の切り分け</h2>
+  <p class="note">
+    冗長な足場を作らないため、まず現状コードを精査した。
+    結論: <b>生データはほぼ全部既にある</b>。本当に新規なのは「1 つの move key からフレームデータを引く薄い getter」と
+    「それらを <em>1 オブジェクトにまとめて返す situation 関数</em>」の2点だけ。
+  </p>
+  <table>
+    <tr><th style="width:26%">参照したいもの</th><th style="width:18%">区分</th><th>現状の所在 / 備考</th></tr>
+
+    <tr><td>各技の startup / active / recovery / reach / damage / blockstun / hitstun</td>
+        <td class="exist">既存（生データ）</td>
+        <td><code>MOVES[key]</code>（317–339行）に全フィールドが既にある。ただし「key から構造化して引く関数」は無い。</td></tr>
+    <tr><td>各技の kind / target / chipRatio / staminaCost</td>
+        <td class="exist">既存（生データ）</td>
+        <td>同上。<code>MOVES[key]</code> に格納済み。</td></tr>
+
+    <tr><td>自分・相手の現在フェーズ（state）</td>
+        <td class="exist">既存</td>
+        <td><code>stateLabel(ch)</code>（733行）がフル粒度（待機/移動/始動/発生/硬直/のけぞり/ガード）を返す。<br>
+            観測では <code>self.state</code> / <code>opponent.state</code>（★detailLag 遅れ）。</td></tr>
+    <tr><td>そのフェーズの残りF（phaseRemaining）</td>
+        <td class="exist">既存</td>
+        <td><code>phaseRemain(ch)</code>（1166行）。観測の <code>self.phaseRemaining</code> / <code>opponent.phaseRemaining</code>（★）。</td></tr>
+    <tr><td>相手が次に動ける/ガードできるまでのF</td>
+        <td class="partial">既存（流用）</td>
+        <td><code>busyFrames(ch)</code>（757行）が「あと何F行動不能か」を導出済み。観測の <code>self.busyFrames</code> / <code>opponent.busyFrames</code>。<br>
+            <b>「ガードできるまで」</b>も同じ値（行動可能になった瞬間にガードも選べる ＝ <code>canActNow</code> 成立）。<b>新規導出は不要</b>、別名で見せるだけ。</td></tr>
+    <tr><td>敵との距離（間合い）</td>
+        <td class="exist">既存</td>
+        <td><code>relative.distance</code>（1264行）。射程内判定は <code>relative.inMyReach[key]</code> / <code>relative.inOppReach</code>。</td></tr>
+
+    <tr><td><b>move key → フレームデータの構造化 getter</b></td>
+        <td class="new">新規（薄い）</td>
+        <td><code>MOVES[key]</code> から欲しいフィールドだけを正規化して返す関数。<b>これだけが新規本体</b>。</td></tr>
+    <tr><td><b>現況を1つにまとめた situation オブジェクト</b></td>
+        <td class="new">新規（集約）</td>
+        <td>上の既存値（state/phaseRemaining/busyFrames/distance 等）を1関数で集約。<b>新しい計算は無く、既存値の取りまとめのみ</b>。</td></tr>
+  </table>
+  <p class="note">
+    <b>切り分け要約</b>: 生データ・導出値はすべて <code>MOVES</code> と <code>buildObs</code>/<code>busyFrames</code> に既にある。
+    新規に作るのは「key で技データを引く getter」と「現況集約 situation」の<b>2つの薄いラッパだけ</b>。
+    既存の <code>buildObs</code> や <code>busyFrames</code> は<b>再実装しない（呼ぶだけ）</b>。
+  </p>
+</div>
+
+<!-- ============================================================ -->
+<div class="panel">
+  <h2>2. 提案する参照 API（読み取り専用・副作用なし）</h2>
+
+  <h3>2-1. <code>moveData(key)</code> — 1 つの技のフレームデータを引く <span class="badge new">新規</span></h3>
+  <div class="formula">入力: <em>key</em> （<code>MOVES</code> のキー文字列。例 "ジャブ" / "強ストレート上"）
+戻り値: <em>{ ...フィールド... }</em> 、未知 key なら <em>null</em></div>
+  <p>戻り値フィールド一覧:</p>
+  <table>
+    <tr><th style="width:24%">フィールド</th><th>意味 / 出所</th></tr>
+    <tr><td class="k">key</td><td>引数の key をそのまま返す（呼び出し側の照合用）</td></tr>
+    <tr><td class="k">kind</td><td>"idle" / "attack" / "move"（<code>MOVES[key].kind</code>）</td></tr>
+    <tr><td class="k">target</td><td>"head" / "body" / null（攻撃・ガードのみ）</td></tr>
+    <tr><td class="k">startup</td><td>始動F（attack のみ。素の値。0 は active から始まる技）</td></tr>
+    <tr><td class="k">active</td><td>発生F（当たり判定アクティブ）</td></tr>
+    <tr><td class="k">recovery</td><td>硬直F</td></tr>
+    <tr><td class="k">reach</td><td>リーチ（距離単位。move/idle は 0/undefined → 0 正規化）</td></tr>
+    <tr><td class="k">damage</td><td>ヒット時ダメージ</td></tr>
+    <tr><td class="k">hitstun</td><td>のけぞり硬直F（被弾側に入る）</td></tr>
+    <tr><td class="k">blockstun</td><td>ガード硬直F</td></tr>
+    <tr><td class="k">chipRatio</td><td>ガード時の削り比率（通常 0、強ストレート 0.3）</td></tr>
+    <tr><td class="k">staminaCost</td><td>消費スタミナ（攻撃は1回、移動は per-F）</td></tr>
+  </table>
+  <p class="note">
+    <b>素の値を返す</b>（スタミナによる startup 延長 <code>effectivePhaseLen</code> は<b>適用しない</b>）。
+    理由: ここは「技スペックの台帳」であり、現在状況込みの実効値は situation 側 or 1b の責務。台帳と現況を混ぜない。<br>
+    補助として <code>allMoveKeys()</code>（= <code>MOVE_ORDER</code> を返す薄い getter、または <code>MOVE_ORDER</code> をそのまま参照）で全 key を列挙可能にしておく。
+  </p>
+
+  <h3>2-2. <code>situation(obs)</code> — 現況を1オブジェクトに集約 <span class="badge new">新規</span></h3>
+  <div class="formula">入力: <em>obs</em> （既存 <code>buildObs(...)</code> の戻り値。新規に観測は作らない）
+戻り値: <em>{ self, opponent, between }</em></div>
+  <p>戻り値フィールド一覧（すべて obs から取りまとめるだけ。新規計算なし）:</p>
+  <table>
+    <tr><th style="width:30%">フィールド</th><th>意味 / 出所</th></tr>
+    <tr><td class="k">self.state</td><td>自分の現フェーズ（<code>obs.self.state</code>）</td></tr>
+    <tr><td class="k">self.phaseRemaining</td><td>現フェーズ残りF（<code>obs.self.phaseRemaining</code>）</td></tr>
+    <tr><td class="k">self.framesUntilActable</td><td>自分が動ける/ガードできるまでのF（<code>obs.self.busyFrames</code> の別名）</td></tr>
+    <tr><td class="k">self.guardTarget</td><td>今守っている部位 head/body/null（<code>obs.self.guardTarget</code>）</td></tr>
+    <tr><td class="k">self.attackTarget</td><td>今出している攻撃の部位（<code>obs.self.attackTarget</code>）</td></tr>
+    <tr><td class="k">opponent.state</td><td>相手の現フェーズ（<code>obs.opponent.state</code>。★detailLag 遅れの観測値そのまま）</td></tr>
+    <tr><td class="k">opponent.phaseRemaining</td><td>相手フェーズ残りF（<code>obs.opponent.phaseRemaining</code>、★）</td></tr>
+    <tr><td class="k">opponent.framesUntilActable</td><td>相手が動ける/ガードできるまでのF（<code>obs.opponent.busyFrames</code> の別名）</td></tr>
+    <tr><td class="k">opponent.isAttacking</td><td>相手が攻撃中か（粗知覚 presenceLag、<code>obs.opponent.isAttacking</code>）</td></tr>
+    <tr><td class="k">opponent.isGuarding</td><td>相手がガード中か（<code>obs.opponent.isGuarding</code>）</td></tr>
+    <tr><td class="k">opponent.guardTarget</td><td>相手のガード部位（<code>obs.opponent.guardTarget</code>、★）</td></tr>
+    <tr><td class="k">opponent.attackTarget</td><td>相手の攻撃部位（<code>obs.opponent.attackTarget</code>、★）</td></tr>
+    <tr><td class="k">between.distance</td><td>間合い（<code>obs.relative.distance</code>）</td></tr>
+    <tr><td class="k">between.closing</td><td>接近中か true/false/null（<code>obs.relative.closing</code>）</td></tr>
+    <tr><td class="k">between.inMyReach</td><td>各攻撃 key が届くか {key:bool}（<code>obs.relative.inMyReach</code>）</td></tr>
+    <tr><td class="k">between.inOppReach</td><td>相手の最大リーチ内にいるか（<code>obs.relative.inOppReach</code>）</td></tr>
+    <tr><td class="k">between.frameAdvantage</td><td>フレーム有利（正=自分が先に動ける、<code>obs.relative.frameAdvantage</code>）</td></tr>
+  </table>
+  <p class="note">
+    <b>知覚遅延の扱いは観測に従う</b>: <code>opponent.*</code> は ★ の遅延付き値をそのまま中継する（新たに生値を覗かない＝知覚モデルを壊さない）。
+    <b>「動ける/ガードできるまでのF」は別計算しない</b>。<code>busyFrames</code> が既に同じ意味で、行動可能になった瞬間にガードも選べる（<code>canActNow</code>）ため同一値で正しい。
+  </p>
+</div>
+
+<!-- ============================================================ -->
+<div class="panel">
+  <h2>3. どこから呼べるようにするか</h2>
+  <ul>
+    <li>両関数は <code>src/index.html</code> のグローバルスコープに置く（既存 <code>MOVES</code> / <code>buildObs</code> / <code>busyFrames</code> と同じ層）。AI の意思決定文脈（<code>decideUtility</code> → <code>scoreActions</code> 周辺）から呼べる位置。</li>
+    <li><code>moveData</code> は <code>MOVES</code> を読むだけ。<code>situation</code> は既存 <code>buildObs(...)</code> の戻り値を引数に取る（観測を二重生成しない）。</li>
+    <li><b>呼び出しは追加しない</b>。<code>scoreActions</code> 含め既存の意思決定経路からは<b>呼ばない</b>（呼べば挙動が変わる）。定義を置くだけ。実際に使うのは段階1b。</li>
+    <li>任意（推奨）: 観測表示パネル（<code>renderObs</code> 付近）に situation のダンプを<b>表示だけ</b>追加するのは可。ただし表示は <code>frames</code>/数値計算に影響しないこと（verify.js は DOM 描画を回さないので Identity に無関係だが、念のため副作用ゼロを守る）。</li>
+  </ul>
+</div>
+
+<!-- ============================================================ -->
+<div class="panel">
+  <h2>4. 受け入れ条件</h2>
+  <div class="accept">
+    <b>Identity Check PASS（最優先・必須）</b><br>
+    参照層（<code>moveData</code> / <code>situation</code> / <code>allMoveKeys</code>）を追加するが、点数計算には未接続。
+    したがって <code>tools/verify.js</code> の出力が編集<b>前後で MD5 完全一致</b>すること。
+    （直近 baseline は LOG.md 末尾の MD5。実装者は編集前に baseline を取得し、編集後に再取得して照合する。）
+  </div>
+  <ul>
+    <li><code>moveData(key)</code> は <code>MOVES</code> の全 key で 2-1 の全フィールドを返す。未知 key で <code>null</code>。</li>
+    <li><code>situation(obs)</code> は <code>buildObs</code> の戻り値から 2-2 の全フィールドを取りまとめて返す（新規計算なし＝obs と内容が一致）。</li>
+    <li>両関数とも<b>副作用ゼロ</b>（引数や <code>MOVES</code>/<code>frames</code> を変更しない、<code>Math.random</code> 不使用）。</li>
+    <li>既存関数（<code>buildObs</code> / <code>busyFrames</code> / <code>scoreActions</code> 等）は<b>未編集</b>。</li>
+  </ul>
+</div>
+
+<!-- ============================================================ -->
+<div class="panel">
+  <h2>5. Out of Scope（今回は絶対にやらない・1b 以降の予定）</h2>
+  <div class="oos">
+    <ul style="margin:0 0 0 18px;">
+      <li><b>scoreActions への接続・挙動変更</b> → <span class="badge scope">段階1b</span></li>
+      <li><b>対策・カウンターの導出や手書き</b>（どの技にどう返すか）→ 1b 以降、計算機で導出予定</li>
+      <li><b>予測（0F）・スキル・キャラ別所有・戦略</b> → すべて後段。今回は触れない</li>
+      <li><b>実効値の合成</b>（スタミナ込み startup 等を situation に混ぜること）→ 台帳と現況は分離。1b で必要なら導出</li>
+    </ul>
+  </div>
+  <p class="note">
+    今回の Step 1a は「<b>既にある技データ＋現況を、AI がまとめて読める形にするだけ</b>」。
+    読めるようにするのが目的で、<b>読んだ結果で何を選ぶかは 1b の責務</b>。よって挙動は bit-identical。
+  </p>
+</div>
+
+</body>
+</html>
