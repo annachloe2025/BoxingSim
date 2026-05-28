@@ -40,7 +40,7 @@ function buildIndex() {
         </a>
       </li>`).join('\n');
 
-  const now = new Date().toISOString().slice(0, 16).replace('T', ' ');
+  const latest = items.length ? items[0].date : '';
 
   const out = `<!DOCTYPE html>
 <html lang="ja">
@@ -69,7 +69,7 @@ function buildIndex() {
 <body>
   <header>
     <h1>BoxingSim レポート一覧</h1>
-    <div class="sub">${items.length} 件 ・ 更新: ${now} ・ 新しい順</div>
+    <div class="sub">${items.length} 件 ・ 最新: ${esc(latest)} ・ 新しい順</div>
   </header>
   <main>
     <ul>
@@ -84,7 +84,10 @@ ${rows}
 </html>
 `;
 
-  fs.writeFileSync(path.join(ROOT, 'index.html'), out, 'utf8');
+  // 中身が変わった時だけ書き込む（無駄な commit/push を避ける）
+  const target = path.join(ROOT, 'index.html');
+  const prev = fs.existsSync(target) ? fs.readFileSync(target, 'utf8') : '';
+  if (prev !== out) fs.writeFileSync(target, out, 'utf8');
   return items.length;
 }
 
