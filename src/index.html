@@ -1336,6 +1336,38 @@ function situation(obs) {
   };
 }
 
+// ===== Step 1b 土台: フレーム有利/不利 → 行動方針テーブル（雛形・scoreActions 未接続）=====
+// 目的: 「今 自分が相手に対して何フレーム有利/不利か」だけで、取りたい行動を1つ書ける表。
+//   ガード後・被弾後（不利側）も、whiff狩り・割り込み（有利側）も、すべてこの表のどこかのセルに落ちる。
+//   まず器だけ作る。中身（各セルの行動）は未記入。誰も呼ばないので挙動は bit-identical。
+//
+// キー = frameAdvantage（= oppBusy - selfBusy / 正=自分が先に動ける=有利, 負=不利）。
+//   buildObs().relative.frameAdvantage および situation().between.frameAdvantage と同じ値・遅延なし。
+//   範囲外は -5..+5 にクランプ。
+// 値 = 取りたい行動を MOVE_ORDER のキー1つで（例 "ジャブ" / "上ガード" / "ステップバック"）。
+//   null = 未定（その状況は既定の scoreActions ロジックに任せる）。
+// 後で PERS（個性）ごとに別テーブルを持たせ、守備型/攻撃型などに差し替えて統合する想定。
+const FRAME_RESPONSE = {
+   5: null,   // 大有利
+   4: null,
+   3: null,
+   2: null,
+   1: null,   // 微有利
+   0: null,   // 五分
+  '-1': null, // 微不利
+  '-2': null,
+  '-3': null,
+  '-4': null,
+  '-5': null, // 大不利
+};
+
+// frameResponse(frameAdv): フレーム差(-5..+5 にクランプ)から方針セルを引く薄い getter。
+//   まだ呼び出し側ゼロ＝挙動不変。
+function frameResponse(frameAdv) {
+  const a = Math.max(-5, Math.min(5, Math.trunc(frameAdv) || 0));
+  return FRAME_RESPONSE[a];
+}
+
 // 段階4 Step A: 敵行動予測モデル。
 //   forgetting count（指数減衰カウント）で「相手の次の DECIDE 区間に何が来るか」の分布を保持。
 //   観測対象は detailLag 経由の oppDetail snapshot（既存 buildObs と一貫）。
