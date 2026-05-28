@@ -1,8 +1,7 @@
-// 一覧ページを作り直し、変更があれば GitHub へ commit & push する。
+// 変更があれば GitHub へ commit & push する（トップページは README.html）。
 // 自動公開フック（.claude/settings.local.json）から呼ばれる。手動実行も可: node tools/publish.js
 const { execSync } = require('child_process');
 const path = require('path');
-const { buildIndex } = require('./build-index.js');
 
 const ROOT = path.join(__dirname, '..');
 
@@ -11,7 +10,6 @@ function git(args) {
 }
 
 try {
-  buildIndex();
   git('add -A');
 
   const status = git('status --porcelain').trim();
