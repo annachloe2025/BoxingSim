@@ -311,3 +311,11 @@
 ## 2026-05-28
 - **予測強度・KO実体の検証**（詳細: `reports/2026-05-28-prediction-strength-ko-artifact.html`）。ユーザーの2疑問を実測。Q1: KO増加はほぼ見かけ（旧800F単発の時間切れが3RでKOに変換、round構造が停滞をKO化）。Q2: 予測強度MTを上げると判定到達率が単調増加（両守備3/5: 4→28%、非対称0/0: 44→64%、MT0→0.9）=『推論で判定勝負が増える』仮説を支持。ただし高lag帯は観測空白で予測が効かず判定率ほぼ0。前回の『chip弱い→ガード崩し必要』結論は見かけKOに引きずられた早計と判明。verify.js は MD5 不変・無編集。次の方向は未決定。
 - **Step 1a: 技データベース参照層 実装完了**（仕様 `docs/design/move_reference_spec.html` / 詳細 `reports/2026-05-28-move-reference-step1a.html`）。src/index.html に `moveData(key)` / `situation(obs)` / `allMoveKeys()` を追加（buildObs 直後）。既存 MOVES/buildObs/busyFrames を呼ぶだけの薄い参照層で、scoreActions 未接続・挙動不変。Identity Check PASS（MD5 `0ffc2eaadcf3a65bb5fe4dcb8bec9ee9`、編集前後一致、メイン独立再現）。対策導出・予測・スキルは次の Step 1b 以降。
+- **Step 1b 土台: Playbook + 行動予約 実装完了**（詳細 `reports/2026-05-28-playbook-reservation-step1b.html`）。判断技を 1 つずつ作るための意思決定の土台を src/index.html に追加（追加と最小配線のみ）。
+  - ① **Playbook（行動方針テーブル）**: 「frameAdvantage（= oppBusy − selfBusy、正=有利、知覚遅延なしで正確、−5〜+5 にクランプ）× 間合いバンド」で取りたい行動を引く表。各セルは近い順に「距離が upTo 以下なら この行動」。行動の書き方(Plan)は単発／連続手(seq)／重み付き確率(pick)の3種。`frameResponse(frameAdv, dist)` と `resolvePlan(plan)` で引く。`situation()` 直後（およそ1339行）に定義。
+  - ② **行動予約(resQueue)**: 決めた手をフレームごとに翻意させない予約キュー。`decideUtility`（およそ642行）に配線。連続手は先頭を即実行・残りを予約 → 次の判断で再スコアせず順次消化（行ったり来たり防止）。**安全優先(reservationSafe)**: 攻撃を知覚し自分が射程内なら攻撃系予約を破棄して通常判断（防御）に戻す。移動・ガード予約は続行。手動入力 queue とは別物（衝突回避で resQueue という別名）。
+  - なぜこの順序か: whiff狩り・始動割り込み等の判断技は Playbook の特定セル（大有利／微不利…）に落ちるだけ。個々のスキルを点で作るより、フレーム有利×間合いの土台＋予約機構を先に据えた。狙いは「カウンターを食わない間合いで攻撃が届けば試合は有利に進む」安全な差し合いの蓄積（確定の一撃は狙わない）。
+  - **挙動不変**: Playbook の各セルは全て null → frameResponse が空を返し従来の scoreActions に委ねられる。**Identity Check PASS**（標準出力 MD5 `0ffc2eaadcf3a65bb5fe4dcb8bec9ee9`、Step 1a と同じ baseline、編集前後一致）。`tools/verify.js` 無編集。
+  - 土台の正しさを使い捨て検証スクリプト（vm ハーネス、確認後削除）で **12項目すべて PASS**: 間合いバンド解決（2.0→ジャブ/3.3→ストレート/4.0→連続手[ステップイン,ジャブ]）、frameAdv=99→+5 クランプ、null セルは空、pick 7:3 で 1000回中 709/291（シード固定で決定論的）、予約の順次消化（ステップイン→ジャブ→空→通常判断復帰）、危険時の攻撃予約破棄。
+  - 距離は1次元の抽象「間合い単位」（リング全幅 −2〜8 = 10単位、開始 0.0/4.0 で 4.0 離れ、射程ジャブ3.0・ストレート/強スト3.5、移動 前後0.4・ステップ0.6/F）。
+  - 次（Step 1b 本題）: (a) Playbook 各セルに方針を1つずつ記入（判断技づくり本体）→ (b) 記入後に sim で挙動変化を観察。

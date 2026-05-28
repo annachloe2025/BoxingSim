@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Playbook + 行動予約 — Step 1b の土台完成</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; padding: 18px 22px 60px;
+    background: #14181d; color: #d8dee6;
+    font-family: "Consolas", "SFMono-Regular", "Courier New", monospace;
+    font-size: 13px; line-height: 1.55;
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; color: #8fd3ff; }
+  .sub { color: #7c8794; margin: 0 0 14px; font-size: 12px; line-height: 1.7; }
+  .sub b { color: #d8dee6; font-weight: normal; }
+
+  .panel {
+    background: #1c2229; border: 1px solid #2c343d; border-radius: 8px;
+    padding: 12px 16px; margin-bottom: 14px;
+  }
+  .panel h2 {
+    font-size: 14px; margin: 0 0 10px; color: #8fd3ff; letter-spacing: .03em;
+    border-bottom: 1px solid #2c343d; padding-bottom: 6px;
+  }
+  .panel h3 { font-size: 12.5px; margin: 12px 0 6px; color: #aeb9c4; }
+  .panel p { margin: 6px 0; }
+  .panel ul { margin: 6px 0 6px 18px; padding: 0; }
+  .panel ul li { padding: 1px 0; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; margin: 6px 0; }
+  th, td { border: 1px solid #2c343d; padding: 5px 8px; text-align: left; vertical-align: top; }
+  th { color: #9aa7b4; font-weight: normal; background: #11161b; font-size: 11.5px; letter-spacing: .03em; }
+  td.fn { color: #8fd3ff; white-space: nowrap; }
+  td.dim { color: #7c8794; }
+  td.num { color: #ffd27d; font-variant-numeric: tabular-nums; text-align: center; }
+  td.ctr { text-align: center; }
+  td.pass { color: #6fd3a0; text-align: center; }
+  code { background: #11161b; color: #d8e6ff; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+
+  .formula {
+    background: #11161b; border-left: 3px solid #5aafff;
+    padding: 8px 12px; margin: 6px 0; border-radius: 4px;
+    font-size: 12.5px; color: #d8e6ff;
+  }
+  .formula em { color: #ffd27d; font-style: normal; }
+  .formula code { color: #aeb9c4; }
+
+  .verdict { border-left: 3px solid #2c343d; padding: 10px 14px; border-radius: 4px; margin: 8px 0; }
+  .verdict.info  { background: #11202b; border-left-color: #5aafff; }
+  .verdict.good  { background: #112318; border-left-color: #6fd3a0; }
+  .verdict.warn  { background: #241d11; border-left-color: #ffae4d; }
+  .verdict h3 { margin: 0 0 6px; font-size: 13px; }
+  .verdict.info h3 { color: #8fd3ff; }
+  .verdict.good h3 { color: #6fd3a0; }
+  .verdict.warn h3 { color: #ffce4d; }
+  .verdict p { margin: 5px 0; font-size: 12px; }
+  .verdict code { background: #0c1014; }
+
+  .meta {
+    background: #1c2229; border-left: 3px solid #ffd27d; padding: 8px 12px;
+    border-radius: 4px; margin-bottom: 14px; font-size: 11.5px; color: #d8dee6; line-height: 1.7;
+  }
+  .meta a { color: #8fd3ff; text-decoration: none; }
+  .meta a:hover { text-decoration: underline; }
+
+  .note { font-size: 11.5px; color: #7c8794; line-height: 1.7; margin-top: 6px; }
+  .note b { color: #aeb9c4; font-weight: normal; }
+
+  .footer { color: #7c8794; font-size: 11.5px; margin-top: 22px; line-height: 1.8; border-top: 1px solid #2c343d; padding-top: 12px; }
+  .footer a { color: #8fd3ff; text-decoration: none; }
+  .footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+  <h1>Playbook + 行動予約 — Step 1b の土台完成</h1>
+  <p class="sub">
+    技 DB 参照層（Step 1a）の上に、判断技を 1 つずつ作るための<b>意思決定の土台</b>を据えた。<br>
+    フレーム有利 × 間合いで取る行動を引く表（Playbook）と、決めた手を翻意させない予約機構（行動予約）の <b>2 つ</b>。<br>
+    <b>器と配線のみ・挙動は一切変えていない</b>。前の報告: <code>reports/2026-05-28-move-reference-step1a.html</code> の続き。
+  </p>
+
+  <div class="meta">
+    <b>関連</b>:
+    <a href="2026-05-28-move-reference-step1a.html">技 DB 参照層 Step 1a（前報告）</a> ／
+    <a href="../docs/design/move_reference_spec.html">move_reference_spec.html（仕様）</a> ／
+    <a href="../LOG.md">LOG.md</a> ／ <a href="../TASKS.md">TASKS.md</a> ／ <a href="../README.html">Dashboard</a>
+  </div>
+
+  <!-- ===== なぜこの順序か ===== -->
+  <div class="panel">
+    <h2>1. なぜ「土台」を先に作ったか（線として）</h2>
+    <p>
+      whiff 狩り（空振りを狩る）・始動割り込みといった「判断技」は、突き詰めれば
+      <b>「フレーム有利 × 間合い」のある特定のセルで取るべき行動</b>でしかない。大有利なら踏み込んで差す、微不利なら触らない、というように。
+      だから個々のスキルを点で作るより先に、<b>どの局面でどの行動を取るかを引く表</b>と、
+      <b>決めた手を最後までやり切る予約機構</b>を据えた。これが Step 1b の本題（判断技づくり）を載せる土台になる。
+    </p>
+    <p>
+      狙いは「<b>カウンターを食わない間合いで攻撃が届くなら、それだけで試合は有利に進む</b>」という安全な差し合いの蓄積であって、
+      確定の一撃を狙うことではない。器を先に据えてから、その各セルに方針を 1 つずつ書き込んでいく。
+    </p>
+  </div>
+
+  <!-- ===== Playbook ===== -->
+  <div class="panel">
+    <h2>2. Playbook（行動方針テーブル）</h2>
+    <p>
+      <code>src/index.html</code> の <code>situation()</code> 直後（およそ 1339 行付近）に追加。
+      「自分が相手に対して今 何フレーム有利／不利か」と「間合い（距離）」の <b>2 軸</b>で、取りたい行動を引ける表。
+    </p>
+
+    <h3>軸1: フレーム有利（キー）</h3>
+    <div class="formula">
+      <em>frameAdvantage</em> = <code>oppBusy − selfBusy</code>（正 = 自分が先に動ける＝有利）<br>
+      範囲は <code>−5 〜 +5</code> にクランプ。知覚遅延を挟まない<b>正確な</b>有利フレーム。
+    </div>
+
+    <h3>軸2: 間合いバンド（各セルの列）</h3>
+    <p>
+      各セルは間合いの帯（バンド）の列を持つ。近い順に「距離が <code>upTo</code> 以下なら この行動」を当てていく。
+      例として <code>frameAdvantage = +5</code> のセルは次のように引かれる。
+    </p>
+    <table>
+      <thead>
+        <tr><th>距離が…</th><th>引かれる行動</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="ctr">3.0 以下</td><td>ジャブ（単発）</td></tr>
+        <tr><td class="ctr">3.5 以下</td><td>ストレート（単発）</td></tr>
+        <tr><td class="ctr">それ以上</td><td>ステップイン → 強ストレート を確率で（重み付き）</td></tr>
+      </tbody>
+    </table>
+    <p class="note">近い帯から順に <code>upTo</code> 判定。最初に当たった帯の行動を返す。当たる帯が無ければ空（null）を返す。</p>
+
+    <h3>行動の書き方（Plan）— 3 種類</h3>
+    <table>
+      <thead>
+        <tr><th>種類</th><th>意味</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="fn">単発</td><td><code>"ジャブ"</code> のように技キー 1 つ。その場で 1 手。</td></tr>
+        <tr><td class="fn">連続手 seq</td><td><code>{seq:[...]}</code>。先頭を即実行、残りは予約キューへ（次節）。</td></tr>
+        <tr><td class="fn">重み付き確率 pick</td><td><code>{pick:[...]}</code>。指定の重みで 1 つ抽選。読まれにくくするための揺らぎ。</td></tr>
+      </tbody>
+    </table>
+
+    <h3>引く関数</h3>
+    <table>
+      <thead>
+        <tr><th>関数</th><th>役割</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="fn">frameResponse(frameAdv, dist)</td><td>有利フレームと距離から、その局面の Plan を引く。クランプ・帯解決を内包。</td></tr>
+        <tr><td class="fn">resolvePlan(plan)</td><td>Plan（単発／seq／pick）を実際の 1 手＋予約列に展開する。</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ===== 行動予約 ===== -->
+  <div class="panel">
+    <h2>3. 行動予約（resQueue）</h2>
+    <p>
+      決めた手をフレームごとに翻意しないための予約キュー。<code>decideUtility</code>（およそ 642 行）に配線した。
+      連続手を選んだ場合、先頭を即実行し、残りを <code>resQueue</code> に予約する。
+      次の判断では再スコアせず、予約を順に消化する（攻撃→移動→攻撃…と<b>行ったり来たりするのを防ぐ</b>）。
+    </p>
+
+    <div class="verdict warn">
+      <h3>⚠ 安全優先 — 危険時は攻撃予約を破棄（reservationSafe）</h3>
+      <p>
+        相手の攻撃を知覚し、かつ自分が相手の射程内にいる場合、<b>攻撃系の予約は破棄</b>して通常判断（防御）に戻す。
+        予約が「死んだ手順をなぞって被弾する」事態を防ぐ安全弁。
+        <b>移動・ガードの予約は続行</b>する（逃げる・固めるのは危険時にも有効なため）。
+      </p>
+    </div>
+
+    <p class="note">
+      <b>手動入力の queue とは別物。</b>衝突を避けるため、AI の予約は <code>resQueue</code> という別名にした。
+    </p>
+  </div>
+
+  <!-- ===== Identity Check ===== -->
+  <div class="panel">
+    <h2>4. 重要 — 挙動は今のところ一切変わっていない</h2>
+    <div class="verdict good">
+      <h3>○ Identity Check PASS（標準出力 MD5 完全一致）</h3>
+      <p>
+        Playbook の<b>各セルは現状すべて null</b>。<code>frameResponse</code> が空を返すため、判断は従来どおり
+        <code>scoreActions</code> に委ねられ、<b>試合は 1 ミリも変わっていない</b>。土台（器と配線）だけを据えた状態。
+      </p>
+      <p>
+        編集前後で <code>node tools/verify.js</code> の標準出力 MD5 が完全一致:
+        <code>0ffc2eaadcf3a65bb5fe4dcb8bec9ee9</code>（Step 1a と同じ baseline）。
+        「追加のみ・挙動不変」の Identity Check に合格。<code>tools/verify.js</code> は無編集。
+      </p>
+    </div>
+  </div>
+
+  <!-- ===== 検証 ===== -->
+  <div class="panel">
+    <h2>5. 土台そのものの検証（12 項目すべて PASS）</h2>
+    <p>
+      Playbook と予約機構が<b>仕様どおり引ける／消化される</b>かを、使い捨ての検証スクリプトを vm ハーネスで回して確認した
+      （確認後にスクリプトは削除。canonical の <code>verify.js</code> には触れていない）。
+    </p>
+    <table>
+      <thead>
+        <tr><th>項目</th><th>確認内容</th><th>結果</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="lbl">間合いバンド解決</td><td>距離 2.0 → ジャブ／3.3 → ストレート／4.0 → 連続手 [ステップイン, ジャブ]</td><td class="pass">PASS</td></tr>
+        <tr><td class="lbl">有利フレームのクランプ</td><td><code>frameAdv = 99</code> は <code>+5</code> に丸められて引かれる</td><td class="pass">PASS</td></tr>
+        <tr><td class="lbl">空セル</td><td>方針未記入のセルは空（null）を返す</td><td class="pass">PASS</td></tr>
+        <tr><td class="lbl">重み付き確率 pick</td><td>7 : 3 指定で 1000 回中 <b>709 / 291</b>（シード固定で決定論的）</td><td class="pass">PASS</td></tr>
+        <tr><td class="lbl">予約の順次消化</td><td>1 回目ステップイン → 2 回目ジャブ → 予約が空 → 通常判断に復帰（翻意しない）</td><td class="pass">PASS</td></tr>
+        <tr><td class="lbl">危険時の破棄</td><td>相手のジャブ始動を射程内で知覚 → 攻撃予約 [ジャブ] を破棄</td><td class="pass">PASS</td></tr>
+      </tbody>
+    </table>
+    <p class="note">上は代表 6 項目。バンド境界・クランプ上下端・pick 分布・予約消化・破棄を含む計 12 項目すべて PASS。挙動を変えない範囲で、引き機構の正しさだけを確かめている。</p>
+  </div>
+
+  <!-- ===== 距離の単位 ===== -->
+  <div class="panel">
+    <h2>6. 補足 — 距離の単位</h2>
+    <p>
+      Playbook の距離は物理単位ではなく、1 次元の抽象「間合い単位」。リング全幅は <code>−2 〜 8</code>（10 単位）。
+      開始位置は <code>0.0</code> と <code>4.0</code> で <b>4.0 離れ</b>。射程はジャブ 3.0／ストレート・強ストレート 3.5。
+      移動は前進・後退が 1 フレームあたり 0.4、ステップが 0.6。Playbook の <code>upTo</code> 値（3.0 / 3.5 など）はこの単位で読む。
+    </p>
+  </div>
+
+  <!-- ===== 次 ===== -->
+  <div class="panel">
+    <h2>7. 次のステップ</h2>
+    <div class="verdict info">
+      <h3>Step 1b 本題 — 各セルに方針を 1 つずつ書く</h3>
+      <p>
+        <b>(a)</b> Playbook の各セルに実際の方針を 1 つずつ記入する。ここが判断技づくりの本体。
+        大有利のセルには踏み込んで差す手を、微不利のセルには触らない（防御・間合い取り直し）手を、というように
+        フレーム有利 × 間合いから機械的に妥当な行動を埋めていく。
+      </p>
+      <p>
+        <b>(b)</b> 記入後に sim を回し、<b>挙動の変化を観察する</b>。
+        ここで初めて Identity が崩れ（意図的に挙動が変わり）、安全な差し合いが試合の流れにどう立ち上がるかを verify.js で測る。
+      </p>
+    </div>
+    <p class="note">
+      今回はあくまで器と配線。「これを入れたら面白くなった」ではなく、「この器を据えた結果、各セルへの方針記入が次の作業として開けた」という観察にとどまる。
+    </p>
+  </div>
+
+  <div class="footer">
+    一次資料: <code>src/index.html</code>（Playbook 定義・<code>frameResponse</code>/<code>resolvePlan</code>・<code>decideUtility</code>/<code>reservationSafe</code>。追加と最小配線のみ） /
+    <code>tools/verify.js</code>（MD5 不変・無編集）。<br>
+    関連: <a href="2026-05-28-move-reference-step1a.html">技 DB 参照層 Step 1a</a> ／
+    <a href="../docs/design/move_reference_spec.html">move_reference_spec.html</a> ／
+    <a href="../LOG.md">LOG.md</a> ／ <a href="../README.html">Dashboard</a>
+  </div>
+</body>
+</html>

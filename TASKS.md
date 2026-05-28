@@ -61,7 +61,8 @@
 
 ## 読み合い（技DB参照 → 知覚行動）
 - [x] Step 1a 技DB参照層（`moveData` / `situation` / `allMoveKeys` 追加・scoreActions 未接続・挙動不変・Identity PASS）
-- [ ] Step 1b 正確知覚時の行動を計算機導出で1つずつ
+- [x] Step 1b 土台: Playbook（`frameResponse` / `resolvePlan`・フレーム有利×間合いの行動方針テーブル）+ 行動予約（`resQueue` / `reservationSafe`・翻意防止＋危険時破棄）。器と配線のみ・各セル null・挙動不変・Identity PASS（MD5 `0ffc2eaadcf3a65bb5fe4dcb8bec9ee9`）・土台の引き機構を12項目検証
+- [ ] Step 1b 本題: Playbook 各セルに方針を1つずつ記入（判断技づくり）→ 記入後に sim で挙動変化を観察
 
 - [ ] **次の段階候補**:
   - [ ] ガード崩し機構 C (ガードクラッシュ攻撃) — 段階5 が「足りない」を機械的に裏付けた次の自然な候補

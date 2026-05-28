@@ -71,7 +71,7 @@
 
 <div class="now-bar">
   <div class="label">▌ 現在地</div>
-  <div class="val">段階5 <b>結論を再評価</b>（<a href="reports/2026-05-28-prediction-strength-ko-artifact.html">予測強度・KO実体の検証</a>）。Step C の「KO増加 → ガード崩しが必要」は、KO増加が<b>ラウンド構造の見かけ</b>（時間切れがKOに変換）だったと判明し覆った。判定到達は<b>予測強度 MT がレバー</b>（両守備3/5: 4→28%、非対称0/0: 44→64%、MT0→0.9 で単調増加）。ただし高lag帯は観測空白で予測が効かず判定率ほぼ0=別軸の構造問題。<br>その後、<b>技DB参照層 (Step 1a)</b> を配管（<a href="reports/2026-05-28-move-reference-step1a.html">レポート</a>、挙動不変・Identity PASS）。次は<b>知覚 → 行動 (Step 1b)</b>: 正確に知覚した時の行動を計算機導出で 1 つずつ。</div>
+  <div class="val"><b>読み合いづくり Step 1b の土台が完成</b>（<a href="reports/2026-05-28-playbook-reservation-step1b.html">Playbook + 行動予約</a>）。判断技を 1 つずつ作るための意思決定の土台を据えた: ①<b>Playbook</b>＝「フレーム有利（−5〜+5）× 間合い」で取りたい行動を引く表（単発／連続手／重み付き確率）、②<b>行動予約</b>＝決めた手を翻意させない予約キュー（危険時は攻撃予約を破棄して防御へ）。器と配線のみで<b>挙動は不変</b>（Playbook 各セルは null・<b>Identity PASS</b>、MD5 は Step 1a と同じ baseline）。土台の引き機構は使い捨て検証で12項目 PASS。<br>次は<b>Step 1b 本題</b>: Playbook 各セルに方針を 1 つずつ記入 → sim で挙動変化を観察。土台の前段に <b>技DB参照層 (Step 1a)</b>（<a href="reports/2026-05-28-move-reference-step1a.html">レポート</a>、挙動不変・Identity PASS）。</div>
 </div>
 
 <div class="grid">
@@ -81,7 +81,8 @@
     <h2>レポート一覧</h2>
     <h3>読み合い（技DB参照 → 知覚行動）</h3>
     <ul>
-      <li><span class="badge done">Step 1a</span> <a href="reports/2026-05-28-move-reference-step1a.html">技DB参照層 — moveData / situation / allMoveKeys 追加（挙動不変・Identity PASS、次は知覚→行動 1b）</a></li>
+      <li><span class="badge done">Step 1b 土台</span> <a href="reports/2026-05-28-playbook-reservation-step1b.html">Playbook + 行動予約 — フレーム有利×間合いの行動方針テーブルと予約機構（器と配線のみ・挙動不変・Identity PASS、次は各セル記入）</a></li>
+      <li><span class="badge done">Step 1a</span> <a href="reports/2026-05-28-move-reference-step1a.html">技DB参照層 — moveData / situation / allMoveKeys 追加（挙動不変・Identity PASS）</a></li>
     </ul>
     <h3>次の方向の検討</h3>
     <ul>
