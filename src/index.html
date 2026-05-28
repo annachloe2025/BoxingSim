@@ -360,7 +360,7 @@ let timer = null;
 
 function makeChar(name, x, dir, seq) {
   return { name, x, advanceDir: dir, queue: seq.slice(), qi: 0, moveKey: null, phase: "idle", fip: 0, stopRec: 0,
-           plan: null, scores: null, decTimer: 0, hp: 100, atkLanded: false, atkWhiffed: false, stun: 0, stunType: null, stunTarget: null, stamina: 100,
+           plan: null, scores: null, decTimer: 0, resQueue: [], hp: 100, atkLanded: false, atkWhiffed: false, stun: 0, stunType: null, stunTarget: null, stamina: 100,
            // 段階4 Step A: 敵行動予測モデル。
            //   predictedCounts: プライアを擬似観測として開始する forgetting count。stepSim 内で初期化。
            //   predictedOpp: predictedCounts を正規化した確率分布。Step A は表示のみで scoreActions は参照しない。
@@ -625,14 +625,39 @@ function sampleAction(list) {
   for (const it of list) { acc += it.prob; if (r <= acc) return it.key; }
   return "待機";
 }
-// 行動可能かつ再判断タイミングなら、点数化→確率選択して plan に格納
+// reservationSafe(o, nextMove): 行動予約(resQueue)を続行してよいか（安全優先）。
+//   攻撃を知覚し自分が相手の射程内で、予約手が攻撃系なら中断（防御に戻す）。
+//   移動/ガードの予約は危険でも続行（後退・ガードはむしろ安全行動）。
+//   ※ Playbook 未接続の現状は resQueue が常に空＝呼ばれない。
+function reservationSafe(o, nextMove) {
+  const m = MOVES[nextMove];
+  if (!(m && m.kind === "attack")) return true;
+  const threatened = !!o.opponent.isAttacking && o.relative.inOppReach;
+  return !threatened;
+}
+
+// 行動可能かつ再判断タイミングなら、点数化→確率選択して plan に格納。
+//   行動予約(resQueue)があれば、危険が無い限り再判断せず予約を1つ消化する（手の翻意を防ぐ）。
+//   ※ Playbook 未接続の現状は resQueue が常に空＝予約分岐に入らない（挙動 bit-identical）。
 function decideUtility(s, key) {
   const ch = s[key];
   if (!AI[key]) return;
   if (canActNow(ch) && (ch.decTimer || 0) <= 0) {
-    const o = buildObs(s, null, key, key === "P" ? "E" : "P");
-    ch.scores = scoreActions(o, PERS[key]);
-    ch.plan = sampleAction(ch.scores);
+    let consumed = false;
+    if (ch.resQueue && ch.resQueue.length > 0) {
+      const oNow = buildObs(s, null, key, key === "P" ? "E" : "P");
+      if (reservationSafe(oNow, ch.resQueue[0])) {
+        ch.plan = ch.resQueue.shift();
+        consumed = true;
+      } else {
+        ch.resQueue.length = 0;
+      }
+    }
+    if (!consumed) {
+      const o = buildObs(s, null, key, key === "P" ? "E" : "P");
+      ch.scores = scoreActions(o, PERS[key]);
+      ch.plan = sampleAction(ch.scores);
+    }
     ch.decTimer = DECIDE_EVERY;
   }
   if (ch.decTimer > 0) ch.decTimer--;
@@ -788,6 +813,7 @@ function partialReset(ch, key) {
   ch.decTimer = 0;
   ch.plan = null;
   ch.scores = null;
+  ch.resQueue = [];
   ch.atkLanded = false;
   ch.atkWhiffed = false;
   ch.x = (key === "P") ? INIT_X_P : INIT_X_E;
@@ -1336,18 +1362,22 @@ function situation(obs) {
   };
 }
 
-// ===== Step 1b 土台: フレーム有利/不利 → 行動方針テーブル（雛形・scoreActions 未接続）=====
-// 目的: 「今 自分が相手に対して何フレーム有利/不利か」だけで、取りたい行動を1つ書ける表。
-//   ガード後・被弾後（不利側）も、whiff狩り・割り込み（有利側）も、すべてこの表のどこかのセルに落ちる。
-//   まず器だけ作る。中身（各セルの行動）は未記入。誰も呼ばないので挙動は bit-identical。
+// ===== Step 1b 土台: Playbook（フレーム有利/不利 × 間合い → 行動）=====
+// scoreActions には未接続＝挙動 bit-identical。器と引き口だけ用意し、中身(各セル)は未記入。
 //
-// キー = frameAdvantage（= oppBusy - selfBusy / 正=自分が先に動ける=有利, 負=不利）。
-//   buildObs().relative.frameAdvantage および situation().between.frameAdvantage と同じ値・遅延なし。
-//   範囲外は -5..+5 にクランプ。
-// 値 = 取りたい行動を MOVE_ORDER のキー1つで（例 "ジャブ" / "上ガード" / "ステップバック"）。
-//   null = 未定（その状況は既定の scoreActions ロジックに任せる）。
-// 後で PERS（個性）ごとに別テーブルを持たせ、守備型/攻撃型などに差し替えて統合する想定。
-const FRAME_RESPONSE = {
+// 構造（プレーンデータ。後で PERS ごとに playbook を差し替えて個性統合する想定）:
+//   Playbook[frameAdv] = RangePlan            … frameAdv は -5..+5（範囲外はクランプ）
+//   RangePlan          = [ Band, Band, ... ]  … 近い順に並べ、最初に dist <= upTo を満たす Band を採用
+//   Band               = { upTo: number|Infinity, plan: Plan }
+//   Plan =
+//       "ジャブ"                                      … 単発（その行動を1つ）
+//     | { seq: ["ステップイン","ストレート"] }           … 連続手（先頭を即実行、残りを resQueue へ予約）
+//     | { pick: [ {w:7, plan:...}, {w:3, plan:...} ] }  … 重み付き確率でいずれかの Plan を選ぶ
+//   null セル = 未定（既定の scoreActions ロジックに委ねる）
+//
+// frameAdvantage = oppBusy - selfBusy（正=自分が先に動ける=有利, 負=不利）。遅延なし。
+//   = buildObs().relative.frameAdvantage = situation().between.frameAdvantage。
+const Playbook = {
    5: null,   // 大有利
    4: null,
    3: null,
@@ -1361,11 +1391,35 @@ const FRAME_RESPONSE = {
   '-5': null, // 大不利
 };
 
-// frameResponse(frameAdv): フレーム差(-5..+5 にクランプ)から方針セルを引く薄い getter。
+// resolvePlan(plan): Plan を「実行する行動キーの配列」に解決する。
+//   "技名" -> ["技名"] / {seq:[...]} -> [...] / {pick:[{w,plan}]} -> 選ばれた plan を再帰解決。
+//   pick は Math.random()（verify では mulberry32 でシード固定）を1回消費する。未接続なので現状は消費されない。
+function resolvePlan(plan) {
+  if (plan == null) return [];
+  if (typeof plan === "string") return [plan];
+  if (Array.isArray(plan.seq)) return plan.seq.slice();
+  if (Array.isArray(plan.pick) && plan.pick.length) {
+    let total = 0;
+    for (const o of plan.pick) total += (o.w || 0);
+    if (total <= 0) return resolvePlan(plan.pick[0].plan);
+    let r = Math.random() * total;
+    for (const o of plan.pick) { r -= (o.w || 0); if (r <= 0) return resolvePlan(o.plan); }
+    return resolvePlan(plan.pick[plan.pick.length - 1].plan);
+  }
+  return [];
+}
+
+// frameResponse(frameAdv, dist): フレーム差(-5..+5にクランプ)×間合いから行動列を引く。
+//   該当セルが null / 該当 Band 無し -> [] （＝既定ロジックに委ねる）。
 //   まだ呼び出し側ゼロ＝挙動不変。
-function frameResponse(frameAdv) {
+function frameResponse(frameAdv, dist) {
   const a = Math.max(-5, Math.min(5, Math.trunc(frameAdv) || 0));
-  return FRAME_RESPONSE[a];
+  const cell = Playbook[a];
+  if (!Array.isArray(cell)) return [];
+  for (const band of cell) {
+    if (dist <= (band.upTo == null ? Infinity : band.upTo)) return resolvePlan(band.plan);
+  }
+  return [];
 }
 
 // 段階4 Step A: 敵行動予測モデル。
