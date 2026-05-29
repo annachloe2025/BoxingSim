@@ -660,16 +660,15 @@ function aiDecide(s, key) {
   return sampleAction(ch.scores);
 }
 
-// 行動可能かつ再判断タイミングなら、AI の判断(aiDecide)を事前計算して ch.plan に格納する。
+// 行動可能なら毎フレーム、AI の判断(aiDecide)を事前計算して ch.plan に格納する。
+//   （3f の再判断クールタイムは撤去。canActNow の間は毎フレーム決め直す）
 //   resolveBoxer 側は intent = AI[key] ? ch.plan : manualIntent(ch) として AI/manual の2択で使う。
 function decideUtility(s, key) {
   const ch = s[key];
   if (!AI[key]) return;
-  if (canActNow(ch) && (ch.decTimer || 0) <= 0) {
+  if (canActNow(ch)) {
     ch.plan = aiDecide(s, key);
-    ch.decTimer = DECIDE_EVERY;
   }
-  if (ch.decTimer > 0) ch.decTimer--;
 }
 
 // 手動モードの意図（行動列から）。移動は MANUAL_HOLD フレーム保持して停止。
