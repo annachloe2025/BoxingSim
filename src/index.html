@@ -628,7 +628,6 @@ function sampleAction(list) {
 // reservationSafe(o, nextMove): 行動予約(resQueue)を続行してよいか（安全優先）。
 //   攻撃を知覚し自分が相手の射程内で、予約手が攻撃系なら中断（防御に戻す）。
 //   移動/ガードの予約は危険でも続行（後退・ガードはむしろ安全行動）。
-//   ※ Playbook 未接続の現状は resQueue が常に空＝呼ばれない。
 function reservationSafe(o, nextMove) {
   const m = MOVES[nextMove];
   if (!(m && m.kind === "attack")) return true;
@@ -636,39 +635,38 @@ function reservationSafe(o, nextMove) {
   return !threatened;
 }
 
-// 行動可能かつ再判断タイミングなら判断する。優先順:
-//   1) 行動予約(resQueue)が残っていれば、危険が無い限り再判断せず1つ消化（手の翻意を防ぐ）。
-//   2) なければ Playbook を引く。該当セルがあれば override（先頭を実行・残りを予約）。
-//   3) どちらも無ければ従来の scoreActions→確率選択。
-//   ※ 全セル null の現状は 1)2) とも空振り＝従来パスのみ＝挙動 bit-identical。
+// aiDecide(s, key): AI 1体の意思決定。intent の供給源は AI(この関数) と manual(manualIntent) の2つだけ。
+//   Playbook は独立した供給源ではなく「AI に渡す方針データ」で、AI がそれを読んで1手を返す。
+//   優先順:
+//     1) 行動予約(resQueue)が残っていれば、危険が無い限り消化（手の翻意を防ぐ。安全弁つき）。
+//     2) Playbook（=方針データ）を引く。該当セルがあれば採用。複数手は先頭を返し残りを resQueue に予約。
+//     3) 該当セルが無ければ従来の utility（scoreActions→確率選択）にフォールバック。
+//   ※ resQueue は次フレーム以降へ持ち越すため ch に書く。simultaneity のため decideUtility が事前計算する。
+function aiDecide(s, key) {
+  const ch = s[key];
+  const oppK = key === "P" ? "E" : "P";
+  // 1) 予約の消化（危険なら破棄して通常判断へ）
+  if (ch.resQueue && ch.resQueue.length > 0) {
+    const oNow = buildObs(s, null, key, oppK);
+    if (reservationSafe(oNow, ch.resQueue[0])) return ch.resQueue.shift();
+    ch.resQueue.length = 0;
+  }
+  // 2) Playbook（AI に渡す方針データ）を読む
+  const o = buildObs(s, null, key, oppK);
+  const pb = frameResponse(o.relative.frameAdvantage, o.relative.distance);
+  if (pb.length > 0) { ch.resQueue = pb.slice(1); return pb[0]; }
+  // 3) フォールバック: 従来の utility AI（Playbook の該当セルが空のとき）
+  ch.scores = scoreActions(o, PERS[key]);
+  return sampleAction(ch.scores);
+}
+
+// 行動可能かつ再判断タイミングなら、AI の判断(aiDecide)を事前計算して ch.plan に格納する。
+//   resolveBoxer 側は intent = AI[key] ? ch.plan : manualIntent(ch) として AI/manual の2択で使う。
 function decideUtility(s, key) {
   const ch = s[key];
   if (!AI[key]) return;
   if (canActNow(ch) && (ch.decTimer || 0) <= 0) {
-    let consumed = false;
-    if (ch.resQueue && ch.resQueue.length > 0) {
-      const oNow = buildObs(s, null, key, key === "P" ? "E" : "P");
-      if (reservationSafe(oNow, ch.resQueue[0])) {
-        ch.plan = ch.resQueue.shift();
-        consumed = true;
-      } else {
-        ch.resQueue.length = 0;
-      }
-    }
-    if (!consumed) {
-      const o = buildObs(s, null, key, key === "P" ? "E" : "P");
-      // (b) Playbook 接続: 該当セルがあれば override（先頭を即実行・残りを resQueue へ予約）。
-      //   セルが null/未該当なら [] が返り、従来どおり scoreActions に委ねる。
-      //   ＝全セル null の現状は frameResponse が常に [] → 挙動 bit-identical。
-      const pb = frameResponse(o.relative.frameAdvantage, o.relative.distance);
-      if (pb.length > 0) {
-        ch.plan = pb[0];
-        ch.resQueue = pb.slice(1);
-      } else {
-        ch.scores = scoreActions(o, PERS[key]);
-        ch.plan = sampleAction(ch.scores);
-      }
-    }
+    ch.plan = aiDecide(s, key);
     ch.decTimer = DECIDE_EVERY;
   }
   if (ch.decTimer > 0) ch.decTimer--;
