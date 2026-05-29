@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>戦略AI（que）の仕組み — 3つの設計案</title>
+<style>
+  :root{
+    --bg:#0e1116; --panel:#161b22; --panel2:#1c2230; --line:#2a3344;
+    --tx:#e6e9ef; --mut:#9aa6b8; --dim:#6b7686;
+    --tactic:#f0b429; --react:#3fb950; --base:#58a6ff;
+    --yes:#3fb950; --no:#f85149; --abort:#8b949e; --accent:#9d7cff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--tx);
+    font-family:"Segoe UI","Hiragino Kaku Gothic ProN","Yu Gothic UI",Meiryo,sans-serif;
+    line-height:1.7;font-size:15px}
+  .wrap{max-width:1040px;margin:0 auto;padding:32px 20px 80px}
+  h1{font-size:26px;margin:0 0 6px}
+  h2{font-size:20px;margin:44px 0 14px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  h3{font-size:16px;margin:0 0 8px}
+  p{margin:8px 0}
+  .lead{color:var(--mut);margin:0 0 4px}
+  .tag{display:inline-block;font-size:12px;color:var(--dim);border:1px solid var(--line);
+    border-radius:999px;padding:1px 10px;margin-right:6px}
+  .note{color:var(--mut);font-size:14px}
+  code{background:#0b0e13;border:1px solid var(--line);border-radius:4px;padding:1px 6px;
+    font-family:Consolas,monospace;font-size:13px;color:#cdd6e4}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin:14px 0}
+  .intro{background:linear-gradient(180deg,#1a2030,#161b22);border-left:3px solid var(--accent)}
+  .stack{display:flex;flex-direction:column;gap:8px;margin:10px 0}
+  .layer{border-radius:10px;padding:12px 16px;border:1px solid var(--line);display:flex;
+    justify-content:space-between;align-items:center;gap:14px}
+  .layer .t{font-weight:700} .layer .d{color:var(--mut);font-size:13px;text-align:right}
+  .l-tactic{background:rgba(240,180,41,.10);border-color:rgba(240,180,41,.4)}
+  .l-tactic .t{color:var(--tactic)}
+  .l-react{background:rgba(63,185,80,.09);border-color:rgba(63,185,80,.38)}
+  .l-react .t{color:var(--react)}
+  .l-base{background:rgba(88,166,255,.08);border-color:rgba(88,166,255,.35)}
+  .l-base .t{color:var(--base)}
+  .flow{display:flex;flex-direction:column;align-items:center;gap:0;margin:6px 0}
+  .node{background:var(--panel2);border:1px solid var(--line);border-radius:9px;
+    padding:9px 14px;text-align:center;min-width:200px}
+  .node.cond{border-color:rgba(240,180,41,.55);background:rgba(240,180,41,.08);font-weight:700}
+  .node.start{border-color:var(--dim);color:var(--mut)}
+  .node.act{border-color:rgba(88,166,255,.45)}
+  .arrow{color:var(--dim);font-size:18px;line-height:1.1;padding:3px 0}
+  .branch{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;margin-top:4px;width:100%}
+  .col{display:flex;flex-direction:column;align-items:center;gap:0;flex:1;min-width:230px}
+  .blabel{font-size:13px;font-weight:700;margin-bottom:4px}
+  .blabel.y{color:var(--yes)} .blabel.n{color:var(--abort)}
+  .node.win{border-color:rgba(63,185,80,.55);background:rgba(63,185,80,.10)}
+  .node.back{border-color:rgba(139,148,134,.5);background:rgba(139,148,134,.10);color:var(--mut)}
+  .qtag{display:inline-block;font-size:11px;color:var(--tactic);border:1px solid rgba(240,180,41,.4);
+    border-radius:4px;padding:0 6px;margin-left:8px;vertical-align:middle}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;margin:16px 0;
+    position:relative;overflow:hidden}
+  .card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px}
+  .card.c1::before{background:var(--react)}
+  .card.c2::before{background:var(--tactic)}
+  .card.c3::before{background:var(--accent)}
+  .card h3{font-size:18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .badge{font-size:11px;font-weight:700;border-radius:6px;padding:2px 8px}
+  .badge.rec{background:rgba(63,185,80,.16);color:#7ee787;border:1px solid rgba(63,185,80,.4)}
+  .badge.next{background:rgba(240,180,41,.16);color:#f0c560;border:1px solid rgba(240,180,41,.4)}
+  .badge.later{background:rgba(157,124,255,.16);color:#c4b3ff;border:1px solid rgba(157,124,255,.4)}
+  .one{color:var(--tx);font-weight:600;margin:6px 0 2px}
+  .ex{background:#0b0e13;border:1px dashed var(--line);border-radius:8px;padding:10px 12px;margin:10px 0;font-size:14px}
+  .ex b{color:var(--tactic)}
+  .pc{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0}
+  @media(max-width:680px){.pc{grid-template-columns:1fr}}
+  .pc ul{margin:4px 0;padding-left:18px} .pc li{margin:3px 0;font-size:14px}
+  .pro h4{margin:0;color:var(--yes);font-size:13px} .con h4{margin:0;color:var(--no);font-size:13px}
+  .meta{display:flex;gap:18px;flex-wrap:wrap;align-items:center;margin-top:10px;font-size:13px;color:var(--mut)}
+  .stars{color:var(--tactic);letter-spacing:2px}
+  .reuse{font-size:13px;color:var(--mut);margin-top:8px}
+  .reuse code{font-size:12px}
+  .road{display:flex;align-items:stretch;gap:0;flex-wrap:wrap;margin:12px 0}
+  .step{flex:1;min-width:200px;background:var(--panel2);border:1px solid var(--line);padding:12px 14px;border-radius:10px;margin:6px}
+  .step .n{font-weight:700} .step .s{color:var(--mut);font-size:13px}
+  .step.s1{border-color:rgba(63,185,80,.4)} .step.s2{border-color:rgba(240,180,41,.4)} .step.s3{border-color:rgba(157,124,255,.4)}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:680px){.two{grid-template-columns:1fr}}
+  .mini{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+  .mini.avoid{border-left:3px solid var(--no)} .mini.test{border-left:3px solid var(--accent)}
+  .mini h3{font-size:15px}
+  .triad{color:var(--mut);font-size:13px;margin-top:6px}
+  footer{margin-top:50px;border-top:1px solid var(--line);padding-top:16px;color:var(--dim);font-size:13px}
+  .kw{color:var(--tactic);font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>戦略AI（que）の仕組み — 3つの設計案</h1>
+  <p class="lead">「先を読んで手順を組む」ボクサーAIを、どう機械で作るか。あなたの<b>『空振りさせて反撃』</b>の例を1本通して説明します。</p>
+  <p><span class="tag">設計検討用</span><span class="tag">コードは未変更</span><span class="tag">2026-05-29</span></p>
+
+  <div class="panel intro">
+    <p style="margin-top:0"><b>いまの壁：</b>今のAIは「今の状態 → 1手」を選ぶ<b>反応型</b>。情報が見えている反応型どうしは、にらみ合い・鏡写しループ・時間切れに落ちる。スタミナや予測を足しても動かなかったのは、<b>足す場所（反応型の決定核）こそが壁</b>だから。</p>
+    <p style="margin-bottom:0"><b>解決の方向：</b>反応層の<b>上に「型(que)の層」を乗せる</b>。＝目的を持って手順を仕込み、途中で相手を観て、分岐し、外れたら捨てて反応層に戻る。これは格ゲーAIで<b>すでに定石化</b>された作り方（あなたの誘い→反撃は <span class="kw">shimmy</span>、仕組みは <span class="kw">ビヘイビアツリー</span>＋<span class="kw">相手の癖テーブル</span>）。<b>ゼロからではなく、今ある <code>resQueue</code> を育てる話</b>です。</p>
+  </div>
+
+  <h2>共通の土台（3案すべて共通）</h2>
+
+  <h3>① 2つの層 ＋ 既存の技FSM</h3>
+  <div class="panel">
+    <div class="stack">
+      <div class="layer l-tactic"><span class="t">型層（戦略 / que）</span><span class="d">目的を持つ・手順を仕込む・途中で観る・分岐・撤退</span></div>
+      <div class="layer l-react"><span class="t">反応層（既定）</span><span class="d">脅威にガード・相手の空振りに差し込み・間合い維持</span></div>
+      <div class="layer l-base"><span class="t">技FSM（土台・既存）</span><span class="d">始動 → 発生 → 硬直</span></div>
+    </div>
+    <p class="note" style="margin-bottom:0">型層が動いていない時は反応層だけが働く＝<b>今の状態と同じ</b>。型層は「これは仕掛けられる」と判断した時だけ前に出る。だから安全側に倒れる。</p>
+  </div>
+
+  <h3>② 「型」とは何か（あなたの例 ＝ 空振り誘発→反撃）</h3>
+  <div class="panel">
+    <div class="flow">
+      <div class="node start">発動条件：相手の攻撃が届かない・でも遠すぎない間合い</div>
+      <div class="arrow">↓</div>
+      <div class="node act">ステップイン <span class="qtag">que ①</span></div>
+      <div class="arrow">↓</div>
+      <div class="node act">ステップバック <span class="qtag">que ②</span></div>
+      <div class="arrow">↓</div>
+      <div class="node cond">◆関門：相手は誘いに乗って攻撃した？</div>
+      <div class="branch">
+        <div class="col">
+          <div class="blabel y">▼ 乗った（＝今 空振り中・隙だらけ）</div>
+          <div class="node">何の技か・どこに隙か を見る</div>
+          <div class="arrow">↓</div>
+          <div class="node win">刺さる反撃を打ち込む ✅</div>
+        </div>
+        <div class="col">
+          <div class="blabel n">▼ 乗らない（ただ近づいただけ 等）</div>
+          <div class="node back">この型を捨てる</div>
+          <div class="arrow">↓</div>
+          <div class="node back">反応層に戻る ↩（普通に攻防）</div>
+        </div>
+      </div>
+    </div>
+    <p class="note">「途中で相手を観て、分岐／撤退する関門」を持つ＝<b>ただのコンボでもただの反応でもない</b>部分。ここが core。</p>
+    <hr style="border:0;border-top:1px dashed var(--line);margin:14px 0">
+    <div class="flow">
+      <div class="node start">（型を使っていない時の "おまけ"：反応層が拾う）</div>
+      <div class="arrow">↓</div>
+      <div class="node cond" style="border-color:rgba(63,185,80,.5);background:rgba(63,185,80,.08);color:var(--react)">相手が勝手に空振りして隙が出た？</div>
+      <div class="arrow">↓ はい</div>
+      <div class="node win">その隙に差し込み ✅</div>
+    </div>
+  </div>
+
+  <p class="note">3案の違いは <b>「関門での"読み"の深さ」と「型をどう選ぶか」</b>。土台（2層・型の形）は共通です。</p>
+
+  <h2>3つの仕組み案</h2>
+
+  <div class="card c1">
+    <h3>案1：型を「割り込めるシーケンス」で持つ（最小）<span class="badge rec">推奨：第一歩</span></h3>
+    <p class="one">既存の <code>resQueue</code> / <code>Playbook</code> / <code>reservationSafe</code> を素直に育てて、上の「型」を実現する。</p>
+    <div class="ex"><b>あなたの例では：</b>関門は「相手は攻撃した？」の<b>シンプルな判定</b>。乗ったら<b>決め打ちの反撃</b>（例：相手の硬直に最速の一発）、乗らなければ撤退。相手が"何を"出したかの細かい読みまではしない。</div>
+    <div class="pc">
+      <div class="pro"><h4>長所</h4><ul>
+        <li>改造が<b>最小</b>（既存部品の延長）</li>
+        <li>中身が<b>完全に見える</b>＝人が書ける</li>
+        <li>すぐ動かして観察できる</li>
+        <li>「誘い・撤退・差し込み」はこれだけで立つ</li>
+      </ul></div>
+      <div class="con"><h4>短所</h4><ul>
+        <li>「読み」が<b>浅い</b>（何の技か細かく見ない）</li>
+        <li>相手の<b>癖を覚えない</b>（毎回ゼロから）</li>
+        <li>深い読み合い（裏の裏）は出にくい</li>
+      </ul></div>
+    </div>
+    <div class="meta"><span>複雑さ <span class="stars">★☆☆</span></span><span>元ネタ：Behavior Tree（reactive sequence ＋ 条件付き abort）</span></div>
+    <p class="reuse">流用：<code>resQueue</code>=仕込んだ手順 / <code>Playbook</code>=型選び（間合い×有利） / <code>reservationSafe</code>=撤退 / <code>resolvePlan</code>=<code>{seq}</code>展開</p>
+  </div>
+
+  <div class="card c2">
+    <h3>案2：案1 ＋「相手の癖テーブル」で読み合い<span class="badge next">推奨：次の層</span></h3>
+    <p class="one">案1に、<b>間合い別に「相手が何を出しがちか」を記録する表</b>を足し、"読んで刺す"を入れる。</p>
+    <div class="ex"><b>あなたの例では：</b>関門で「この間合いで<b>こいつは何を出しがち？</b>」を表で見て、来た技に<b>刺さる反撃</b>を選ぶ。同じ手が通じなくなってきたら<b>型を切り替え（conditioning）</b>。自分の手は<b>少し混ぜて読まれない</b>ようにする。</div>
+    <div class="flow" style="margin:6px 0 2px">
+      <div class="node cond">◆関門：攻撃が来た</div>
+      <div class="arrow">↓</div>
+      <div class="node act">相手の癖テーブルを引く（間合い別）→ 来た技を特定</div>
+      <div class="arrow">↓</div>
+      <div class="node win">その技に一番刺さる反撃を選ぶ ✅</div>
+    </div>
+    <div class="pc">
+      <div class="pro"><h4>長所</h4><ul>
+        <li><b>本物の読み合い</b>の深みが出る（裏の裏）</li>
+        <li>キャラの<b>個性</b>が表で作れる（攻め型/慎重型…）</li>
+        <li>"にらみ合い"を<b>壊す</b>（相手の偏りを突く）</li>
+        <li>表なので<b>中身が見える</b>（人が初期値を書ける）</li>
+      </ul></div>
+      <div class="con"><h4>短所</h4><ul>
+        <li>部品が<b>増える</b>（表の更新・混ぜる乱数）</li>
+        <li><b>調整</b>が要る（表のキーの粗さ＝間合いの刻み等）</li>
+        <li>観測が貯まるまでは初期値(prior)頼み</li>
+      </ul></div>
+    </div>
+    <div class="meta"><span>複雑さ <span class="stars">★★☆</span></span><span>元ネタ：Killer Instinct "Shadow" / 研究AI FightingICE（状況別テーブル＋少し混ぜる＋試合中に適応）</span></div>
+    <p class="reuse">流用：案1 一式 ＋ 新規 <code>opponentModel</code>（間合い→相手の手の頻度表）。<code>{pick}</code> が "自分を混ぜる" 仕掛けに転用できる。</p>
+  </div>
+
+  <div class="card c3">
+    <h3>案3：目的から逆算するプランナ<span class="badge later">後段向け</span></h3>
+    <p class="one">各型に<b>「前提／効果」のラベル</b>を付け、目的から手順を<b>自動で組み立てる</b>。</p>
+    <div class="ex"><b>あなたの例では：</b>「<b>大技を当てる</b>」を目的に置く → 前提「フレーム有利が要る」 → 前提「相手を空振りさせる必要」 → …と<b>逆算</b>して型を連結。途中で状況が崩れたら<b>組み直す</b>。</div>
+    <div class="pc">
+      <div class="pro"><h4>長所</h4><ul>
+        <li><b>拡張に最強</b>（型が増えるほど効く）</li>
+        <li>型が<b>自己説明的</b>（前提/効果が書いてある）</li>
+        <li>目的が<b>明示的</b>（意図が読める）</li>
+      </ul></div>
+      <div class="con"><h4>短所</h4><ul>
+        <li>今のサイズ（1次元・型少数）には<b>重い</b></li>
+        <li>生成された手順は案1より<b>挙動が見えにくい</b></li>
+        <li>「相手の反応」を前提に表すのが少し不自然</li>
+      </ul></div>
+    </div>
+    <div class="meta"><span>複雑さ <span class="stars">★★★</span></span><span>元ネタ：GOAP（F.E.A.R.）/ HTN（Killzone 等）</span></div>
+    <p class="reuse">注：<b>前提/効果の"ラベル"だけ</b>は案1にも<b>早めに</b>足すと安価で型が自己説明的になる（プランナ本体は後回しでよい）。</p>
+  </div>
+
+  <h2>推奨の進め方</h2>
+  <div class="road">
+    <div class="step s1"><div class="n">案1：芯を作る</div><div class="s">2層＋型の「仕込む→観る→分岐→撤退」。誘い・撤退・差し込みが立つ。</div></div>
+    <div class="step s2"><div class="n">案2：読み合いを重ねる</div><div class="s">相手の癖テーブル＋混ぜる。<b>ここで駆け引きが立ち上がる</b>。</div></div>
+    <div class="step s3"><div class="n">案3：規模が増えたら</div><div class="s">型・機能が増えて手で並べるのが辛くなったら逆算プランナへ。</div></div>
+  </div>
+  <p class="note">いきなり全部ではなく、<b>案1で芯を作り、観察してから案2</b>。これは「機械的に積んで、結果として面白さが立ち上がる」というこのプロジェクトの方針どおりの進め方です。</p>
+
+  <h2>補足：避けるもの ＆ 設計テスト</h2>
+  <div class="two">
+    <div class="mini avoid">
+      <h3>避ける：ゲーム木探索（MCTS等）</h3>
+      <p class="note" style="margin-bottom:0">研究では最強。だが「<b>中身が見えない・人が書けない・人間離れした最適行動になる</b>」ので、FSMで仕組み化する理念に反する。使うなら<b>オフラインの調整役</b>（型の強さの検算）だけ。ライブの頭脳には使わない。</p>
+    </div>
+    <div class="mini test">
+      <h3>設計テスト：三すくみ ＆ Yomi</h3>
+      <p class="note" style="margin-bottom:4px"><b>三すくみ</b>＝攻め→崩し→守り→攻め…が循環で勝てる関係。これが無いと「最強の1手」が決まり、読みが無意味＝退屈な均衡に逆戻り。</p>
+      <p class="triad" style="margin:0">ボクシングなら大まかに：<b>踏み込み攻撃</b>↔<b>誘い/ステップ</b>↔<b>ガード/差し返し</b>。<br><b>Yomi</b>＝読みの層（読む→読まれる→読み返す）が深くなる土壌を残す。</p>
+    </div>
+  </div>
+
+  <footer>
+    <p><b>主な出典：</b>
+      Champandard &amp; Dunstan「The Behavior Tree Starter Kit」(Game AI Pro) ／
+      Orkin「Building the AI of F.E.A.R. with GOAP」 ／
+      「The Killer Groove: The Shadow AI of Killer Instinct」(Game Developer) ／
+      FightingICE / DareFightingICE (Ritsumeikan) ／
+      Sirlin「Yomi Layer 3」「Designing Yomi」 ／
+      格ゲー択理論・三すくみ（日本語ソース）。
+    </p>
+    <p>BoxingSim — 戦略AI（que）設計フェーズ。本資料は方向性を選ぶための比較で、エンジン(<code>src/index.html</code>)は未変更。</p>
+  </footer>
+
+</div>
+</body>
+</html>
