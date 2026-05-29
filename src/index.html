@@ -1388,14 +1388,17 @@ function situation(obs) {
 //
 // frameAdvantage = oppBusy - selfBusy（正=自分が先に動ける=有利, 負=不利）。遅延なし。
 //   = buildObs().relative.frameAdvantage = situation().between.frameAdvantage。
-// 暫定方針（Step 1b 最初の記入・わかりやすさ優先。間合いは問わず単一バンド）:
-//   +5..+1（有利）   : 上下どちらかのジャブ（50/50）
+// 暫定方針（Step 1b 最初の記入・わかりやすさ優先）:
+//   +5..+1（有利）   : 距離3.0以内なら上下どちらかのジャブ（50/50）、射程外なら詰める（ステップイン）
 //    0..-5（五分〜不利）: 上ガード / 下ガード / ステップバック のいずれか（均等）
 //   ※ 全レンジを埋めたので、以降 AI 判断は Playbook が担い scoreActions は使われない
 //     （個性 ag/df 等は一旦効かなくなる。観察して次の記入で調整する）。
 const JAB_UD   = { pick: [ { w: 1, plan: "ジャブ" }, { w: 1, plan: "ボディジャブ" } ] };
 const DEF_UD   = { pick: [ { w: 1, plan: "上ガード" }, { w: 1, plan: "下ガード" }, { w: 1, plan: "ステップバック" } ] };
-const ADV_JAB  = [ { upTo: Infinity, plan: JAB_UD } ];
+const ADV_JAB  = [
+  { upTo: 3.0,      plan: JAB_UD },         // 射程内: 上下ジャブ
+  { upTo: Infinity, plan: "ステップイン" },  // 射程外: 詰める（届かないのに振らない）
+];
 const DEF_PLAN = [ { upTo: Infinity, plan: DEF_UD } ];
 const Playbook = {
    5: ADV_JAB,   // 大有利
