@@ -71,7 +71,7 @@
 
 <div class="now-bar">
   <div class="label">▌ 現在地</div>
-  <div class="val"><b>読み合いづくり Step 1b の土台が完成</b>（<a href="reports/2026-05-28-playbook-reservation-step1b.html">Playbook + 行動予約</a>）。判断技を 1 つずつ作るための意思決定の土台を据えた: ①<b>Playbook</b>＝「フレーム有利（−5〜+5）× 間合い」で取りたい行動を引く表（単発／連続手／重み付き確率）、②<b>行動予約</b>＝決めた手を翻意させない予約キュー（危険時は攻撃予約を破棄して防御へ）。器と配線のみで<b>挙動は不変</b>（Playbook 各セルは null・<b>Identity PASS</b>、MD5 は Step 1a と同じ baseline）。土台の引き機構は使い捨て検証で12項目 PASS。<br>次は<b>Step 1b 本題</b>: Playbook 各セルに方針を 1 つずつ記入 → sim で挙動変化を観察。土台の前段に <b>技DB参照層 (Step 1a)</b>（<a href="reports/2026-05-28-move-reference-step1a.html">レポート</a>、挙動不変・Identity PASS）。</div>
+  <div class="val"><b>「読み合い」の設計フェーズに入った</b>（<a href="reports/2026-05-30-que-ai-proposals.html">戦略AI（que）の仕組み — 3つの設計案</a>）。Step 1b の実装を一旦止め、<b>壁の正体</b>を特定: 決定核が「今の状態→1手」の<b>反応型</b>のままで、情報の見えた反応型どうしは均衡（お見合い・鏡写し・時間切れ）に落ちる。狙いは反応層の上に<b>「型(que)」の層</b>を乗せること＝目的を持って手順を仕込み、途中で相手を観て分岐し、外れたら捨てて反応へ戻る（例: 誘って空振りさせ反撃＝shimmy）。格ゲーAIの定石（ビヘイビアツリー＋相手の癖テーブル＋Yomi）で裏取り済み。<b>知覚遅延（presence／detail の2段）は厄介者ではなく、先読み(que)を必要にする土台</b>であることも確認した。<br>次は<b>3案から"芯"を選ぶ</b>: ①最小BT型／②＋相手の癖テーブルで読み合い／③目的逆算プランナ。選択後に実装プランへ（コードは未着手）。</div>
 </div>
 
 <div class="grid">
