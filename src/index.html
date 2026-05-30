@@ -268,6 +268,10 @@
 <script>
 "use strict";
 
+// ==================== (A) CONFIG / DATA ====================
+// 盤面定数・ラウンド設定・技テーブル(MOVES)・行動順序(MOVE_ORDER)・種別ヘルパ。
+// 値の定義だけで副作用なし。UI から書き換わるものは let（MAX_FRAME / ROUND_* / MOVES / PERS など）。
+
 const X_MIN = -2, X_MAX = 8, TRACK_W = 42;
 // 段階5 Step B fix: ラウンド制で 3R×300F + 2×60F = 1020F が必要になるため、
 //   既定 800F のままだと最終ラウンドが終わる前に打ち切られて時間切れ判定が増える。
@@ -353,10 +357,19 @@ const isMove   = k => k != null && MOVES[k] && MOVES[k].kind === "move";
 const isGuard  = k => k != null && MOVES[k] && MOVES[k].kind === "guard";
 const isIdle   = k => k == null || (MOVES[k] && MOVES[k].kind === "idle");
 
+// ==================== (B) STATE ====================
+// 実行時の可変状態。frames=全フレームのスナップショット履歴 / cur=表示中 index / timer=再生タイマ。
+// 他の可変状態（AI 操作フラグ・PERS 性格）はこの後の層で定義箇所のそばに置いている（移動はしていない）。
+
 // ---- シミュレーション ----
 let frames = [];   // 各フレームの状態スナップショット
 let cur = 0;       // 現在表示しているフレーム index
 let timer = null;
+
+// ==================== (C) SIMULATION / PHYSICS ====================
+// フレームエンジン本体。キャラ生成(makeChar)・初期化(initSim)・フェーズ進行(firstPhase/
+// nextPhase/advancePhase/progress)・移動/接触/ダメージ・スタミナ・ラウンド境界・stepSim。
+// この層は「決定された intent を適用して次フレームを作る」。意思決定は (E) DECISION 層が担う。
 
 function makeChar(name, x, dir, seq) {
   return { name, x, advanceDir: dir, queue: seq.slice(), qi: 0, moveKey: null, phase: "idle", fip: 0, stopRec: 0,
@@ -445,6 +458,19 @@ function effectivePhaseLen(ch) {
   return len;
 }
 
+// ==================== (E) DECISION ====================
+// AI の意思決定層。性格(PERS)・点数化(scoreActions)・確率選択(sampleAction)・予約安全弁
+// (reservationSafe)・意思決定の統括(aiDecide/decideUtility)・手動 intent(manualIntent)。
+// この層は「次フレームに出す 1 手(intent)」を返すだけ。適用は (C) SIMULATION 層。
+//
+// 【二層構造の注意】現状この層は 2 系統に分かれる:
+//   - 反応層(REACTIVE / 反応層): scoreActions / sampleAction / reservationSafe。
+//       局面ごとに毎フレーム点数で選ぶ既定 AI。現在は休眠（バイパス）。後の「案1」で復活予定。
+//   - 戦略層(STRATEGY / 型・que層): Playbook / frameResponse / resolvePlan / aiDecide（(C/E) 境界の後段に定義）。
+//       先に決めた手順(plan)をコミットして消化する。現在 Playbook が全セルを埋めているため
+//       aiDecide は常に戦略層で解決し、反応層へは到達しない。
+// 詳細は scoreActions 直前 / Playbook 直前のコメントを参照。
+
 // 操作モード（true = そのキャラをAIで動かす）
 let AI = { P: false, E: false };
 
@@ -470,8 +496,13 @@ let PERS = {
        modelPrior: { attackTarget: { head: 50, body: 50 }, guardTarget: { head: 50, body: 50 }, state: { idle: 25, attack: 25, guard: 25, move: 25 }, attackKind: { jab: 40, str: 30, hvy: 15, feint: 15 } },
        modelDecay: 0.99, modelTrust: 0.3 },   // やや守備型
 };
-const DECIDE_EVERY = 3;   // 再判断の間隔フレーム（毎フレームの揺れを防ぐ）
 const SCORE_POW = 2;      // 確率は点数^SCORE_POW に比例
+
+// -------------------- REACTIVE LAYER（反応層）--------------------
+// scoreActions / sampleAction / reservationSafe = その場その場で毎フレーム点数を付けて
+// 確率選択する「反応的」な既定 AI。本来の moment-to-moment AI だが、現在は休眠（バイパス）中。
+// 後段の戦略層(Playbook)が全セルを埋めているため aiDecide のフォールバックまで到達しない。
+// 将来の「案1」で反応層を復活させる想定（点ではなく、戦略層が空けたセルを反応層が拾う形）。
 
 // 各行動の点数を観測＋性格から算出（確率も付与）
 // 段階3 多段知覚版: 粗（presence: 攻撃来た）と詳細（detail: 種類・target）を区別して使う。
@@ -634,6 +665,12 @@ function reservationSafe(o, nextMove) {
   const threatened = !!o.opponent.isAttacking && o.relative.inOppReach;
   return !threatened;
 }
+
+// -------------------- STRATEGY LAYER（型 / que 層）— 統括 --------------------
+// aiDecide は戦略層(Playbook)と反応層(scoreActions)を束ねる統括関数。優先順は
+//   ①予約(resQueue)消化 → ②Playbook(=コミット済みの手順/plan) → ③反応層フォールバック。
+// 現状 Playbook が全セルを埋めているため、実際には ② で必ず解決し ③（反応層）には到達しない。
+// （Playbook / frameResponse / resolvePlan の定義は後段、buildObs の後にある。）
 
 // aiDecide(s, key): AI 1体の意思決定。intent の供給源は AI(この関数) と manual(manualIntent) の2つだけ。
 //   Playbook は独立した供給源ではなく「AI に渡す方針データ」で、AI がそれを読んで1手を返す。
@@ -1084,6 +1121,12 @@ function isDone(s) {
          s.E.moveKey === null && s.E.qi >= s.E.queue.length;
 }
 
+// ==================== (F) RENDER / UI ====================
+// 画面描画層。状態スナップショット(frames[cur])を DOM 文字列へ変換するだけ（シムへ副作用なし）。
+// render 本体・actionLabel・renderScores・renderObs・charCard・技テーブル描画(buildMoveTable)など。
+// 注: この層の途中に (D) PERCEPTION 層（buildObs ほか）が同居している。描画と観測生成は別責務だが、
+//     ファイル上は近接しているだけで、移動はしていない（Step 0 はコメント整理のみ）。
+
 // ---- 描画 ----
 function render() {
   const s = frames[cur];
@@ -1194,6 +1237,12 @@ function actionLabel(ch) {
   if (isIdle(ch.moveKey)) return "待機";
   return ch.moveKey;
 }
+
+// ==================== (D) PERCEPTION ====================
+// AI に渡す観測(observation)の生成層。phaseRemain / canActNow / maxAttackReach / actOf と
+// 本体 buildObs。多段知覚（presenceLag=粗 / detailLag=詳細）で相手情報を遅延させ、
+// 予測モデル(updatePrediction とその helper、この層の後段に定義)で「敵の次」を分布として持つ。
+// 注: この層は描画(F)の手前に同居しているが、観測生成は数値計算であり描画とは別責務。
 
 // ===== 観測データ（AIに渡す情報）=====
 // 攻撃/ガードは今のフェーズの残りF、停止硬直は残りF。連続移動・待機は null。
@@ -1310,65 +1359,11 @@ function buildObs(s, prev, meK, oppK) {
   };
 }
 
-// ===== Step 1a: 技データベースの参照層（読み取り専用・副作用なし）=====
-// 点数計算（scoreActions）には未接続。定義を置くだけ。挙動は bit-identical。
-
-// 全 move key を列挙する薄い getter（MOVE_ORDER をそのまま返す）。
-function allMoveKeys() {
-  return MOVE_ORDER;
-}
-
-// moveData(key): 1 つの技の素のフレームデータを構造化して返す。未知 key は null。
-//   スタミナ実効値（effectivePhaseLen）は混ぜない＝技スペックの台帳。
-function moveData(key) {
-  const m = MOVES[key];
-  if (!m) return null;
-  return {
-    key,
-    kind: m.kind,
-    target: m.target || null,
-    startup: m.startup || 0,
-    active: m.active || 0,
-    recovery: m.recovery || 0,
-    reach: m.reach || 0,
-    damage: m.damage || 0,
-    hitstun: m.hitstun || 0,
-    blockstun: m.blockstun || 0,
-    chipRatio: m.chipRatio || 0,
-    staminaCost: m.staminaCost || 0,
-  };
-}
-
-// situation(obs): 既存 buildObs の戻り値から現況を1オブジェクトに集約。新規計算なし。
-//   opponent.* は ★detailLag 遅延の観測値をそのまま中継（知覚モデルを壊さない）。
-//   framesUntilActable は busyFrames の別名（行動可能=ガード可能で同一値）。
-function situation(obs) {
-  return {
-    self: {
-      state: obs.self.state,
-      phaseRemaining: obs.self.phaseRemaining,
-      framesUntilActable: obs.self.busyFrames,
-      guardTarget: obs.self.guardTarget,
-      attackTarget: obs.self.attackTarget,
-    },
-    opponent: {
-      state: obs.opponent.state,
-      phaseRemaining: obs.opponent.phaseRemaining,
-      framesUntilActable: obs.opponent.busyFrames,
-      isAttacking: obs.opponent.isAttacking,
-      isGuarding: obs.opponent.isGuarding,
-      guardTarget: obs.opponent.guardTarget,
-      attackTarget: obs.opponent.attackTarget,
-    },
-    between: {
-      distance: obs.relative.distance,
-      closing: obs.relative.closing,
-      inMyReach: obs.relative.inMyReach,
-      inOppReach: obs.relative.inOppReach,
-      frameAdvantage: obs.relative.frameAdvantage,
-    },
-  };
-}
+// -------------------- STRATEGY LAYER（型 / que 層）— 本体 --------------------
+// Playbook / frameResponse / resolvePlan = 先に決めた手順(plan)をコミットして消化する戦略層。
+// frameAdvantage × 間合いバンドで「取りたい手順」を引き、連続手は resQueue に予約して翻意を防ぐ。
+// 現状 Playbook が全セルを埋めているため、aiDecide はここで必ず解決し、反応層(scoreActions)へは
+// 到達しない（＝個性 ag/df 等は一旦効かず、戦略層が支配する）。
 
 // ===== Step 1b 土台: Playbook（フレーム有利/不利 × 間合い → 行動）=====
 // scoreActions には未接続＝挙動 bit-identical。器と引き口だけ用意し、中身(各セル)は未記入。
@@ -1384,7 +1379,7 @@ function situation(obs) {
 //   null セル = 未定（既定の scoreActions ロジックに委ねる）
 //
 // frameAdvantage = oppBusy - selfBusy（正=自分が先に動ける=有利, 負=不利）。遅延なし。
-//   = buildObs().relative.frameAdvantage = situation().between.frameAdvantage。
+//   = buildObs().relative.frameAdvantage。
 // 暫定方針（Step 1b 最初の記入・わかりやすさ優先）:
 //   +5..+1（有利）   : 距離3.0以内なら上下どちらかのジャブ（50/50）、射程外なら詰める（ステップイン）
 //    0..-5（五分〜不利）: 上ガード / 下ガード / ステップバック のいずれか（均等）
@@ -1802,6 +1797,10 @@ function readMoveTable() {
     if (!isNaN(v)) MOVES[k][f] = v;
   });
 }
+
+// ==================== (G) BOOTSTRAP ====================
+// 起動配線。ボタン/セレクトのイベント登録と、最後に buildMoveTable(); build(); で初回構築。
+// この 2 行が必ずスクリプト末尾に来る（verify.js / 初期描画の前提）。
 
 // ---- 起動 ----
 document.getElementById("playBtn").onclick = togglePlay;

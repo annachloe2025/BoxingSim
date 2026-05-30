@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>リファクタ Step 0 — コード整理（挙動不変・Identity PASS）</title>
+<style>
+  :root{ color-scheme: dark; }
+  *{box-sizing:border-box}
+  body{margin:0;background:#0e1116;color:#e6e9ef;
+    font-family:"Segoe UI","Yu Gothic UI",Meiryo,sans-serif;line-height:1.7;font-size:15px}
+  .wrap{max-width:880px;margin:0 auto;padding:30px 20px 70px}
+  h1{font-size:23px;margin:0 0 4px}
+  h2{font-size:18px;margin:34px 0 10px;padding-bottom:6px;border-bottom:1px solid #2a3344}
+  .sub{color:#9aa6b8;margin:0 0 6px}
+  .tag{display:inline-block;font-size:12px;color:#6b7686;border:1px solid #2a3344;border-radius:999px;padding:1px 10px;margin-right:6px}
+  code{background:#0b0e13;border:1px solid #2a3344;border-radius:4px;padding:1px 6px;font-family:Consolas,monospace;font-size:13px;color:#cdd6e4}
+  .ok{color:#3fb950;font-weight:700}
+  .panel{background:#161b22;border:1px solid #2a3344;border-radius:12px;padding:16px 20px;margin:12px 0}
+  .pass{background:rgba(63,185,80,.10);border:1px solid rgba(63,185,80,.4);border-radius:10px;padding:12px 16px;margin:14px 0}
+  ul{margin:6px 0;padding-left:20px} li{margin:5px 0}
+  .mut{color:#9aa6b8;font-size:14px}
+  .del{color:#f0a0a0}
+  footer{margin-top:40px;border-top:1px solid #2a3344;padding-top:14px;color:#6b7686;font-size:13px}
+  a{color:#9aa6b8}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>リファクタ Step 0 — コード整理</h1>
+  <p class="sub">案1 に入る前の「片付け」。<b>挙動は一切変えず</b>、読みやすさだけ上げる。</p>
+  <p><span class="tag">2026-05-30</span><span class="tag">挙動不変</span><span class="tag">Identity Check PASS</span></p>
+
+  <div class="pass">
+    <b class="ok">✅ Identity Check PASS</b> — <code>verify.js</code> の出力 MD5 が編集前後で<b>完全一致</b>：
+    <code>46967075cd72e1949417dc504fcb0a13</code>（独立に再検証済み）。＝シミュレーションの挙動は1ビットも変わっていない。
+  </div>
+
+  <h2>なぜやったか</h2>
+  <p>段階1〜5ぶんのコードが1ファイル（約1800行）に積み重なり、<b>判断の中核が二重化</b>していた（古い <code>scoreActions</code> が新しい <code>Playbook</code> に全面バイパスされて休眠）。案1（型/que層）を載せる前に、土台を読める状態に整える。</p>
+
+  <h2>やったこと（3つ）</h2>
+  <div class="panel">
+    <b>① 純粋な死にコードを削除</b>（呼び出しゼロを確認）
+    <ul><li class="del"><code>DECIDE_EVERY</code> / <code>allMoveKeys()</code> / <code>moveData()</code> / <code>situation()</code></li></ul>
+    <b>② セクションの見出し（バナー）を付与</b>
+    <ul>
+      <li>(A) 設定/データ ・ (B) 状態 ・ (C) シミュ(物理) ・ (D) 知覚 ・ (E) 判断 ・ (F) 描画 ・ (G) 起動</li>
+      <li class="mut">宣言の<b>物理的な並べ替えは見送り</b>（MD5 が変わるリスクのため）。現位置に目印だけ。ファイルはまだレイヤー交錯だが、どこが何の層かは一目で分かる。</li>
+    </ul>
+    <b>③ 判断層に役割ラベル</b>（コメントのみ）
+    <ul>
+      <li><b>反応層</b>＝<code>scoreActions</code> / <code>sampleAction</code> / <code>reservationSafe</code>（＝休眠中。案1で復活）</li>
+      <li><b>型/que層</b>＝<code>Playbook</code> / <code>frameResponse</code> / <code>resolvePlan</code> / <code>aiDecide</code></li>
+    </ul>
+  </div>
+
+  <h2>安全のしくみ</h2>
+  <p class="mut">各ステップ後に <code>verify.js</code> を回し、出力 MD5 が baseline と一致することを確認（1ビットでも挙動が変われば即検知）。<code>&lt;script&gt;</code> 単一・列頭宣言・イベント文字列・乱数順・ELEM stub 同期 などの制約を厳守。</p>
+
+  <h2>次（Step 1 = 案1）</h2>
+  <p>清潔になった土台の上で案1を実装：<b>型層は"型が効く時だけ"前に出し、それ以外は反応層(<code>scoreActions</code>)に戻す</b>。＝段階1〜5で作って休眠していた中身（性格・スタミナ・頭腹）が反応層として<b>復活</b>し、その上に型(que)層が乗る。ここは<b>意図的な挙動変更</b>なので、Identity Check ではなく新 baseline で観察する。予測モデルはコードを残しつつ案1では OFF（本質は案2の材料）。</p>
+
+  <footer>BoxingSim — リファクタ Step 0。計画と3案は <a href="2026-05-30-que-ai-proposals.html">戦略AI（que）の3つの設計案</a> を参照。</footer>
+</div>
+</body>
+</html>
